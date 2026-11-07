@@ -1096,7 +1096,8 @@ async function deliver(blob,name){
     await ask("Gespeichert ✓",`<p style="font-size:15px">Das Protokoll liegt in SharePoint:</p><p style="font-size:14px"><b>${esc(r.folder)}/</b><br>${esc(r.name)}</p>`,"Neues Protokoll").then(n=>{if(n){const t=S.type;S=blank();S.type=t;photos=[];save();init()}});
   }catch(e){
     if(e.status===401){toast("Firmen-Code falsch – bitte unter ⚙︎ prüfen");openSettings();return}
-    try{await outAdd(o);outBadge();await ask("Noch nicht hochgeladen",`<p style="font-size:15px">Keine Verbindung zum Server${navigator.onLine?" ("+esc(e.message)+")":""}. Das Protokoll ist auf dem Handy gespeichert und wird automatisch hochgeladen, sobald wieder Internet da ist.</p>`,"PDF zusätzlich teilen").then(x=>{if(x)saveLocal(blob,name)})}
+    const srv=!!e.status;
+    try{await outAdd(o);outBadge();await ask(srv?"Fehler beim Speichern in SharePoint":"Noch nicht hochgeladen",srv?`<p style="font-size:15px">Der Server meldet:</p><p style="font-size:14px;background:#fdecec;padding:8px;border-radius:8px">${esc(e.message)}</p><p style="font-size:14px">Das Protokoll ist auf dem Handy gesichert und wird später erneut gesendet. Bitte die Meldung an das Büro weitergeben.</p>`:`<p style="font-size:15px">Keine Verbindung zum Server${navigator.onLine?" ("+esc(e.message)+")":""}. Das Protokoll ist auf dem Handy gespeichert und wird automatisch hochgeladen, sobald wieder Internet da ist.</p>`,"PDF zusätzlich teilen").then(x=>{if(x)saveLocal(blob,name)})}
     catch(e2){toast("Upload fehlgeschlagen – PDF wird lokal gespeichert");saveLocal(blob,name)}
   }
 }
