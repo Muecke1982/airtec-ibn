@@ -787,11 +787,15 @@ function dxCalc(){
 }
 function renderDocs(){
   const box=$("#docLinks");if(!box)return;
-  const h=normKm(S.herst),kit=normKm(S.dx[0]?.kitTyp);
-  const L=(STAMM.docs||[]).filter(d=>normKm(d.h)===h&&(!d.kit||kit.includes(normKm(d.kit))));
+  const h=normKm(S.herst),kits=S.dx.map(a=>normKm(a.kitTyp)).filter(Boolean);
+  const D=STAMM.docs||[];
+  const hm=d=>{const x=normKm(d.h);return x&&h&&(x===h||x.startsWith(h)||h.startsWith(x))};
+  // passend zum Hersteller; Kit-Typ nur als Filter, wenn bei den Geräten schon ein Kit-Typ eingetragen ist
+  const L=D.filter(d=>hm(d)&&(!d.kit||!kits.length||kits.some(k=>k.includes(normKm(d.kit))||normKm(d.kit).includes(k))));
+  const known=[...new Set(D.map(d=>d.h))];
   box.innerHTML=!S.herst?"Hersteller oben eintragen, dann erscheinen hier die Unterlagen zum Kit.":
-    L.length?L.map(d=>`<a href="${esc(d.url)}" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:15px;color:var(--blue);font-weight:600">📄 ${esc(d.name||"Unterlagen "+d.h)}</a>`).join("")
-    :"Für "+esc(S.herst)+" ist noch kein Dokumentenlink hinterlegt (Stammdaten → Blatt „Dokumente“).";
+    L.length?L.map(d=>`<a href="${esc(d.url)}" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:15px;color:var(--blue);font-weight:600">📄 ${esc(d.name||("Unterlagen "+d.h+(d.kit?" "+d.kit:"")))}</a>`).join("")
+    :"Für „"+esc(S.herst)+"“ ist kein Dokumentenlink hinterlegt."+(known.length?" In den Stammdaten stehen Links für: "+known.map(esc).join(", ")+".":" In den geladenen Stammdaten sind gar keine Dokumentenlinks enthalten – Blatt „Dokumente“ prüfen und unter ⚙︎ Stammdaten neu laden.");
 }
 function facRows(){return (STAMM.nach||[]).filter(n=>DIMS.some(d=>!isNaN(num(n.f[d]))))}
 function renderFac(){
@@ -829,7 +833,17 @@ function parseWb(wb){
   const we=wb.Sheets["Einstellungen"];
   if(we){XLSX.utils.sheet_to_json(we,{header:1,defval:"",raw:false}).forEach(r=>{const k=String(r[0]).toLowerCase();const v=String(r[1]).trim();if((k.includes("upload")||k.includes("sharepoint"))&&/^https?:\/\//i.test(v))out.upload=v})}
   const wd=wb.Sheets["Dokumente"];
-  if(wd){out.docs=[];XLSX.utils.sheet_to_json(wd,{header:1,defval:"",raw:false}).slice(1).forEach(r=>{const h=String(r[0]).trim(),url=String(r[3]).trim();if(h&&url)out.docs.push({h,kit:String(r[1]).trim(),name:String(r[2]).trim(),url})})}
+  if(wd&&wd["!ref"]){out.docs=[];const R=XLSX.utils.decode_range(wd["!ref"]);
+    const cell=(r,c)=>wd[XLSX.utils.encode_cell({r,c})];
+    const txt=(r,c)=>{const x=cell(r,c);return x?String(x.w??x.v??"").trim():""};
+    for(let r=R.s.r+1;r<=R.e.r;r++){
+      const h=txt(r,0);if(!h)continue;
+      // Link: Hyperlink-Ziel einer Zelle oder Text, der mit http beginnt (egal in welcher Spalte)
+      let url="";for(let c=1;c<=Math.max(R.e.c,3)&&!url;c++){const x=cell(r,c);if(x&&x.l&&x.l.Target)url=x.l.Target;else if(/^https?:\/\//i.test(txt(r,c)))url=txt(r,c)}
+      if(!url)continue;
+      const kit=/^https?:/i.test(txt(r,1))?"":txt(r,1),name=/^https?:/i.test(txt(r,2))?"":txt(r,2);
+      out.docs.push({h,kit,name,url});
+    }}
   return out;
 }
 $("#stammIn").onchange=async e=>{
