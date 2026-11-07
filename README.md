@@ -9,15 +9,21 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 | Ordner | Inhalt |
 |---|---|
 | `app/` | Die App (eine HTML-Seite), Symbole, Offline-Speicher (`sw.js`) |
-| `api/` | Kleiner Dienst (Azure Functions): `upload` legt PDFs in SharePoint ab, `stamm` liefert die Stammdaten-Excel, `status` prüft die Einrichtung |
+| `functions/api/` + `lib/` | Hintergrunddienst für **Cloudflare Pages** (aktuell genutzt): `upload` legt PDFs in SharePoint ab, `stamm` liefert die Stammdaten-Excel, `status` prüft die Einrichtung |
+| `api/` | Derselbe Dienst als Alternative für **Azure Static Web Apps** |
 
-## Azure Static Web App – Build-Einstellungen
+## Cloudflare Pages – Einstellungen
+
+* Framework: *Keine* · Build-Befehl: *(leer)* · Build-Ausgabeverzeichnis: `app`
+* Umgebungsvariablen: siehe Tabelle unten (als „Secret“/verschlüsselt anlegen, mindestens `CLIENT_SECRET` und `APP_CODE`)
+
+## Azure Static Web App – Build-Einstellungen (Alternative)
 
 * App location: `app`
 * Api location: `api`
 * Output location: *(leer lassen)*
 
-## Umgebungsvariablen (Azure Portal → Static Web App → Einstellungen → Umgebungsvariablen)
+## Umgebungsvariablen
 
 | Name | Beispiel | Bedeutung |
 |---|---|---|
