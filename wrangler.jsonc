@@ -2,5 +2,7 @@
   "name": "airtec-ibn",
   "main": "worker/index.js",
   "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": { "directory": "./app", "binding": "ASSETS", "not_found_handling": "single-page-application" }
 }
