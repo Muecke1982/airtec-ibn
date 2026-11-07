@@ -17,6 +17,11 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 * Framework: *Keine* · Build-Befehl: *(leer)* · Build-Ausgabeverzeichnis: `app`
 * Umgebungsvariablen: siehe Tabelle unten (als „Secret“/verschlüsselt anlegen, mindestens `CLIENT_SECRET` und `APP_CODE`)
 
+## Cloudflare Workers – Einstellungen (Alternative zu Pages)
+
+* „Repository importieren“, Build-Befehl leer, Deploy-Befehl `npx wrangler deploy` (Standard) – die Einstellungen stehen in `wrangler.jsonc`
+* Umgebungsvariablen wie unten unter *Einstellungen → Variablen und Geheimnisse*
+
 ## Azure Static Web App – Build-Einstellungen (Alternative)
 
 * App location: `app`
