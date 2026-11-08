@@ -999,7 +999,7 @@ $("#mSettings").onclick=e=>{if(e.target.id==="mSettings"&&monteur?.name&&appCode
 /* ---------- Dialog ---------- */
 function ask(title,html,yes="Trotzdem"){return new Promise(r=>{$("#cTitle").textContent=title;$("#cBody").innerHTML=html;$("#cYes").textContent=yes;const m=$("#mConfirm");m.classList.add("show");$("#cYes").onclick=()=>{m.classList.remove("show");r(true)};$("#cNo").onclick=()=>{m.classList.remove("show");r(false)}})}
 
-$("#btnNew").onclick=async()=>{if(await ask("Neues Protokoll?","Alle Eingaben und Fotos dieses Protokolls werden gelöscht.","Löschen")){const t=S.type,d=S.doc;S=blank();S.type=t;S.doc=d;S.docOk=true;photos=[];save();init()}};
+$("#btnNew").onclick=async()=>{if(await ask("Neues Protokoll?","Alle Eingaben und Fotos dieses Protokolls werden gelöscht.","Löschen")){S=blank();pickDoc=null;photos=[];save();init();window.scrollTo(0,0)}};
 
 /* ---------- PDF ---------- */
 const dash=v=>(v==null||String(v).trim()==="")?"–":String(v).trim();
@@ -1188,7 +1188,7 @@ async function deliver(blob,name){
   try{
     toast("Wird in SharePoint gespeichert …");
     const r=await sendOne(o);
-    await ask("Gespeichert ✓",`<p style="font-size:15px">Das Protokoll liegt in SharePoint:</p><p style="font-size:14px"><b>${esc(r.folder)}/</b><br>${esc(r.name)}</p>`,"Neues Protokoll").then(n=>{if(n){const t=S.type,d=S.doc;S=blank();S.type=t;S.doc=d;S.docOk=true;photos=[];save();init()}});
+    await ask("Gespeichert ✓",`<p style="font-size:15px">Das Protokoll liegt in SharePoint:</p><p style="font-size:14px"><b>${esc(r.folder)}/</b><br>${esc(r.name)}</p>`,"Neues Protokoll").then(n=>{if(n){S=blank();pickDoc=null;photos=[];save();init();window.scrollTo(0,0)}});
   }catch(e){
     if(e.status===401){toast("Firmen-Code falsch – bitte unter ⚙︎ prüfen");openSettings();return}
     const srv=!!e.status;
