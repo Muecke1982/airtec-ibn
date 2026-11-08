@@ -109,6 +109,17 @@ input[readonly]:not(.pick input){background:#f4f6f8;color:#4b5563}
 .sigpad canvas{display:block;width:100%;height:150px;touch-action:none}
 .sigpad button{position:absolute;right:6px;top:6px;border:0;background:#eef1f4;border-radius:8px;padding:5px 9px;font:inherit;font-size:13px}
 .sigpad.empty:after{content:"Hier mit dem Finger unterschreiben";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:#b8c2cc;font-size:14px;pointer-events:none}
+.docsel{display:flex;flex-direction:column;gap:10px}
+.docsel button{text-align:left;border:2px solid var(--line);background:#fff;border-radius:12px;padding:14px;font:inherit}
+.docsel button b{display:block;font-size:17px}
+.docsel button small{display:block;color:var(--mut);font-size:13px;margin-top:3px}
+.docsel button.on{border-color:var(--blue);background:#e8f6fc}
+.bigbtn{width:100%;margin-top:14px;border:0;border-radius:12px;padding:15px;font:inherit;font-weight:700;font-size:17px}
+.bigbtn:disabled{opacity:.4}
+.docbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px}
+.docbar small{display:block;color:var(--mut);font-size:12px}
+.docbar b{font-size:16px}
+.docbar button{border:1px solid var(--blue);color:var(--blue);background:#fff;border-radius:10px;padding:8px 12px;font:inherit;font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{border:1px solid #cfd5dc;background:#fff;border-radius:18px;padding:7px 12px;font:inherit;font-size:14px;color:var(--ink)}
 .chips button.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
@@ -125,12 +136,17 @@ input[readonly]:not(.pick input){background:#f4f6f8;color:#4b5563}
 </header>
 
 <main id="app">
-  <section class="card">
-    <h2>Dokument</h2>
-    <div class="typesel" id="docSel">
-      <button data-doc="ibn">Inbetriebnahme&shy;protokoll</button>
-      <button data-doc="abn">Abnahme&shy;protokoll</button>
+  <section class="card hide" id="docCard">
+    <h2>Welches Dokument möchtest du erstellen?</h2>
+    <div class="docsel" id="docSel">
+      <button data-doc="ibn"><b>Inbetriebnahmeprotokoll</b><small>Split, Multisplit, VRF, Direktverdampfer, Kaltwassersatz, Wärmepumpe, Klimaschrank</small></button>
+      <button data-doc="abn"><b>Abnahmeprotokoll</b><small>Abnahme mit Unterschrift von Auftraggeber und Airtec</small></button>
     </div>
+    <button class="primary bigbtn" id="docGo" disabled>Weiter</button>
+  </section>
+  <section class="card docbar hide" id="docBar">
+    <div><small>Dokument</small><b id="docName"></b></div>
+    <button id="docChange">Wechseln</button>
   </section>
   <section class="card hide" id="typeCard">
     <h2>Anlagenart</h2>
@@ -412,7 +428,7 @@ const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth
 function blank(){return {doc:null,a:{gewerk:"Kältetechnik"},abn_datum:"",dx:[{agTyp:"",sn:"",kitTyp:"",kitSn:"",dim:"",len:"",vor:""}],facSrc:"",type:null,datum:"",chk:{},ag:[{typ:"",sn:"",adr:""}],ig:[{m:"",sn:"",adr:"",padr:""}],sig:[{h:"",m:"",sn:""}],sag:[{h:"",m:"",sn:""}],len:{},fak:{},rest:""}}
 let S=Object.assign(blank(),store.get("ibn_draft")||{});
 if(!Array.isArray(S.dx)||!S.dx.length)S.dx=[{agTyp:"",sn:"",kitTyp:"",kitSn:"",dim:"",len:"",vor:""}];
-if(!S.doc&&S.type)S.doc="ibn";S.a=S.a||{gewerk:"Kältetechnik"};
+if(!S.doc&&S.type)S.doc="ibn";if(S.doc&&S.docOk===undefined)S.docOk=true;S.a=S.a||{gewerk:"Kältetechnik"};
 S.ag=(S.ag||[]).map(a=>Object.assign({adr:""},a));S.ig=(S.ig||[]).map(a=>Object.assign({padr:""},a));
 if(!Array.isArray(S.sig)||!S.sig.length)S.sig=[{h:"",m:"",sn:""}];if(!Array.isArray(S.sag)||!S.sag.length)S.sag=[{h:"",m:"",sn:""}];S.sig=S.sig.slice(0,1);S.sag=S.sag.slice(0,1);S.sag[0].h=S.sig[0].h||"";
 let photos=[];
@@ -436,10 +452,17 @@ const TYPES={
 const fam=()=>TYPES[S.type]?.fam||null;
 const chkOn=c=>!["kws","wp"].includes(fam())&&(!c[2]||c[2].split(" ").includes(fam()));
 function setType(t){S.type=t;save();applyType()}
-function setDoc(d){S.doc=d;save();bindInputs();applyType()}
+const DOCS={ibn:"Inbetriebnahmeprotokoll",abn:"Abnahmeprotokoll"};
+let pickDoc=null;
+function setDoc(d){S.doc=d;S.docOk=true;save();bindInputs();applyType();window.scrollTo(0,0)}
 function applyType(){
-  const ibn=S.doc==="ibn",abn=S.doc==="abn";
-  $$("#docSel button").forEach(b=>b.classList.toggle("on",b.dataset.doc===S.doc));
+  const ok=!!(S.docOk&&S.doc);
+  $("#docCard").classList.toggle("hide",ok);
+  $("#docBar").classList.toggle("hide",!ok);
+  $(".bar").classList.toggle("hide",!ok);
+  if(ok)$("#docName").textContent=DOCS[S.doc];
+  else{pickDoc=pickDoc||S.doc;$$("#docSel button").forEach(b=>b.classList.toggle("on",b.dataset.doc===pickDoc));$("#docGo").disabled=!pickDoc}
+  const ibn=ok&&S.doc==="ibn",abn=ok&&S.doc==="abn";
   $$("#typeSel button").forEach(b=>b.classList.toggle("on",b.dataset.type===S.type));
   const f=ibn?fam():null;
   $("#typeCard").classList.toggle("hide",!ibn);
@@ -449,7 +472,7 @@ function applyType(){
   $("#abnForm").classList.toggle("hide",!abn);
   $("#commonBottom").classList.toggle("hide",!(abn||f));
   $$("[data-show]").forEach(e=>e.classList.toggle("hide",!e.dataset.show.split(" ").includes(f)));
-  $("#hdrType").textContent=abn?"Abnahmeprotokoll":!ibn?"Dokument wählen":S.type?TYPES[S.type].label:"Anlagenart wählen";
+  $("#hdrType").textContent=!ok?"Dokument wählen":abn?"Abnahmeprotokoll":S.type?TYPES[S.type].label:"Anlagenart wählen";
   if(abn)renderAbn();
   $("#ksBox").classList.toggle("hide",S.type!=="server");
   renderChecks();
@@ -976,7 +999,7 @@ $("#mSettings").onclick=e=>{if(e.target.id==="mSettings"&&monteur?.name&&appCode
 /* ---------- Dialog ---------- */
 function ask(title,html,yes="Trotzdem"){return new Promise(r=>{$("#cTitle").textContent=title;$("#cBody").innerHTML=html;$("#cYes").textContent=yes;const m=$("#mConfirm");m.classList.add("show");$("#cYes").onclick=()=>{m.classList.remove("show");r(true)};$("#cNo").onclick=()=>{m.classList.remove("show");r(false)}})}
 
-$("#btnNew").onclick=async()=>{if(await ask("Neues Protokoll?","Alle Eingaben und Fotos dieses Protokolls werden gelöscht.","Löschen")){const t=S.type,d=S.doc;S=blank();S.type=t;S.doc=d;photos=[];save();init()}};
+$("#btnNew").onclick=async()=>{if(await ask("Neues Protokoll?","Alle Eingaben und Fotos dieses Protokolls werden gelöscht.","Löschen")){const t=S.type,d=S.doc;S=blank();S.type=t;S.doc=d;S.docOk=true;photos=[];save();init()}};
 
 /* ---------- PDF ---------- */
 const dash=v=>(v==null||String(v).trim()==="")?"–":String(v).trim();
@@ -1165,7 +1188,7 @@ async function deliver(blob,name){
   try{
     toast("Wird in SharePoint gespeichert …");
     const r=await sendOne(o);
-    await ask("Gespeichert ✓",`<p style="font-size:15px">Das Protokoll liegt in SharePoint:</p><p style="font-size:14px"><b>${esc(r.folder)}/</b><br>${esc(r.name)}</p>`,"Neues Protokoll").then(n=>{if(n){const t=S.type,d=S.doc;S=blank();S.type=t;S.doc=d;photos=[];save();init()}});
+    await ask("Gespeichert ✓",`<p style="font-size:15px">Das Protokoll liegt in SharePoint:</p><p style="font-size:14px"><b>${esc(r.folder)}/</b><br>${esc(r.name)}</p>`,"Neues Protokoll").then(n=>{if(n){const t=S.type,d=S.doc;S=blank();S.type=t;S.doc=d;S.docOk=true;photos=[];save();init()}});
   }catch(e){
     if(e.status===401){toast("Firmen-Code falsch – bitte unter ⚙︎ prüfen");openSettings();return}
     const srv=!!e.status;
@@ -1263,7 +1286,9 @@ function abnBody(doc,T,sec,M,W,getY,setY){
 function init(){
   $("#typeSel").innerHTML=["split","multisplit","vrf","dx","kws","wp","server"].map(k=>`<button data-type="${k}">${TYPES[k].label}</button>`).join("");
   $$("#typeSel button").forEach(b=>b.onclick=()=>setType(b.dataset.type));
-  $$("#docSel button").forEach(b=>b.onclick=()=>setDoc(b.dataset.doc));
+  $$("#docSel button").forEach(b=>b.onclick=()=>{pickDoc=b.dataset.doc;applyType()});
+  $("#docGo").onclick=()=>{if(pickDoc)setDoc(pickDoc)};
+  $("#docChange").onclick=()=>{pickDoc=S.doc;S.docOk=false;save();applyType();window.scrollTo(0,0)};
   bindInputs();["sig","sag","ag","ig","dx"].forEach(renderList);renderDxKm();renderKws();renderWp();renderCalc();renderFac();gwpCalc();enhance(document);renderDocs();renderPhotos();applyType();showWho();
 }
 ["ag","ig","dx"].forEach(k=>{$({ag:"#addAg",ig:"#addIg",dx:"#addDx"}[k]).onclick=()=>addDev(k)});
