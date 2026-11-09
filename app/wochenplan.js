@@ -105,7 +105,7 @@
   const $ = s => root.querySelector(s);
   let cur = ls.get("wp_day_session") === todayIso() ? (ls.get("wp_day") || todayIso()) : todayIso();
   const me = () => (AT.user && (AT.user.plan || AT.user.name)) || "";
-  const myCol = data => (data.spalten || []).find(n => norm(n) === norm(me())) || "";
+  const myCol = data => data.ich || (data.spalten || []).find(n => norm(n) === norm(me())) || "";
 
   function greet() {
     const h = new Date().getHours();
