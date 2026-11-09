@@ -1,4 +1,4 @@
-/* Airtec App – Hinweise auf der Startseite (unter der Begrüßung):
+/* Airtec App – Startseite: Begrüßung mit dem heutigen Einsatz und darunter die Hinweise:
    • Maschinen: zu lange ausgeliehen (Monteur) / überfällig verliehen (Büro)
    • Büro-Hinweise an einzelne Monteure oder alle – zum Abhaken
    • Büro: neuen Hinweis schreiben (auch am PC im Browser) und sehen, wer abgehakt hat */
@@ -14,10 +14,28 @@
   const toast2 = t => { if (typeof toast === "function") toast(t); };
   const office = () => !!(AT.user && AT.user.schreiben);
 
-  const root = document.getElementById("wpView");
-  const box = document.createElement("div");
-  box.id = "hiBox";
-  root.querySelector(".wphello").after(box);
+  const root = document.getElementById("stView");
+  root.innerHTML = `<section class="card sthello"><div class="hi" id="stHi"></div><div class="me" id="stMe"></div>
+      <button class="mehint" id="stToPlan">Wochenplan ansehen →</button></section>
+    <div id="hiBox"></div>
+    <section class="card stmsg hide" id="stMsg">
+      <button class="add" id="stMsgBtn" style="margin:0">✉️ Hinweis ans Büro</button>
+      <div id="stMsgForm" class="hide"><textarea id="stMsgText" rows="3" placeholder="z. B. Brauche neue Arbeitshandschuhe / Firmenwagen hat eine Warnleuchte …"></textarea>
+        <button class="bigbtn primary" id="stMsgSend" style="margin-top:10px">An das Büro senden</button></div>
+      <div id="stSent"></div>
+    </section>`;
+  const box = root.querySelector("#hiBox");
+  let msgOpen = false;
+
+  async function hello() {
+    const W = AT.wp;
+    root.querySelector("#stHi").textContent = W.greet();
+    try {
+      const t = W.todayIso(), d = await W.week(t);
+      const txt = W.sentence(d, t);
+      root.querySelector("#stMe").innerHTML = txt || (office() ? "Schönen Tag im Büro!" : "");
+    } catch (e) { root.querySelector("#stMe").textContent = navigator.onLine ? "" : "Offline – Wochenplan nicht geladen."; }
+  }
 
   let hin = ls.get("hi_cache"), ma = ls.get("ma_cache"), busy = false, formOpen = false, listOpen = false;
 
@@ -47,7 +65,7 @@
     }
     // Büro-Hinweise an mich
     for (const h of (hin && hin.meine) || [])
-      items.push(`<section class="card hicard hibuero"><div class="hihead">📌 Hinweis vom Büro${h.von ? " · " + esc(h.von.split(" ")[0]) : ""}${h.erstellt ? " · " + esc(short(h.erstellt).slice(0, 6)) : ""}</div>
+      items.push(`<section class="card hicard ${h.buero ? "hiin" : "hibuero"}"><div class="hihead">${h.buero ? "✉️ Nachricht von " + esc(h.von || "Monteur") : "📌 Hinweis vom Büro" + (h.von ? " · " + esc(h.von.split(" ")[0]) : "")}${h.erstellt ? " · " + esc(short(h.erstellt).slice(0, 6)) : ""}</div>
         <div class="hitext">${esc(h.text)}</div>
         <button class="hidone" data-done="${esc(h.id)}">Erledigt ✓</button></section>`);
     // Büro: Hinweis schreiben + Übersicht
@@ -74,6 +92,13 @@
       </section>`;
     }
     box.innerHTML = items.join("") + ofc;
+    // Monteure: Hinweis ans Büro + Status der eigenen Nachrichten
+    const msg = root.querySelector("#stMsg");
+    msg.classList.toggle("hide", office());
+    root.querySelector("#stMsgForm").classList.toggle("hide", !msgOpen);
+    const sent = (hin && hin.gesendet) || [];
+    root.querySelector("#stSent").innerHTML = sent.length ? `<div class="stsent">${sent.slice(0, 5).map(x =>
+      `<div>${x.done.length ? "✓" : "⏳"} „${esc(x.text.length > 50 ? x.text.slice(0, 50) + "…" : x.text)}“ – ${x.done.length ? "erledigt von " + esc(x.done[0].wer.split(" ")[0]) : "noch offen"}</div>`).join("")}</div>` : "";
     if (office()) fillNames();
     bind();
   }
@@ -106,6 +131,17 @@
       catch (e) { toast2(e.message); }
       busy = false; setTimeout(paint, 250);
     });
+    const R = s => root.querySelector(s);
+    R("#stToPlan").onclick = () => AT.tab("wochenplan");
+    R("#stMsgBtn").onclick = () => { msgOpen = !msgOpen; paint(); if (msgOpen) setTimeout(() => R("#stMsgText").focus(), 50); };
+    R("#stMsgSend").onclick = async () => {
+      const text = R("#stMsgText").value.trim();
+      if (!text) { R("#stMsgText").focus(); return; }
+      R("#stMsgSend").disabled = true; R("#stMsgSend").textContent = "Wird gesendet …";
+      try { hin = await post("hinweise", { aktion: "neu", an: "Büro", text }); ls.set("hi_cache", hin); msgOpen = false; toast2("An das Büro gesendet ✓"); }
+      catch (e) { toast2(e.message); R("#stMsgSend").disabled = false; R("#stMsgSend").textContent = "An das Büro senden"; return; }
+      paint();
+    };
     const $ = s => box.querySelector(s);
     if (!$("#hiNew")) return;
     $("#hiNew").onclick = () => { formOpen = !formOpen; listOpen = false; paint(); if (formOpen) setTimeout(() => $("#hiText") && $("#hiText").focus(), 50); };
@@ -129,11 +165,8 @@
   }
 
   // bei jedem Öffnen der Startseite aktualisieren
-  const prev = AT.modules.wochenplan.show;
-  AT.modules.wochenplan.show = function () {
-    const r = prev.apply(this, arguments);
-    paint();
-    if (navigator.onLine) load();
-    return r;
-  };
+  AT.modules.start = { show() { paint(); hello(); if (navigator.onLine) load(); } };
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && !root.classList.contains("hide")) AT.modules.start.show();
+  });
 })();

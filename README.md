@@ -8,7 +8,7 @@ Module (getrennt gebaut, nur über Anmeldung und Monteurliste verbunden):
 | Wochenplan | `app/wochenplan.js`, `lib/wochenplan.js`, `lib/google.js`, `functions/api/wochenplan.js` | Liest die Google-Tabelle (ein Blatt je KW) |
 | Protokolle | `app/index.html`, `functions/api/upload.js`, `stamm.js` | Inbetriebnahme- und Abnahmeprotokolle |
 | Krankmeldung (Büro) | `app/krank.js`, `functions/api/plan.js` | Tagesbrett: krank melden, Teams per Antippen neu einteilen, Baustellen streichen |
-| Startseite / Hinweise | `app/hinweise.js`, `lib/hinweise.js`, `functions/api/hinweise.js` | Begrüßung, Maschinen-Hinweise, Büro-Hinweise zum Abhaken (Airtec_Hinweise.xlsx) |
+| Start (Begrüßung + Hinweise, Hinweis ans Büro) | `app/hinweise.js`, `lib/hinweise.js`, `functions/api/hinweise.js` | Begrüßung, Maschinen-Hinweise, Büro-Hinweise zum Abhaken (Airtec_Hinweise.xlsx) |
 | Maschinen | `app/maschinen.js`, `lib/maschinen.js`, `lib/xlsx.js`, `functions/api/maschinen.js` | Ausleihe mit einem Tipp, Protokoll in der Excel |
 | Lager | `app/lager.js` | Platzhalter |
 

@@ -90,7 +90,7 @@
   /* ---------- Ansicht ---------- */
   const root = document.getElementById("wpView");
   root.innerHTML = `
-    <section class="card wphello"><div class="hi" id="wpHi"></div><div class="me" id="wpMe"></div></section>
+    <section class="card wphello wpday1"><div class="me" id="wpMe"></div></section>
     <div class="wpnav">
       <button id="wpPrev" aria-label="Tag zurück">‹</button>
       <label class="wpday"><b id="wpDayT"></b><small id="wpDayS"></small><input type="date" id="wpDate"></label>
@@ -123,7 +123,8 @@
   function greet() {
     const h = new Date().getHours();
     const first = (AT.user && (AT.user.plan || AT.user.name) || "").split(" ")[0];
-    $("#wpHi").textContent = (h < 11 ? "Guten Morgen" : h < 18 ? "Hallo" : "Guten Abend") + (first ? ", " + first : "") + "!";
+    AT.greeting = (h < 11 ? "Guten Morgen" : h < 18 ? "Hallo" : "Guten Abend") + (first ? ", " + first : "") + "!";
+    return AT.greeting;
   }
 
   function sentence(data, s) {
@@ -155,7 +156,7 @@
       return;
     }
     const txt = sentence(data, s);
-    $("#wpMe").innerHTML = txt; $("#wpMe").classList.toggle("hide", !txt);
+    $("#wpMe").innerHTML = txt; $(".wpday1").classList.toggle("hide", !txt);
     const T = teams(data, s);
     if (!T.hat) { $("#wpTeams").innerHTML = '<div class="hint">An diesem Tag steht nichts in der Tabelle.</div>'; return; }
     const mine = myCol(data);
@@ -272,6 +273,7 @@
 
   // Hilfsfunktionen für andere Module (z. B. Planung/Krankmeldung)
   AT.wp = {
+    sentence, greet, myCol,
     week, teams, partnerOf, absence, norm, addDays, wd, dShort, WT, todayIso, dayOf, isoWeek, esc, names,
     get cur() { return cur; },
     forget(s) { delete cache[wkKey(s)]; },
