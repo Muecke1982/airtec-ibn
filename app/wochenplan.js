@@ -101,6 +101,19 @@
     <section class="card"><h2>Wo ist dein Kollege?</h2>
       <div class="row"><div><label>Kollege</label><select id="wpWho"></select></div><div><label>Datum</label><input type="date" id="wpWhoDate"></div></div>
       <div id="wpWhoRes" class="wpres"></div>
+    </section>
+    <section class="card"><h2>Wochenansicht</h2>
+      <button class="add" id="wkOpen" style="margin-top:0">Wochenansicht anzeigen</button>
+      <div id="wkBox" class="hide">
+        <div class="wpnav wknav">
+          <button id="wkPrev" aria-label="Woche zurück">‹</button>
+          <div class="wpday"><b id="wkT"></b><small id="wkS"></small></div>
+          <button id="wkNext" aria-label="Woche vor">›</button>
+        </div>
+        <label>Person</label><select id="wkWho"></select>
+        <ul class="wplist wkweek" id="wkList"></ul>
+        <button class="add" id="wkClose" style="border-color:#cfd5dc;color:var(--mut)">Wochenansicht schließen</button>
+      </div>
     </section>`;
   const $ = s => root.querySelector(s);
   let cur = ls.get("wp_day_session") === todayIso() ? (ls.get("wp_day") || todayIso()) : todayIso();
@@ -215,11 +228,46 @@
   let sx = null;
   root.addEventListener("touchstart", e => { sx = e.touches.length === 1 ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, { passive: true });
   root.addEventListener("touchend", e => {
-    if (!sx || e.target.closest("select,input")) return;
+    if (!sx || e.target.closest("select,input,#wkBox")) return;
     const dx = e.changedTouches[0].clientX - sx[0], dy = e.changedTouches[0].clientY - sx[1];
     if (Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
     sx = null;
   });
+
+  /* ---------- Wochenansicht ---------- */
+  const monOf = s => addDays(s, -wd(s));
+  let wkMon = monOf(todayIso());
+  async function paintWeek() {
+    const box = $("#wkList"), mon = wkMon;
+    const w = isoWeek(mon);
+    $("#wkT").textContent = "KW " + w.week;
+    $("#wkS").textContent = (monOf(todayIso()) === mon ? "diese Woche · " : "") + dShort(mon) + " – " + dShort(addDays(mon, 4)) + w.year;
+    box.innerHTML = '<li class="open" style="background:#f4f6f8"><span>Wird geladen …</span></li>';
+    let data;
+    try { data = await week(mon); } catch (e) { if (wkMon === mon) box.innerHTML = `<li class="open"><b>${esc(e.message)}</b></li>`; return; }
+    if (wkMon !== mon) return;
+    const sel = $("#wkWho"), own = myCol(data);
+    const keep = sel.value || own;
+    const opts = (data.spalten || []).map(n => `<option value="${esc(n)}" ${n === keep ? "selected" : ""}>${esc(n)}${n === own ? " (ich)" : ""}</option>`).join("");
+    sel.innerHTML = (keep && !(data.spalten || []).includes(keep) ? `<option selected>${esc(keep)}</option>` : (keep ? "" : '<option value="">– Person wählen –</option>')) + opts;
+    const who = sel.value;
+    if (data.fehlt) { box.innerHTML = `<li class="open"><b>Für KW ${data.kw} gibt es noch kein Blatt.</b></li>`; return; }
+    if (!who) { box.innerHTML = ""; return; }
+    box.innerHTML = [0, 1, 2, 3, 4].map(i => {
+      const s = addDays(mon, i), p = partnerOf(data, s, who);
+      const head = `<i>${WT[i].slice(0, 2)}, ${dShort(s)}</i>`;
+      const today = s === todayIso() ? " today" : "";
+      if (!p || !p.ort) return `<li class="open${today}">${head}<b>nicht eingeplant</b></li>`;
+      if (p.abs) return `<li class="abs${today}">${head}<b>${esc(p.ort)}</b></li>`;
+      return `<li class="${today}">${head}<b>${esc(p.ort)}</b><span>${p.mit.length ? "mit " + esc(names(p.mit)) : "allein"}</span></li>`;
+    }).join("");
+  }
+  $("#wkOpen").onclick = () => { $("#wkBox").classList.remove("hide"); $("#wkOpen").classList.add("hide"); ls.set("wp_week_open", true); wkMon = monOf(cur); paintWeek(); };
+  $("#wkClose").onclick = () => { $("#wkBox").classList.add("hide"); $("#wkOpen").classList.remove("hide"); ls.set("wp_week_open", false); };
+  $("#wkPrev").onclick = () => { wkMon = addDays(wkMon, -7); paintWeek(); };
+  $("#wkNext").onclick = () => { wkMon = addDays(wkMon, 7); paintWeek(); };
+  $("#wkWho").onchange = paintWeek;
+  if (ls.get("wp_week_open")) { $("#wkBox").classList.remove("hide"); $("#wkOpen").classList.add("hide"); }
 
   let shownDay = "";
   AT.modules.wochenplan = {
@@ -227,6 +275,7 @@
       // Nach Mitternacht oder neuem Öffnen wieder auf heute springen
       if (shownDay !== todayIso()) { shownDay = todayIso(); cur = ls.get("wp_day_session") === todayIso() ? cur : todayIso(); }
       go(cur);
+      if (!$("#wkBox").classList.contains("hide")) paintWeek();
     },
   };
   document.addEventListener("visibilitychange", () => {
