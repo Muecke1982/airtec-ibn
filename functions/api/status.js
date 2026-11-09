@@ -1,6 +1,7 @@
 import { auth } from "../../lib/auth.js";
 import { users, zugangPath } from "../../lib/auth.js";
-import { sheets, saEmail } from "../../lib/google.js";
+import { sheets, sheetValues, saEmail } from "../../lib/google.js";
+import { isoWeek, mondayOf, findSheet, parseWeek } from "../../lib/wochenplan.js";
 import { cfg, drive, download, upload, json } from "../../lib/graph.js";
 
 // Einrichtungs-Test: /api/status?code=FIRMENCODE
@@ -21,6 +22,21 @@ export async function onRequestGet({ request, env }) {
   try {
     const s = await sheets(env);
     out.wochenplan = `OK – ${s.length} Blätter in der Google-Tabelle`;
+    out.blaetter = s.slice(0, 8).map(x => x.title).join(" | ") + (s.length > 8 ? " | …" : "");
+    const { year, week } = isoWeek(new Date());
+    const sh = findSheet(s, year, week);
+    out.diese_woche = sh ? `KW ${week} → Blatt „${sh.title}“` : `KW ${week}: kein passendes Blatt gefunden`;
+    if (sh) {
+      const rows = await sheetValues(env, sh);
+      out.blatt_anfang = rows.slice(0, 6).map(r => r.slice(0, 8).join(" ¦ ")).join("  //  ");
+      try {
+        const known = (await users(env)).map(u => u.plan);
+        const p = parseWeek(rows, known, mondayOf(year, week));
+        out.spalten = p.spalten.join(", ");
+        out.tage = p.tage.map(t => t.datum + ": " + Object.keys(t.e).length + " Einträge").join(", ");
+        out.nicht_gefunden = known.filter(n => !p.spalten.some(x => x.trim().toLowerCase() === n.trim().toLowerCase())).join(", ");
+      } catch (e) { out.auslesen = "FEHLER: " + e.message; }
+    }
   } catch (e) {
     let who = ""; try { who = " – Dienstkonto: " + saEmail(env); } catch {}
     out.wochenplan = "FEHLER: " + e.message + who;
