@@ -85,4 +85,7 @@ Vorlage: `vorlagen/Airtec_Maschinen.xlsx` → liegt neben den Stammdaten (andere
 * Blatt „Maschinen“ pflegt das Büro (Nr, Maschine, Hersteller/Typ, Seriennummer, Kategorie, Bemerkung).
 * Blatt „Protokoll“ schreibt die App: je Maschine die letzten 10 Ausleihen; Zeile ohne „Zurückgelegt“ = unterwegs.
 * Nach `MASCHINEN_TAGE` (Standard 10) Tagen fragt die App den Monteur beim Öffnen, ob er die Maschine noch hat.
+* „Maschine verleihen“: an Externe (Vorschläge aus Blatt „Verleih“), mit Ansprechpartner und Dauer → Spalte „Rückgabe bis“.
+  Danach erinnert die App das Büro, alle … Tage erneut (Blatt „Verleih“, Spalte B, Standard 3), bis die Rückgabe eingetragen ist.
+  Fehlen Blatt oder Spalten in einer älteren Datei, ergänzt die App sie beim nächsten Speichern.
 * Gespeichert wird nur, wenn die Datei seit dem Laden unverändert ist (eTag) – sonst wird neu geladen und wiederholt.

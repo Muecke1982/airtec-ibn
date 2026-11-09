@@ -14,7 +14,7 @@ export async function onRequestGet({ request, env }) {
   }
 }
 
-// POST { aktion: "nehmen" | "zurueck" | "uebernehmen" | "bestaetigen", id }
+// POST { aktion: "nehmen" | "zurueck" | "uebernehmen" | "bestaetigen" | "verleihen" | "erinnern", id, an?, kontakt?, tage? }
 export async function onRequestPost({ request, env }) {
   try {
     const me = await auth(env, request);
@@ -22,7 +22,7 @@ export async function onRequestPost({ request, env }) {
     if (!me.name) return json(403, { error: "Bitte mit Namen und Passwort anmelden" });
     const b = await request.json().catch(() => ({}));
     if (!b.id || !b.aktion) return json(400, { error: "Angaben fehlen" });
-    return json(200, await act(env, me, b.aktion, String(b.id)));
+    return json(200, await act(env, me, b.aktion, String(b.id), b));
   } catch (e) {
     console.error(e);
     return json(e.status && e.status < 500 ? e.status : 500, { error: e.message });
