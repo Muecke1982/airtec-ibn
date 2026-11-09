@@ -249,9 +249,7 @@
       const due = (d.maschinen || []).some(m => (isMine(m) && m.aus.faellig) || (office() && m.aus && m.aus.extern && m.aus.erinnern));
       const t = document.querySelector('#tabs button[data-tab="maschinen"]');
       if (t) t.classList.toggle("dot", due);
-      if (due) toast2(office() && (d.maschinen || []).some(m => m.aus && m.aus.extern && m.aus.erinnern)
-        ? "⏰ Eine verliehene Maschine ist überfällig → Reiter Maschinen"
-        : "Bitte kurz bestätigen: Hast du deine Maschine noch? → Reiter Maschinen");
+      // Hinweis erscheint auf der Startseite – hier nur der rote Punkt am Reiter
       paint();
     } catch (e) {}
   };
