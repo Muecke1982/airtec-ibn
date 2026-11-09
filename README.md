@@ -7,6 +7,8 @@ Module (getrennt gebaut, nur über Anmeldung und Monteurliste verbunden):
 | Anmeldung | `app/login.js`, `lib/auth.js`, `functions/api/login.js` | Name + Passwort für die ganze App, Zugangsliste in SharePoint |
 | Wochenplan | `app/wochenplan.js`, `lib/wochenplan.js`, `lib/google.js`, `functions/api/wochenplan.js` | Liest die Google-Tabelle (ein Blatt je KW) |
 | Protokolle | `app/index.html`, `functions/api/upload.js`, `stamm.js` | Inbetriebnahme- und Abnahmeprotokolle |
+| Maschinen | `app/maschinen.js`, `lib/maschinen.js`, `lib/xlsx.js`, `functions/api/maschinen.js` | Ausleihe mit einem Tipp, Protokoll in der Excel |
+| Lager | `app/lager.js` | Platzhalter |
 
 Web-App für Inbetriebnahmeprotokolle (Split, Multisplit, VRF, Direktverdampfer, Kaltwassersatz, Wärmepumpe, Klimaschrank).
 Die Monteure füllen das Protokoll auf dem Handy aus, die App erzeugt ein PDF und legt es automatisch in SharePoint ab.
@@ -76,3 +78,11 @@ Die Datei liest nur der Server (über Microsoft Graph), sie wird nie aufs Handy 
 * Wochentage (Mo/Montag …) in einer der ersten drei Spalten, Monteurnamen als Überschriften darüber.
 * Gleicher Eintrag am gleichen Tag = ein Team. Urlaub, Schule, HBZ, krank werden als Abwesenheit erkannt.
 * Die Tabelle wird mit der E-Mail-Adresse des Dienstkontos geteilt (Betrachter reicht für das Lesen).
+
+## Maschinen
+
+Vorlage: `vorlagen/Airtec_Maschinen.xlsx` → liegt neben den Stammdaten (anderer Ort: `SP_MASCHINEN_PATH`).
+* Blatt „Maschinen“ pflegt das Büro (Nr, Maschine, Hersteller/Typ, Seriennummer, Kategorie, Bemerkung).
+* Blatt „Protokoll“ schreibt die App: je Maschine die letzten 10 Ausleihen; Zeile ohne „Zurückgelegt“ = unterwegs.
+* Nach `MASCHINEN_TAGE` (Standard 10) Tagen fragt die App den Monteur beim Öffnen, ob er die Maschine noch hat.
+* Gespeichert wird nur, wenn die Datei seit dem Laden unverändert ist (eTag) – sonst wird neu geladen und wiederholt.

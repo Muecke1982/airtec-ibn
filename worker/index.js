@@ -5,7 +5,7 @@ import * as stamm from "../functions/api/stamm.js";
 import * as status from "../functions/api/status.js";
 import * as login from "../functions/api/login.js";
 import * as wochenplan from "../functions/api/wochenplan.js";
-import * as plan from "../functions/api/plan.js";
+import * as maschinen from "../functions/api/maschinen.js";
 import { json } from "../lib/graph.js";
 
 const routes = {
@@ -15,7 +15,8 @@ const routes = {
   "POST /api/login": login.onRequestPost,
   "GET /api/login": login.onRequestGet,
   "GET /api/wochenplan": wochenplan.onRequestGet,
-  "POST /api/plan": plan.onRequestPost,
+  "GET /api/maschinen": maschinen.onRequestGet,
+  "POST /api/maschinen": maschinen.onRequestPost,
 };
 
 export default {

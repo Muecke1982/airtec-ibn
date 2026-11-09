@@ -112,6 +112,7 @@
     const who = q("#accName"); if (who) who.textContent = u.name + (u.schreiben ? " (Büro)" : "");
     if (window.protoReady) window.protoReady();
     tab(ls.get("at_tab") || "wochenplan");
+    if (AT.checkMaschinen && navigator.onLine) setTimeout(AT.checkMaschinen, 1200);
     // Anmeldung im Hintergrund prüfen (z. B. Passwort geändert oder Zugang entfernt)
     if (navigator.onLine) AT.api("login").then(r => { AT.session.user = r.user; ls.set("at_session", AT.session); }).catch(e => { if (e.status === 401) AT.logout(true); });
   }
