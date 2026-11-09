@@ -88,4 +88,6 @@ Vorlage: `vorlagen/Airtec_Maschinen.xlsx` → liegt neben den Stammdaten (andere
 * „Maschine verleihen“: an Externe (Vorschläge aus Blatt „Verleih“), mit Ansprechpartner und Dauer → Spalte „Rückgabe bis“.
   Danach erinnert die App das Büro, alle … Tage erneut (Blatt „Verleih“, Spalte B, Standard 3), bis die Rückgabe eingetragen ist.
   Fehlen Blatt oder Spalten in einer älteren Datei, ergänzt die App sie beim nächsten Speichern.
+* „Auf Baustelle gelassen“: mitgenommene Maschine einer Baustelle zuordnen (Spalte „Baustelle“); angezeigt wird dann die Baustelle,
+  abholen oder zurückstellen darf jeder. Vorschlag: eigene Baustelle laut Wochenplan heute + zuletzt benutzte.
 * Gespeichert wird nur, wenn die Datei seit dem Laden unverändert ist (eTag) – sonst wird neu geladen und wiederholt.

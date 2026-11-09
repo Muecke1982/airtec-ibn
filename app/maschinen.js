@@ -18,7 +18,7 @@
     <section class="card hide" id="maMineCard"><h2>Bei dir</h2><ul class="malist" id="maMine"></ul></section>
     <section class="card">
       <h2>Maschinen</h2>
-      <button class="add" id="maLendBtn" style="margin:0 0 10px">↗ Maschine verleihen</button>
+      <div class="maopts" id="maOpts"><button class="add" id="maLendBtn">↗ Maschine verleihen</button><button class="add" id="maSiteBtn">📍 Auf Baustelle gelassen</button></div>
       <div id="maLend" class="hide"></div>
       <input id="maQ" type="search" placeholder="Suchen (Name, Nr., Monteur) …" autocomplete="off">
       <div class="machips"><button data-f="alle" class="on">Alle</button><button data-f="frei">Im Lager</button><button data-f="weg">Unterwegs</button></div>
@@ -28,7 +28,7 @@
   const $ = s => root.querySelector(s);
   let data = ls.get("ma_cache"), filter = "alle", busy = false, offline = false, open = null;
   const me = () => (AT.user && AT.user.name) || "";
-  const isMine = m => m.aus && !m.aus.extern && norm(m.aus.wer) === norm(me());
+  const isMine = m => m.aus && !m.aus.extern && !m.aus.baustelle && norm(m.aus.wer) === norm(me());
   const isLender = m => m.aus && m.aus.extern && norm(m.aus.wer) === norm(me());
   const dd = s => String(s || "").slice(0, 6);
   const office = () => !!(AT.user && AT.user.schreiben);
@@ -49,12 +49,15 @@
   function row(m, inMine) {
     const mine = isMine(m), out = !!m.aus;
     let btn = "";
-    if (out && m.aus.extern) btn = (office() || isLender(m)) ? `<button class="mabtn back" data-a="zurueck" data-id="${esc(m.id)}">Ist zurück</button>` : "";
+    if (out && m.aus.baustelle) btn = `<button class="mabtn take" data-a="nehmen" data-id="${esc(m.id)}">Mitnehmen</button><button class="mabtn back small" data-a="zurueck" data-id="${esc(m.id)}">Ist zurück</button>`;
+    else if (out && m.aus.extern) btn = (office() || isLender(m)) ? `<button class="mabtn back" data-a="zurueck" data-id="${esc(m.id)}">Ist zurück</button>` : "";
     else if (!out) btn = `<button class="mabtn take" data-a="nehmen" data-id="${esc(m.id)}">Mitnehmen</button>`;
     else if (mine) btn = `<button class="mabtn back" data-a="zurueck" data-id="${esc(m.id)}">Zurücklegen</button>`;
     else btn = `<button class="mabtn over" data-a="uebernehmen" data-id="${esc(m.id)}">Übernehmen</button>` +
       (office() ? `<button class="mabtn back small" data-a="zurueck" data-id="${esc(m.id)}">Ist zurück</button>` : "");
-    const status = out && m.aus.extern
+    const status = out && m.aus.baustelle
+      ? `<span class="mast site">📍 Baustelle ${esc(m.aus.baustelle)} · seit ${esc(short(m.aus.abgestellt))}</span>`
+      : out && m.aus.extern
       ? `<span class="mast lent">verliehen an ${esc(m.aus.an)}${m.aus.kontakt ? " (" + esc(m.aus.kontakt) + ")" : ""} · bis ${esc(dd(m.aus.frist))}${m.aus.ueberfaellig ? ' <b class="mafaellig">überfällig</b>' : ""}</span>`
       : out
       ? `<span class="mast out">${mine ? "bei dir" : "bei " + esc(m.aus.wer)} · seit ${esc(short(m.aus.seit))}${m.aus.faellig && (mine || office()) ? ` <b class="mafaellig">${m.aus.tage} Tage</b>` : ""}</span>`
@@ -62,7 +65,7 @@
     const sub = [m.nr, m.typ].filter(Boolean).map(esc).join(" · ");
     const hist = office() && open === m.id && m.verlauf ? `<div class="mahist">${m.verlauf.length ? m.verlauf.map(v =>
       `<div><b>${v.an ? "an " + esc(v.an) + (v.kontakt ? " (" + esc(v.kontakt) + ")" : "") + "</b> <small>durch " + esc(v.wer) + ", bis " + esc(dd(v.frist)) + "</small><b>" : esc(v.wer)}</b> ${esc(short(v.von))} → ${v.bis ? esc(short(v.bis)) : "<i>noch unterwegs</i>"}${v.bem ? ` <small>(${esc(v.bem)})</small>` : ""}</div>`).join("") : "<div>Noch keine Ausleihe.</div>"}</div>` : "";
-    return `<li class="${out ? (m.aus.extern ? "lent" : mine ? "mine" : "out") : "in"}" data-id="${esc(m.id)}">
+    return `<li class="${out ? (m.aus.baustelle ? "site" : m.aus.extern ? "lent" : mine ? "mine" : "out") : "in"}" data-id="${esc(m.id)}">
       <div class="mainfo"${office() && !inMine ? ' data-hist="1"' : ""}><b>${esc(m.name)}</b>${sub ? `<small>${sub}</small>` : ""}${status}${m.bem && !/^beispiel/i.test(m.bem) ? `<small class="mabem">${esc(m.bem)}</small>` : ""}</div>
       <div class="maact">${btn}</div>${hist}</li>`;
   }
@@ -89,11 +92,11 @@
       <button class="mabtn back" data-a="erinnern" data-id="${esc(m.id)}">In ${data.erinnerung_tage || 3} Tagen erinnern</button></div></section>`).join("") +
       (office() && data.erledigt && data.erledigt.length ? `<section class="card madone">${data.erledigt.map(e =>
         `<div>✓ <b>${esc(e.name)}</b> von ${esc(e.an)} zurück – eingetragen von ${esc(e.von)}, ${esc(short(e.bis))}</div>`).join("")}</section>` : "");
-    if ($("#maLend").innerHTML && !$("#maLend").classList.contains("hide")) fillLend();
+    if ($("#maLend").innerHTML && !$("#maLend").classList.contains("hide") && $("#mlM")) fillLend();
     // Liste
     const q = norm($("#maQ").value.trim());
     const list = all.filter(m => (filter === "alle" || (filter === "frei" ? !m.aus : !!m.aus)) &&
-      (!q || norm([m.name, m.nr, m.typ, m.kat, m.sn, m.aus && m.aus.wer, m.aus && m.aus.an, m.aus && m.aus.kontakt].join(" ")).includes(q)));
+      (!q || norm([m.name, m.nr, m.typ, m.kat, m.sn, m.aus && m.aus.wer, m.aus && m.aus.an, m.aus && m.aus.kontakt, m.aus && m.aus.baustelle].join(" ")).includes(q)));
     if (!list.length) { $("#maList").innerHTML = `<div class="hint">${all.length ? "Keine Maschine passt zur Auswahl." : "Noch keine Maschinen in der Liste."}</div>`; return; }
     const groups = new Map();
     for (const m of list) { if (!groups.has(m.kat)) groups.set(m.kat, []); groups.get(m.kat).push(m); }
@@ -112,7 +115,7 @@
       setTimeout(() => { if (btn.isConnected) { btn.classList.remove("sure"); btn.textContent = "Übernehmen"; } }, 4000);
       return;
     }
-    if (a === "zurueck" && m && m.aus && !isMine(m) && !isLender(m) && !btn.closest(".maask") && !btn.classList.contains("sure")) {
+    if (a === "zurueck" && m && m.aus && !isMine(m) && !isLender(m) && !m.aus.baustelle && !btn.closest(".maask") && !btn.classList.contains("sure")) {
       btn.classList.add("sure"); btn.textContent = "Wirklich zurück?";
       setTimeout(() => { if (btn.isConnected) { btn.classList.remove("sure"); btn.textContent = "Ist zurück"; } }, 4000);
       return;
@@ -124,7 +127,7 @@
       const d = await AT.api("maschinen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: a, id }) });
       d.geladen = Date.now(); data = d; ls.set("ma_cache", d);
       const name = m ? m.name : "Maschine";
-      toast2({ erinnern: `Okay – Erinnerung in ${data.erinnerung_tage || 3} Tagen`, nehmen: name + " mitgenommen", uebernehmen: name + " übernommen", zurueck: name + " zurückgelegt", bestaetigen: "Danke – wir fragen in 10 Tagen nochmal" }[a] || "Gespeichert");
+      toast2({ baustelle: "Eingetragen", erinnern: `Okay – Erinnerung in ${data.erinnerung_tage || 3} Tagen`, nehmen: name + " mitgenommen", uebernehmen: name + " übernommen", zurueck: name + " zurückgelegt", bestaetigen: "Danke – wir fragen in 10 Tagen nochmal" }[a] || "Gespeichert");
     } catch (e) {
       toast2(e.message);
       await load(true);
@@ -181,9 +184,49 @@
         closeLend(); paint();
       } catch (e) { toast2(e.message); go.disabled = false; go.textContent = "Verleihen"; }
     };
-    lend.classList.remove("hide"); $("#maLendBtn").classList.add("hide");
+    lend.classList.remove("hide"); $("#maOpts").classList.add("hide");
   }
-  function closeLend() { lend.classList.add("hide"); lend.innerHTML = ""; $("#maLendBtn").classList.remove("hide"); }
+  function closeLend() { lend.classList.add("hide"); lend.innerHTML = ""; $("#maOpts").classList.remove("hide"); }
+
+  /* ---------- Auf Baustelle gelassen ---------- */
+  async function openSite() {
+    const mine = (data.maschinen || []).filter(m => isMine(m) || (office() && m.aus && !m.aus.extern && !m.aus.baustelle));
+    if (!mine.length) { toast2("Du hast gerade keine Maschine mitgenommen – zuerst „Mitnehmen“ tippen"); return; }
+    // Vorschläge: eigene Baustelle laut Wochenplan heute, dann zuletzt benutzte Baustellen
+    const sugg = [];
+    try {
+      const W = AT.wp, t = W.todayIso(), wk = await W.week(t), day = W.dayOf(wk, t), col = wk.ich;
+      const ort = day && col && day.e[col];
+      if (ort && !W.absence(ort)) sugg.push(ort);
+    } catch (e) {}
+    for (const b of (data.baustellen || [])) if (!sugg.some(x => norm(x) === norm(b))) sugg.push(b);
+    lend.innerHTML = `<div class="malend">
+      <label>Maschine</label><select id="msM">${mine.map(m => `<option value="${esc(m.id)}">${esc(m.name)}${m.nr ? " (" + esc(m.nr) + ")" : ""}${isMine(m) ? "" : " – bei " + esc(m.aus.wer)}</option>`).join("")}</select>
+      <label>Steht jetzt auf Baustelle</label>
+      ${sugg.length ? `<div class="machips mlchips">${sugg.slice(0, 8).map(b => `<button data-b="${esc(b)}">${esc(b)}</button>`).join("")}</div>` : ""}
+      <input id="msB" placeholder="z. B. Bochum DRV" autocomplete="off">
+      <div class="hint">Danach steht bei der Maschine die Baustelle statt deines Namens. Zurückstellen oder abholen kann dann jeder.</div>
+      <button class="bigbtn primary" id="msGo">Eintragen</button>
+      <button class="add" id="msX">Abbrechen</button></div>`;
+    lend.querySelectorAll(".mlchips button").forEach(b => b.onclick = () => { lend.querySelector("#msB").value = b.dataset.b;
+      lend.querySelectorAll(".mlchips button").forEach(x => x.classList.toggle("on", x === b)); });
+    lend.querySelector("#msX").onclick = closeLend;
+    lend.querySelector("#msGo").onclick = async () => {
+      const id = lend.querySelector("#msM").value, baustelle = lend.querySelector("#msB").value.trim();
+      if (!baustelle) { lend.querySelector("#msB").focus(); toast2("Bitte die Baustelle angeben"); return; }
+      if (!navigator.onLine) { toast2("Keine Internetverbindung"); return; }
+      const go = lend.querySelector("#msGo"); go.disabled = true; go.textContent = "Wird gespeichert …";
+      try {
+        const d = await AT.api("maschinen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: "baustelle", id, baustelle }) });
+        d.geladen = Date.now(); data = d; ls.set("ma_cache", d);
+        const m = d.maschinen.find(x => x.id === id);
+        toast2(`${m ? m.name : "Maschine"} steht auf Baustelle ${baustelle}`);
+        closeLend(); paint();
+      } catch (e) { toast2(e.message); go.disabled = false; go.textContent = "Eintragen"; }
+    };
+    lend.classList.remove("hide"); $("#maOpts").classList.add("hide");
+  }
+  $("#maSiteBtn").onclick = () => { if (data) openSite(); else toast2("Liste wird noch geladen"); };
   $("#maLendBtn").onclick = () => { if (data) openLend(); else toast2("Liste wird noch geladen"); };
 
   root.addEventListener("click", e => {
