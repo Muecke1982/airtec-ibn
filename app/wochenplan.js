@@ -33,8 +33,8 @@
   }
 
   /* ---------- Art des Eintrags ---------- */
-  const ABS = [["urlaub", "Urlaub"], ["berufsschule", "Schule"], ["schule", "Schule"], ["hbz", "HBZ"], ["krank", "krank"],
-    ["feiertag", "Feiertag"], ["frei", "frei"], ["zeitausgleich", "Zeitausgleich"], ["uberstunden", "Überstundenabbau"], ["elternzeit", "Elternzeit"]];
+  const ABS = [["urlaub", "Urlaub"], ["berufsschule", "Schule"], ["schule", "Schule"], ["hbz", "HBZ"], ["krank", "Krank"],
+    ["feiertag", "Feiertag"], ["frei", "Frei"], ["zeitausgleich", "Zeitausgleich"], ["uberstunden", "Überstundenabbau"], ["elternzeit", "Elternzeit"]];
   function absence(txt) {
     const n = norm(txt);
     for (const [k, label] of ABS) if (n === k || n.startsWith(k + " ") || n.split(" ").includes(k)) return label;
@@ -134,6 +134,7 @@
     const When = when[0].toUpperCase() + when.slice(1);
     if (!p || !p.ort) return `${When} ist für dich noch nichts eingetragen.`;
     if (p.abs) return `${When}: <b>${esc(p.ort)}</b>`;
+    if (/^(buro|buero)$/.test(norm(p.ort))) return `Du bist ${when} im <b>Büro</b>.`;
     return p.mit.length
       ? `Du fährst ${when} mit <b>${esc(names(p.mit))}</b> nach <b>${esc(p.ort)}</b>.`
       : `Du bist ${when} in <b>${esc(p.ort)}</b> eingeplant.`;
@@ -268,6 +269,14 @@
   $("#wkNext").onclick = () => { wkMon = addDays(wkMon, 7); paintWeek(); };
   $("#wkWho").onchange = paintWeek;
   if (ls.get("wp_week_open")) { $("#wkBox").classList.remove("hide"); $("#wkOpen").classList.add("hide"); }
+
+  // Hilfsfunktionen für andere Module (z. B. Planung/Krankmeldung)
+  AT.wp = {
+    week, teams, partnerOf, absence, norm, addDays, wd, dShort, WT, todayIso, dayOf, isoWeek, esc, names,
+    get cur() { return cur; },
+    forget(s) { delete cache[wkKey(s)]; },
+    async refresh() { await go(cur, true); if (!$("#wkBox").classList.contains("hide")) paintWeek(); },
+  };
 
   let shownDay = "";
   AT.modules.wochenplan = {

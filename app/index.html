@@ -164,6 +164,22 @@ button,select,label,a{touch-action:manipulation}
 .wkweek li i{font-style:normal;font-size:12.5px;color:var(--mut);font-weight:600;margin-bottom:1px}
 .wkweek li.today{outline:1.5px solid var(--blue)}
 .wknav{margin-top:2px}
+.plbtns{display:flex;gap:8px}
+.plbtns .bigbtn{margin:0;flex:1;font-size:15.5px;padding:13px 8px}
+.plform .bigbtn{margin-top:14px}
+.plquick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.plquick button,.plsugg button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 10px;font:inherit;font-size:14px;color:var(--ink);text-align:left}
+.plsugg{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.plsugg button{border-color:var(--blue);color:#075e86;background:#f0f9fd}
+.plsugg button:disabled{opacity:.5}
+.pldone{background:#eaf7e6;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:15px}
+.plday{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.plday h3{margin:0 0 4px;font-size:16px}
+.plsit{font-size:15px;line-height:1.45}
+.plteams{margin-top:8px}
+.plteams li{padding:7px 10px}
+.plman{margin-top:6px}
+.plman summary{font-size:14px;color:var(--blue);padding:6px 0;cursor:pointer}
 .acc button{border:1px solid var(--bad);color:var(--bad);background:#fff;border-radius:9px;padding:7px 10px;font:inherit;font-size:14px}
 </style>
 </head>
@@ -1366,6 +1382,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch
 </script>
 <script src="/login.js"></script>
 <script src="/wochenplan.js"></script>
+<script src="/planung.js"></script>
 <script>AT.ready()</script>
 </body>
 </html>

@@ -22,7 +22,8 @@ export async function onRequestGet({ request, env }) {
     const all = await users(env);
     const plan = parseWeek(await sheetValues(env, sh), all.map(u => u.plan), monday);
     const ich = me.legacy ? "" : matchName(me, plan.spalten);
-    return json(200, { jahr: year, kw: week, montag: isoDate(monday), blatt: sh.title, ich, ...plan, stand: new Date().toISOString() });
+    const { zellen, ...rest } = plan;
+    return json(200, { jahr: year, kw: week, montag: isoDate(monday), blatt: sh.title, ich, ...rest, stand: new Date().toISOString() });
   } catch (e) {
     console.error(e);
     return json(500, { error: e.message });
