@@ -10,6 +10,9 @@
   const q = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+  const prev = ls.get("ibn_code");
+  const oldCode = ls.get("at_oldcode") || (prev && !String(prev).startsWith("s1.") ? prev : "");
+  if (oldCode) ls.set("at_oldcode", oldCode);
   const AT = window.AT = {
     session: ls.get("at_session"),            // { token, user:{name,mail,plan,schreiben} }
     get user() { return this.session && this.session.user; },
@@ -53,12 +56,14 @@
     <div class="lerr" id="lErr"></div>
     <button class="bigbtn primary" id="lGo">Anmelden</button>
     <div class="hint" style="text-align:center;margin-top:14px">Passwort vergessen? Bitte im Büro melden.</div>
+    <button class="add hide" id="lOld">Anmeldung gestört – nur Protokolle mit altem Zugang</button>
   </div>`;
   document.body.appendChild(box);
 
   async function loadNames() {
     let names = ls.get("at_names") || [];
-    try { names = (await AT.api("login?liste=1")).namen || []; ls.set("at_names", names); } catch (e) {}
+    try { names = (await AT.api("login?liste=1")).namen || []; ls.set("at_names", names); }
+    catch (e) { if (e.status >= 500 && oldCode) q("#lOld").classList.remove("hide"); }
     const sel = q("#lName");
     if (!names.length) { sel.classList.add("hide"); q("#lNameFree").classList.remove("hide"); return; }
     const last = ls.get("at_lastname") || "";
@@ -83,9 +88,18 @@
       start();
     } catch (e) {
       q("#lErr").textContent = e.status === 401 ? "Name oder Passwort falsch" : (navigator.onLine ? e.message : "Keine Internetverbindung");
+      if (e.status >= 500 && oldCode) q("#lOld").classList.remove("hide");
     } finally { q("#lGo").disabled = false; }
   }
   q("#lGo").onclick = doLogin;
+  // Notausgang: Ist die Zugangsliste gestört, können Handys mit dem alten Firmen-Code weiter Protokolle hochladen.
+  q("#lOld").onclick = () => {
+    ls.set("ibn_code", oldCode);
+    box.classList.add("hide"); document.body.classList.remove("locked");
+    document.querySelector("#tabs").classList.add("hide");
+    if (window.protoReady) window.protoReady();
+    tab("protokolle");
+  };
   q("#lPw").onkeydown = e => { if (e.key === "Enter") doLogin(); };
 
   /* ---------- Start ---------- */
