@@ -1,5 +1,13 @@
 # Airtec Inbetriebnahme-App
 
+Module (getrennt gebaut, nur über Anmeldung und Monteurliste verbunden):
+
+| Modul | Dateien | Inhalt |
+|---|---|---|
+| Anmeldung | `app/login.js`, `lib/auth.js`, `functions/api/login.js` | Name + Passwort für die ganze App, Zugangsliste in SharePoint |
+| Wochenplan | `app/wochenplan.js`, `lib/wochenplan.js`, `lib/google.js`, `functions/api/wochenplan.js` | Liest die Google-Tabelle (ein Blatt je KW) |
+| Protokolle | `app/index.html`, `functions/api/upload.js`, `stamm.js` | Inbetriebnahme- und Abnahmeprotokolle |
+
 Web-App für Inbetriebnahmeprotokolle (Split, Multisplit, VRF, Direktverdampfer, Kaltwassersatz, Wärmepumpe, Klimaschrank).
 Die Monteure füllen das Protokoll auf dem Handy aus, die App erzeugt ein PDF und legt es automatisch in SharePoint ab.
 Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks …) kommen aus der Excel-Datei `Airtec_IBN_Stammdaten.xlsx` in SharePoint.
@@ -35,11 +43,15 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 | `TENANT_ID` | `xxxxxxxx-…` | Verzeichnis-ID (Mandant) der App-Registrierung |
 | `CLIENT_ID` | `xxxxxxxx-…` | Anwendungs-ID (Client) der App-Registrierung |
 | `CLIENT_SECRET` | *(geheim)* | Wert des geheimen Clientschlüssels |
-| `APP_CODE` | z. B. `Kaelte-2026!` | Firmen-Code, den die Monteure einmal in der App eingeben |
+| `APP_CODE` | z. B. `Kaelte-2026!` | *(Übergang)* alter Firmen-Code. Wird noch akzeptiert, kann gelöscht werden, sobald alle angemeldet sind |
 | `SP_SITE_URL` | `https://airtec.sharepoint.com/sites/Technik` | SharePoint-Website |
 | `SP_LIBRARY` | `Dokumente` | *(optional)* Dokumentbibliothek, Standard = Hauptbibliothek der Website |
 | `SP_FOLDER` | `Inbetriebnahmeprotokolle` | Zielordner in der Bibliothek |
 | `SP_PROJECT_SUBFOLDER` | `ja` | `ja` = Unterordner je Projektnummer anlegen |
+| `SP_ZUGANG_PATH` | `…/Stammdaten/Airtec_Zugaenge.xlsx` | *(optional)* Zugangsliste. Standard: `Airtec_Zugaenge.xlsx` im Ordner der Stammdaten |
+| `GSHEET_ID` | `1AbC…xyz` | ID der Google-Tabelle Wochenplan (der Teil zwischen `/d/` und `/edit` im Link) |
+| `GOOGLE_SA_JSON` | *(geheim)* | Kompletter Inhalt der JSON-Schlüsseldatei des Google-Dienstkontos |
+| `SESSION_SECRET` | *(geheim, optional)* | Schlüssel für die Anmeldungen. Ändern = alle Handys müssen sich neu anmelden |
 | `SP_STAMM_PATH` | `Inbetriebnahmeprotokolle/Stammdaten/Airtec_IBN_Stammdaten.xlsx` | Pfad der Stammdaten-Excel in der Bibliothek |
 
 ## Einrichtung prüfen
@@ -50,3 +62,17 @@ Die Antwort zeigt, ob Anmeldung, SharePoint-Website, Ordner und Stammdaten gefun
 ## Verhalten ohne Internet
 
 Protokolle, die ohne Verbindung erstellt werden, bleiben auf dem Handy gespeichert und werden automatisch hochgeladen, sobald wieder Internet da ist. Die App selbst funktioniert nach dem ersten Öffnen auch offline.
+
+## Zugangsliste
+
+Vorlage: `vorlagen/Airtec_Zugaenge.xlsx` → in SharePoint neben die Stammdaten-Datei legen.
+Spalten: Name · E-Mail · Passwort · Name im Wochenplan · Schreibrecht (x).
+Die Datei liest nur der Server (über Microsoft Graph), sie wird nie aufs Handy geladen.
+Änderungen wirken nach spätestens 5 Minuten; ein geändertes Passwort meldet die Person ab.
+
+## Wochenplan (Google-Tabelle)
+
+* Ein Blatt je Kalenderwoche, Titel enthält „KW“ und die Nummer (z. B. `KW 46`).
+* Wochentage (Mo/Montag …) in einer der ersten drei Spalten, Monteurnamen als Überschriften darüber.
+* Gleicher Eintrag am gleichen Tag = ein Team. Urlaub, Schule, HBZ, krank werden als Abwesenheit erkannt.
+* Die Tabelle wird mit der E-Mail-Adresse des Dienstkontos geteilt (Betrachter reicht für das Lesen).

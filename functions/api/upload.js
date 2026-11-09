@@ -1,10 +1,11 @@
-import { cfg, checkCode, upload, cleanName, json } from "../../lib/graph.js";
+import { auth } from "../../lib/auth.js";
+import { cfg, upload, cleanName, json } from "../../lib/graph.js";
 const MAX = 60 * 1024 * 1024;
 
 // PDF-Protokoll in SharePoint ablegen
 export async function onRequestPost({ request, env }) {
   try {
-    if (!checkCode(env, request)) return json(401, { error: "Firmen-Code falsch" });
+    if (!(await auth(env, request))) return json(401, { error: "Nicht angemeldet" });
     const q = new URL(request.url).searchParams;
     let filename = cleanName(q.get("name"));
     if (!filename.toLowerCase().endsWith(".pdf")) filename += ".pdf";

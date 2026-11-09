@@ -3,12 +3,17 @@
 import * as upload from "../functions/api/upload.js";
 import * as stamm from "../functions/api/stamm.js";
 import * as status from "../functions/api/status.js";
+import * as login from "../functions/api/login.js";
+import * as wochenplan from "../functions/api/wochenplan.js";
 import { json } from "../lib/graph.js";
 
 const routes = {
   "POST /api/upload": upload.onRequestPost,
   "GET /api/stamm": stamm.onRequestGet,
   "GET /api/status": status.onRequestGet,
+  "POST /api/login": login.onRequestPost,
+  "GET /api/login": login.onRequestGet,
+  "GET /api/wochenplan": wochenplan.onRequestGet,
 };
 
 export default {

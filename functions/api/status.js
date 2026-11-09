@@ -1,8 +1,11 @@
-import { cfg, checkCode, drive, download, upload, json } from "../../lib/graph.js";
+import { auth } from "../../lib/auth.js";
+import { users, zugangPath } from "../../lib/auth.js";
+import { sheets, saEmail } from "../../lib/google.js";
+import { cfg, drive, download, upload, json } from "../../lib/graph.js";
 
 // Einrichtungs-Test: /api/status?code=FIRMENCODE
 export async function onRequestGet({ request, env }) {
-  try { if (!checkCode(env, request, true)) return json(401, { error: "Firmen-Code falsch" }); }
+  try { if (!(await auth(env, request, true))) return json(401, { error: "Nicht angemeldet / Code falsch" }); }
   catch (e) { return json(500, { error: e.message }); }
   const out = {};
   try {
@@ -11,6 +14,17 @@ export async function onRequestGet({ request, env }) {
   } catch (e) { out.sharepoint = "FEHLER: " + e.message; return json(200, out); }
   out.ordner = cfg(env, "SP_FOLDER", false) || "FEHLER: SP_FOLDER fehlt";
   try { await download(env, cfg(env, "SP_STAMM_PATH")); out.stammdaten = "OK"; } catch (e) { out.stammdaten = "FEHLER: " + e.message; }
+  try {
+    const u = await users(env, true);
+    out.zugaenge = `OK – ${u.length} Personen, ${u.filter(x => x.write).length} mit Schreibrecht (${zugangPath(env)})`;
+  } catch (e) { out.zugaenge = "FEHLER: " + e.message + " (" + zugangPath(env) + ")"; }
+  try {
+    const s = await sheets(env);
+    out.wochenplan = `OK – ${s.length} Blätter in der Google-Tabelle`;
+  } catch (e) {
+    let who = ""; try { who = " – Dienstkonto: " + saEmail(env); } catch {}
+    out.wochenplan = "FEHLER: " + e.message + who;
+  }
   if (new URL(request.url).searchParams.get("schreibtest") === "ja") {
     try {
       const pdf = new TextEncoder().encode("%PDF-1.4\n% Airtec IBN Schreibtest – Datei kann gelöscht werden\n" + " ".repeat(200) + "\n%%EOF");
