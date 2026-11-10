@@ -64,8 +64,13 @@
           <button class="mabtn back" data-ma="erinnern" data-id="${esc(m.id)}">In ${(ma && ma.erinnerung_tage) || 3} Tagen erinnern</button></div></section>`);
     }
     // Büro-Hinweise an mich
-    for (const h of (hin && hin.meine) || [])
-      items.push(`<section class="card hicard ${h.buero ? "hiin" : "hibuero"}"><div class="hihead">${h.buero ? "✉️ Nachricht von " + esc(h.von || "Monteur") : "📌 Hinweis vom Büro" + (h.von ? " · " + esc(h.von.split(" ")[0]) : "")}${h.erstellt ? " · " + esc(short(h.erstellt).slice(0, 6)) : ""}</div>
+    const dshort = s => String(s || "").slice(0, 6);
+    // angepinnte Hinweise zuerst – ohne Abhaken, bis zum Ablaufdatum
+    for (const h of ((hin && hin.meine) || []).filter(h => h.pin))
+      items.push(`<section class="card hicard hipin"><div class="hihead">📌 Angepinnt${h.bis ? " · bis " + esc(dshort(h.bis)) : ""}</div>
+        <div class="hitext">${esc(h.text)}</div>${h.von ? `<div class="hivon">${esc(h.von)}</div>` : ""}</section>`);
+    for (const h of ((hin && hin.meine) || []).filter(h => !h.pin))
+      items.push(`<section class="card hicard ${h.buero ? "hiin" : "hibuero"}"><div class="hihead">${h.buero ? "✉️ Nachricht von " + esc(h.von || "Monteur") : "📋 Hinweis vom Büro" + (h.von ? " · " + esc(h.von.split(" ")[0]) : "")}${h.erstellt ? " · " + esc(short(h.erstellt).slice(0, 6)) : ""}</div>
         <div class="hitext">${esc(h.text)}</div>
         <button class="hidone" data-done="${esc(h.id)}">Erledigt ✓</button></section>`);
     // Büro: Hinweis schreiben + Übersicht
@@ -78,11 +83,12 @@
         <div id="hiForm" class="${formOpen ? "" : "hide"}">
           <label>An</label><select id="hiAn"><option>Alle</option></select>
           <label>Hinweis</label><textarea id="hiText" rows="3" placeholder="z. B. Im Büro liegen Unterlagen der Versicherung für dich."></textarea>
-          <div class="row"><div><label>Sichtbar ab (optional)</label><input type="date" id="hiAb"></div><div></div></div>
+          <label class="hichk"><input type="checkbox" id="hiPin"> 📌 Anpinnen – bleibt oben stehen, kein Abhaken</label>
+          <div class="row"><div><label>Sichtbar ab (optional)</label><input type="date" id="hiAb"></div><div id="hiBisBox" class="hide"><label>Anzeigen bis *</label><input type="date" id="hiBis"></div></div>
           <button class="bigbtn primary" id="hiSend">Hinweis senden</button>
         </div>
         <div id="hiSent" class="${listOpen ? "" : "hide"}">${all.length ? all.map(h => {
-          const st = h.alle
+          const st = h.pin ? (h.abgelaufen ? "abgelaufen" : "📌 angepinnt bis " + esc(String(h.bis).slice(0, 6))) : h.alle
             ? (h.done.length ? `✓ ${h.done.length}× abgehakt: ${h.done.map(d => esc(d.wer.split(" ")[0])).join(", ")}` : "noch von niemandem abgehakt")
             : (h.done.length ? `✓ erledigt ${esc(short(h.done[0].am))}` : "offen");
           return `<div class="hisent${!h.alle && h.done.length ? " ok" : ""}"><div><b>an ${esc(h.an)}</b>${h.ab ? ` <small>ab ${esc(h.ab)}</small>` : ""}<div>${esc(h.text)}</div>
@@ -145,13 +151,16 @@
     const $ = s => box.querySelector(s);
     if (!$("#hiNew")) return;
     $("#hiNew").onclick = () => { formOpen = !formOpen; listOpen = false; paint(); if (formOpen) setTimeout(() => $("#hiText") && $("#hiText").focus(), 50); };
+    $("#hiPin").onchange = e => { $("#hiBisBox").classList.toggle("hide", !e.target.checked); $("#hiSend").textContent = e.target.checked ? "Hinweis anpinnen" : "Hinweis senden"; };
     $("#hiList").onclick = () => { listOpen = !listOpen; formOpen = false; paint(); };
     $("#hiSend").onclick = async () => {
-      const text = $("#hiText").value.trim(), an = $("#hiAn").value, abIso = $("#hiAb").value;
+      const text = $("#hiText").value.trim(), an = $("#hiAn").value, abIso = $("#hiAb").value, pin = $("#hiPin").checked, bisIso = $("#hiBis").value;
       if (!text) { $("#hiText").focus(); return; }
-      const ab = abIso ? abIso.split("-").reverse().join(".") : "";
+      if (pin && !bisIso) { $("#hiBis").focus(); toast2("Bitte „Anzeigen bis“ angeben"); return; }
+      const de = iso => iso ? iso.split("-").reverse().join(".") : "";
+      const ab = de(abIso), bis = pin ? de(bisIso) : "";
       $("#hiSend").disabled = true; $("#hiSend").textContent = "Wird gesendet …";
-      try { hin = await post("hinweise", { aktion: "neu", an, text, ab }); ls.set("hi_cache", hin); formOpen = false; listOpen = true; toast2(`Hinweis an ${an} gesendet`); }
+      try { hin = await post("hinweise", { aktion: "neu", an, text, ab, pin, bis }); ls.set("hi_cache", hin); formOpen = false; listOpen = true; toast2(pin ? `Hinweis angepinnt bis ${bis}` : `Hinweis an ${an} gesendet`); }
       catch (e) { toast2(e.message); }
       paint();
     };
