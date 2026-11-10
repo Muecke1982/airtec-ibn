@@ -24,7 +24,8 @@ KAT = [
  ("Montagematerial", "Montagematerial", "MO", "🛠️", ["Schiene", "Zubehör Schiene", "Konsolen", "Rohrschellen", "P-Schellen", "Kälteschellen"], 10),
  ("Isolierung", "Isolierung", "IS", "🧱", ["Kautschuk endlos", "Kautschuk 2 m", "Kautschuk Matte"], 10),
  ("Kältezubehör", "Kältezubehör", "KZ", "❄️", ["Dachdurchführungen", "Aufstellfüße", "Ölprotektoren", "Schrader", "Bördel", "Hartlot & Löten"], 19),
-] + [(None, f"Frei {i}", f"R{i}", "▫️", [], 10) for i in range(1, 7)]
+ ("Kältemittel", "Kältemittel", "KM", "🧪", ["Kältemittel", "Entsorgung", "Gase"], 7),
+] + [(None, f"Frei {i}", f"R{i}", "▫️", [], 10) for i in range(1, 6)]
 NK = len(KAT)
 
 # Mosecker-Artikel neu zuordnen
