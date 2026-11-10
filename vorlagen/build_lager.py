@@ -104,7 +104,7 @@ for i, (kat, sheet, pre, sym, subs, extra) in enumerate(KAT):
         c = k.cell(row=r, column=cn, value=subs[j] if j < len(subs) else None); c.font = Font(name=F, size=10)
         if j < len(subs) + extra: c.fill = INPUT if j < len(subs) else FREE
         c.border = Border(bottom=thin)
-        cnt = k.cell(row=r, column=cc, value=f'=IF({ln}{r}="","",COUNTIF(INDIRECT("\'"&$B${KROW(i)}&"\'!B2:B{NROWS}"),{ln}{r}))')
+        cnt = k.cell(row=r, column=cc, value=f'=IF({ln}{r}="","",IFERROR(COUNTIF(\'{sheet}\'!$B$2:$B${NROWS},{ln}{r}),0))')
         cnt.font = Font(name=F, size=9, color="555555"); cnt.alignment = Alignment(horizontal="center")
     # Auswahlliste: nur die ausgefüllten Plätze (ohne leere Einträge)
     wb.defined_names[f"U_{i+1:02d}"] = DefinedName(f"U_{i+1:02d}", attr_text=f"OFFSET(Kategorien!${ln}$3,0,0,MAX(1,COUNTA(Kategorien!${ln}$3:${ln}${2+SLOTS})),1)")
@@ -146,11 +146,11 @@ ov.row_dimensions[4].height = 30
 r0 = 5
 for i, (kat, sheet, pre, sym, subs, extra) in enumerate(KAT):
     r, kr = r0 + i, KROW(i)
-    rng = lambda col: f'INDIRECT("\'"&Kategorien!$B${kr}&"\'!{col}2:{col}{NROWS}")'
+    rng = lambda col: f"'{sheet}'!${col}$2:${col}${NROWS}"
     ov.cell(row=r, column=2, value=f'=HYPERLINK("#\'"&Kategorien!$B${kr}&"\'!A1",Kategorien!$D${kr}&"  "&IF(Kategorien!$A${kr}="","(frei) "&Kategorien!$B${kr},Kategorien!$A${kr}))')
     ov.cell(row=r, column=2).font = Font(name=F, color=BLUE if kat else "999999", underline="single", bold=bool(kat))
-    ov.cell(row=r, column=3, value=f"=COUNTA({rng('A')})")
-    ov.cell(row=r, column=4, value=f'=COUNTIF({rng("N")},"x")')
+    ov.cell(row=r, column=3, value=f"=IFERROR(COUNTA({rng('A')}),0)")
+    ov.cell(row=r, column=4, value=f'=IFERROR(COUNTIF({rng("N")},"x"),0)')
     ov.cell(row=r, column=5, value=f'=Kategorien!$C${kr}&"-"&TEXT(SUMPRODUCT(MAX(IFERROR(VALUE(MID({rng("A")},LEN(Kategorien!$C${kr})+2,4)),0)))+1,"000")')
     cn = L(7 + 2 * i)
     ov.cell(row=r, column=6, value=f'=SUMPRODUCT((Kategorien!{L(8+2*i)}3:{L(8+2*i)}{2+SLOTS}<>"")*(Kategorien!{L(8+2*i)}3:{L(8+2*i)}{2+SLOTS}>0))&" von "&COUNTA(Kategorien!{cn}3:{cn}{2+SLOTS})')
@@ -169,7 +169,7 @@ ov.merge_cells(start_row=rl, start_column=6, end_row=rl, end_column=7)
 for i in range(12):
     r = rl + 1 + i
     ov.cell(row=r, column=2, value=f'=IF(Lieferanten!A{2+i}="","",Lieferanten!A{2+i})').font = Font(name=F, size=10)
-    cnt = "+".join(f'COUNTIF(INDIRECT("\'"&Kategorien!$B${KROW(j)}&"\'!F2:F{NROWS}"),B{r})' for j in range(NK))
+    cnt = "+".join(f"COUNTIF('{KAT[j][1]}'!$F$2:$F${NROWS},B{r})" for j in range(NK))
     c = ov.cell(row=r, column=3, value=f'=IF(B{r}="","",{cnt})'); c.alignment = Alignment(horizontal="center"); c.font = Font(name=F, size=10)
     ov.cell(row=r, column=6, value=f'=IF(B{r}="","",IF(Lieferanten!B{2+i}="","– fehlt –",Lieferanten!B{2+i}))').font = Font(name=F, size=10)
     ov.merge_cells(start_row=r, start_column=6, end_row=r, end_column=7)
@@ -194,7 +194,7 @@ lines = [("So pflegt ihr die Lagerliste", "t"), ("", ""),
  ("Daneben steht, wie viele Artikel in jeder Unterkategorie sind.", ""), ("", ""),
  ("Weitere Hauptkategorien (6 vorgesehen)", "h"),
  ("Im Blatt „Kategorien“ in einer freien Zeile den Namen in Spalte A eintragen, z. B. „Werkzeug“.", ""),
- ("Dann das passende Reserve-Blatt („Frei 1“ …) genauso umbenennen und den neuen Blattnamen in Spalte B eintragen. Kürzel in Spalte C ggf. anpassen.", ""),
+ ("Dann das passende Reserve-Blatt („Frei 1“ …) umbenennen und den neuen Blattnamen auch in Spalte B eintragen (für den Link in der Übersicht). Kürzel in Spalte C ggf. anpassen.", ""),
  ("Übersicht, Links und Zähler passen sich automatisch an.", ""), ("", ""),
  ("Was die App damit macht", "h"),
  ("Monteur meldet „Nur noch wenig“ oder „Leer“ → Blatt „Meldungen“.", ""),
