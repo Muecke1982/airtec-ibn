@@ -75,11 +75,28 @@
     }
     // Büro-Hinweise an mich
     const dshort = s => String(s || "").slice(0, 6);
+    // Geburtstage ganz oben
+    const isCongrats = h => /^🎉/.test(h.text || "");
+    const wishes = ((hin && hin.meine) || []).filter(isCongrats);
+    const first = n => String(n || "").split(" ")[0];
+    const today = new Date().toISOString().slice(0, 10);
+    for (const g of (hin && hin.geburtstage) || []) {
+      if (g.ich) {
+        items.unshift(`<section class="card hicard higeb"><div class="higebbig">🎂</div><b>Alles Gute zum Geburtstag, ${esc(first(g.name))}!</b>
+          <div>${g.wann === "heute" ? "Wir wünschen dir einen schönen Tag!" : `Schon mal vorab für ${esc(g.wann)} – schönes Wochenende!`}</div>
+          ${wishes.length ? `<div class="hiwish">🎉 Glückwünsche von ${wishes.map(w => esc(first(w.von))).join(", ")}</div>` : ""}</section>`);
+      } else {
+        const k = "grat_" + g.name + "_" + today, done = ls.get(k);
+        items.unshift(`<section class="card hicard higeb"><div class="hihead">🎂 Geburtstag</div>
+          <b>${g.wann === "heute" ? `Heute hat ${esc(g.name)} Geburtstag!` : `${esc(g.wann[0].toUpperCase() + g.wann.slice(1))} hat ${esc(g.name)} Geburtstag.`}</b>
+          ${done ? `<div class="hiwish">✓ Glückwunsch gesendet</div>` : `<button class="hidone higrat" data-grat="${esc(g.name)}">🎉 Gratulieren</button>`}</section>`);
+      }
+    }
     // angepinnte Hinweise zuerst – ohne Abhaken, bis zum Ablaufdatum
     for (const h of ((hin && hin.meine) || []).filter(h => h.pin))
       items.push(`<section class="card hicard hipin"><div class="hihead">📌 Angepinnt${h.bis ? " · bis " + esc(dshort(h.bis)) : ""}</div>
         <div class="hitext">${esc(h.text)}</div>${h.von ? `<div class="hivon">${esc(h.von)}</div>` : ""}</section>`);
-    for (const h of ((hin && hin.meine) || []).filter(h => !h.pin))
+    for (const h of ((hin && hin.meine) || []).filter(h => !h.pin && !isCongrats(h)))
       items.push(`<section class="card hicard ${h.buero ? "hiin" : "hibuero"}"><div class="hihead">${h.buero ? "✉️ Nachricht von " + esc(h.von || "Monteur") : "📋 Hinweis vom Büro" + (h.von ? " · " + esc(h.von.split(" ")[0]) : "")}${h.erstellt ? " · " + esc(short(h.erstellt).slice(0, 6)) : ""}</div>
         <div class="hitext">${esc(h.text)}</div>
         <button class="hidone" data-done="${esc(h.id)}">Erledigt ✓</button></section>`);
@@ -137,6 +154,15 @@
       try { ma = await post("maschinen", { aktion: b.dataset.ma, id: b.dataset.id }); ma.geladen = Date.now(); ls.set("ma_cache", ma);
         toast2({ nehmen: "Mitgenommen ✓", bestaetigen: "Danke – wir fragen in 10 Tagen nochmal", zurueck: "Als zurück eingetragen", erinnern: "Okay, Erinnerung später" }[b.dataset.ma]);
         if (AT.checkMaschinen) AT.checkMaschinen(true);
+      } catch (e) { toast2(e.message); }
+      busy = false; paint();
+    });
+    box.querySelectorAll("[data-grat]").forEach(b => b.onclick = async () => {
+      if (busy) return; busy = true; b.disabled = true; b.textContent = "…";
+      try {
+        hin = await post("hinweise", { aktion: "gratulieren", an: b.dataset.grat }); ls.set("hi_cache", hin);
+        ls.set("grat_" + b.dataset.grat + "_" + new Date().toISOString().slice(0, 10), true);
+        toast2("🎉 Glückwunsch an " + b.dataset.grat.split(" ")[0] + " gesendet");
       } catch (e) { toast2(e.message); }
       busy = false; paint();
     });

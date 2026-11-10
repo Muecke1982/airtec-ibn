@@ -70,7 +70,7 @@ Protokolle, die ohne Verbindung erstellt werden, bleiben auf dem Handy gespeiche
 ## Zugangsliste
 
 Vorlage: `vorlagen/Airtec_Zugaenge.xlsx` → in SharePoint neben die Stammdaten-Datei legen.
-Spalten: Name · E-Mail · Passwort · Name im Wochenplan · Schreibrecht (x).
+Spalten: Name · E-Mail · Passwort · Name im Wochenplan · Schreibrecht (x) · Geburtstag (TT.MM. – Startseite gratuliert, Wochenende am Freitag).
 Die Datei liest nur der Server (über Microsoft Graph), sie wird nie aufs Handy geladen.
 Änderungen wirken nach spätestens 5 Minuten; ein geändertes Passwort meldet die Person ab.
 
