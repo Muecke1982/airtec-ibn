@@ -19,7 +19,7 @@ def link(c, sheet): c.hyperlink = Hyperlink(ref=c.coordinate, location=f"'{sheet
 KAT = [
  ("Kupfer Kälte", "Kupfer Kälte", "KK", "🟠", ["Rollenrohr", "Stangenrohr", "Fittinge"], 5),
  ("Elektro", "Elektro", "EL", "⚡", ["Kabel", "Kabelbühne", "PG-Rohr", "Wellrohr", "Bauteile"], 5),
- ("Abfluss", "Abfluss", "AB", "💧", ["HT-Rohr", "Fittinge", "Kondensatpumpen", "Schlauch", "Siphons"], 5),
+ ("Abfluss", "Abfluss", "AB", "💧", ["HI-Rohr", "Fittinge", "Kondensatpumpen", "Schlauch", "Siphons", "Kleber & Reiniger", "Verschraubungen & Schellen"], 3),
  ("Schrauben", "Schrauben", "SC", "🔩", [], 10),
  ("Montagematerial", "Montagematerial", "MO", "🛠️", ["Schiene", "Zubehör Schiene", "Konsolen", "Rohrschellen", "P-Schellen", "Kälteschellen"], 10),
  ("Isolierung", "Isolierung", "IS", "🧱", ["Kautschuk endlos", "Kautschuk 2 m", "Kautschuk Matte"], 10),
@@ -36,8 +36,10 @@ src = json.load(open("quellen/mosecker_1.json"))
 by = {k[1]: [] for k in KAT}
 for r in src:
     kat, sub = MAP[r[2]]; r[1], r[2] = kat, sub; by[kat].append(r)
-for r in json.load(open("quellen/mosecker_2.json")):      # 2. Mosecker-Liste: Kabelbahnen (Kategorie schon gesetzt)
-    by[r[1]].append(r)
+for f in ["quellen/mosecker_2.json", "quellen/mosecker_3.json"]:   # weitere Mosecker-Listen (Kategorie schon gesetzt)
+    for r in json.load(open(f)): by[r[1]].append(r)
+for k in by:                                   # Reihenfolge der Quelle merken
+    for n, r in enumerate(by[k]): r.append(n)
 num = lambda t: float(re.search(r"\d+", t)[0]) if re.search(r"\d+", t) else 0
 
 COLS = ["Art.-Nr", "Unterkategorie", "Bezeichnung", "Größe / Typ", "Hersteller", "Lieferant", "Bestellnummer Lieferant",
@@ -57,7 +59,10 @@ for i, (kat, sheet, pre, sym, subs, extra) in enumerate(KAT):
     if kat:
         def width(r):
             m = re.search(r"x\s*(\d+)\s*mm|(\d+)\s*mm", r[3]); return float(next(g for g in m.groups() if g)) if m else 0
-        rows = sorted(by[kat], key=lambda r: (subs.index(r[2]), ("Deckel" in r[3]), width(r) if kat == "Elektro" else num(r[4] if kat not in ("Kältezubehör", "Montagematerial") else r[3])))
+        if kat in ("Kupfer Kälte", "Kältezubehör", "Montagematerial"):
+            rows = sorted(by[kat], key=lambda r: (subs.index(r[2]), num(r[4] if kat == "Kupfer Kälte" else r[3])))
+        else:   # Elektro, Abfluss …: Reihenfolge der Lieferantenliste, Kabelbahnen vor Deckeln nach Breite
+            rows = sorted(by[kat], key=lambda r: (subs.index(r[2]), ("Deckel" in r[3]), width(r) if r[2] == "Kabelbühne" else r[-1]))
         for n, r in enumerate(rows, 1):
             ws.append([f"{pre}-{n:03d}", r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15]])
     for row in ws.iter_rows(min_row=2, max_row=NROWS, max_col=len(COLS)):
