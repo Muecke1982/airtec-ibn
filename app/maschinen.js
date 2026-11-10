@@ -46,6 +46,8 @@
     paint();
   }
 
+  // Kollegen mit Vornamen, Firmen/Externe mit vollem Namen
+  const who = n => (ls.get("at_names") || []).some(x => norm(x) === norm(n)) ? String(n).split(" ")[0] : n;
   const span = r => { const a = String(r.von).slice(0, 6), b = String(r.bis).slice(0, 6); return a === b ? a : a + " – " + b; };
   function row(m, inMine) {
     const mine = isMine(m), out = !!m.aus;
@@ -68,7 +70,7 @@
     const forMe = r => norm(r.fuer) === norm(me());
     const resNow = res.find(r => r.jetzt);
     const resLine = res.length ? `<span class="mares${resNow ? (forMe(resNow) ? " me" : " now") : ""}">📅 ${res.slice(0, 2).map(r =>
-      `${r.jetzt ? "heute " : ""}${forMe(r) ? "für dich" : esc(r.fuer.split(" ")[0])} ${esc(span(r))}`).join(" · ")}${res.length > 2 ? ` · +${res.length - 2}` : ""}</span>` : "";
+      `${r.jetzt ? "heute " : ""}${forMe(r) ? "für dich" : esc(who(r.fuer))} ${esc(span(r))}`).join(" · ")}${res.length > 2 ? ` · +${res.length - 2}` : ""}</span>` : "";
     // Warnung für den, der sie hat, wenn bald jemand anderes reserviert hat
     const warn = mine && res.find(r => r.bald && !forMe(r)) ? `<small class="mawarn">⚠ ab ${esc(span(res.find(r => r.bald && !forMe(r))).split(" – ")[0])} für ${esc(res.find(r => r.bald && !forMe(r)).fuer)} reserviert – bitte rechtzeitig zurücklegen</small>` : "";
     const hist = office() && open === m.id && m.verlauf ? `<div class="mahist">${m.verlauf.length ? m.verlauf.map(v =>
@@ -255,7 +257,10 @@
     lend.innerHTML = `<div class="malend">
       <label>Maschine</label><select id="mrM">${all.map(m => `<option value="${esc(m.id)}" ${m.id === preId ? "selected" : ""}>${esc(m.name)}${m.nr ? " (" + esc(m.nr) + ")" : ""}</option>`).join("")}</select>
       <div id="mrInfo" class="mrinfo"></div>
-      ${office() ? `<label>Für</label><select id="mrF">${[me(), ...names.filter(n => norm(n) !== norm(me()))].map(n => `<option>${esc(n)}</option>`).join("")}</select>` : ""}
+      <label>Für</label>
+      <div class="machips mlchips mrfor"><button data-f="${esc(me())}" class="on">Mich</button>${((data && data.empfaenger) || []).map(x => `<button data-f="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+      ${office() && names.length ? `<select id="mrFP"><option value="">– oder Mitarbeiter wählen –</option>${names.filter(n => norm(n) !== norm(me())).map(n => `<option>${esc(n)}</option>`).join("")}</select>` : ""}
+      <input id="mrF" value="${esc(me())}" placeholder="oder Name / Firma eintragen" autocomplete="off">
       <div class="row"><div><label>von</label><input type="date" id="mrV" value="${t}" min="${t}"></div><div><label>bis einschließlich</label><input type="date" id="mrB" value="${t}" min="${t}"></div></div>
       <div class="machips mldays"><button data-q="0">1 Tag</button><button data-q="1">2 Tage</button><button data-q="fr">bis Freitag</button><button data-q="7">1 Woche</button></div>
       <label>Notiz (optional)</label><input id="mrN" placeholder="z. B. Baustelle Bochum" autocomplete="off">
@@ -272,6 +277,10 @@
     };
     info();
     $$("#mrM").onchange = info; $$("#mrV").onchange = info; $$("#mrB").onchange = info;
+    const markFor = () => lend.querySelectorAll(".mrfor button").forEach(x => x.classList.toggle("on", norm(x.dataset.f) === norm($$("#mrF").value)));
+    lend.querySelectorAll(".mrfor button").forEach(b => b.onclick = () => { $$("#mrF").value = b.dataset.f; if ($$("#mrFP")) $$("#mrFP").value = ""; markFor(); });
+    if ($$("#mrFP")) $$("#mrFP").onchange = e => { if (e.target.value) { $$("#mrF").value = e.target.value; markFor(); } };
+    $$("#mrF").oninput = markFor;
     lend.querySelectorAll(".mldays button").forEach(b => b.onclick = () => {
       const v = $$("#mrV").value || t, q = b.dataset.q, wdv = (new Date(v + "T12:00:00Z").getUTCDay() + 6) % 7;
       $$("#mrB").value = q === "fr" ? isoAdd(v, Math.max(0, 4 - wdv)) : isoAdd(v, +q);
@@ -283,16 +292,17 @@
       `<div>${esc(m.name)}: ${esc(span(r))}${norm(r.fuer) !== norm(me()) ? " (für " + esc(r.fuer) + ")" : ""} <button class="mastorno" data-storno="${esc(r.rid)}" data-id="${esc(m.id)}">stornieren</button></div>`).join("")}</div>` : "";
     $$("#mrX").onclick = closeLend;
     $$("#mrGo").onclick = async () => {
-      const id = $$("#mrM").value, von = $$("#mrV").value, bis = $$("#mrB").value || von;
+      const id = $$("#mrM").value, von = $$("#mrV").value, bis = $$("#mrB").value || von, fuer = $$("#mrF").value.trim();
       if (!id || !von) return;
+      if (!fuer) { $$("#mrF").focus(); toast2("Bitte angeben, für wen"); return; }
       if (!navigator.onLine) { toast2("Keine Internetverbindung"); return; }
       const go = $$("#mrGo"); go.disabled = true; go.textContent = "Wird gespeichert …";
       try {
         const d = await AT.api("maschinen", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ aktion: "reservieren", id, von: de(von), bis: de(bis), notiz: $$("#mrN").value.trim(), fuer: office() ? $$("#mrF").value : "" }) });
+          body: JSON.stringify({ aktion: "reservieren", id, von: de(von), bis: de(bis), notiz: $$("#mrN").value.trim(), fuer }) });
         d.geladen = Date.now(); data = d; ls.set("ma_cache", d);
         const m = d.maschinen.find(x => x.id === id);
-        toast2(`${m ? m.name : "Maschine"} reserviert ${von === bis ? "für " + de(von).slice(0, 6) : de(von).slice(0, 6) + " – " + de(bis).slice(0, 6)}`);
+        toast2(`${m ? m.name : "Maschine"} reserviert${norm(fuer) !== norm(me()) ? " für " + fuer : ""} ${von === bis ? "für " + de(von).slice(0, 6) : de(von).slice(0, 6) + " – " + de(bis).slice(0, 6)}`);
         closeLend(); paint();
       } catch (e) { toast2(e.message); go.disabled = false; go.textContent = "Reservieren"; }
     };
