@@ -19,7 +19,7 @@ def head(ws, cols, widths, fill=HEAD):
     ws.freeze_panes = "A2"
 
 KAT = [
- ("Kupferrohr & Formteile", "🟠", ["Kupferrohr Ring (weich)", "Kupferrohr Stange (hart)", "Bögen", "T-Stücke", "Muffen & Reduzierungen", "Bördelmuttern & Verschraubungen", "Lötfittings sonstige"]),
+ ("Kupferrohr & Formteile", "🟠", ["Kupferrohr Ring (weich)", "Kupferrohr Stange (hart)", "Kupferrohr vorisoliert", "Bögen", "T-Stücke", "Muffen & Reduzierungen", "Bördelmuttern & Verschraubungen", "Lötfittings sonstige"]),
  ("Isolierung", "🧱", ["Kautschuk-Schlauch", "Kautschuk-Platte & Band", "Kleber & Reiniger", "Isolierband & Klebeband"]),
  ("Kältemittel & Öle", "🧪", ["Kältemittel Einweg/Pfand", "Kältemaschinenöl", "Lecksuchmittel", "Zusätze & Dichtmittel"]),
  ("Löten & Gase", "🔥", ["Hartlot", "Flussmittel", "Stickstoff / Formiergas", "Brenngas (Propan/Acetylen)"]),
@@ -40,28 +40,14 @@ a = wb.active; a.title = "Artikel"
 ACOLS = ["Art.-Nr", "Kategorie", "Unterkategorie", "Bezeichnung", "Größe / Typ", "Hersteller", "Lieferant", "Bestellnummer Lieferant",
          "Einheit", "Verpackungsgröße (VE)", "Standard-Bestellmenge", "Lagerort", "Häufig (x)", "Suchbegriffe", "Aktiv (x)", "Bemerkung"]
 head(a, ACOLS, [10, 24, 28, 34, 16, 16, 16, 20, 9, 14, 13, 12, 10, 26, 9, 30])
-EX = [
- ("L-0001","Kupferrohr & Formteile","Kupferrohr Ring (weich)","Kupferrohr weich 1/4\"","6,35 mm","","Mosecker","","Ring","25 m","1","Regal A1","x","cu 1/4 ring","x","Beispiel – prüfen"),
- ("L-0002","Kupferrohr & Formteile","Kupferrohr Ring (weich)","Kupferrohr weich 3/8\"","9,52 mm","","Mosecker","","Ring","25 m","1","Regal A1","x","cu 3/8 ring","x","Beispiel – prüfen"),
- ("L-0003","Kupferrohr & Formteile","Kupferrohr Ring (weich)","Kupferrohr weich 1/2\"","12,7 mm","","Mosecker","","Ring","25 m","1","Regal A1","x","cu 1/2 ring","x","Beispiel – prüfen"),
- ("L-0004","Kupferrohr & Formteile","Kupferrohr Ring (weich)","Kupferrohr weich 5/8\"","15,88 mm","","Mosecker","","Ring","25 m","1","Regal A1","","cu 5/8 ring","x","Beispiel – prüfen"),
- ("L-0005","Kupferrohr & Formteile","Bördelmuttern & Verschraubungen","Bördelmutter 1/4\"","SAE","","Mosecker","","Stk","10 Stk","2","Regal A3","x","bördel mutter","x","Beispiel – prüfen"),
- ("L-0006","Isolierung","Kautschuk-Schlauch","Kautschuk-Isolierschlauch 9 mm für 1/4\"","9 mm / 6 mm Rohr","","Mosecker","","m","2 m Stange","20","Regal B1","x","armaflex iso 1/4","x","Beispiel – prüfen"),
- ("L-0007","Isolierung","Kleber & Reiniger","Kautschuk-Kleber","0,5 l","","Mosecker","","Dose","1 Dose","2","Regal B2","","kleber 520","x","Beispiel – prüfen"),
- ("L-0008","Kältemittel & Öle","Kältemittel Einweg/Pfand","Kältemittel R32","10 kg","","Mosecker","","Flasche","1 Flasche","1","Gaslager","x","r32 gas","x","Beispiel – prüfen"),
- ("L-0009","Kältemittel & Öle","Lecksuchmittel","Lecksuchspray","400 ml","","Mosecker","","Dose","12 Dosen","1","Regal C1","","leck spray schaum","x","Beispiel – prüfen"),
- ("L-0010","Löten & Gase","Hartlot","Silberlot 2 %","2 mm","","Mosecker","","kg","1 kg","1","Regal C2","x","lot stäbe","x","Beispiel – prüfen"),
- ("L-0011","Elektro","Leitungen","Steuerleitung H07RN-F 5G1,5","5G1,5","","Mosecker","","m","50 m Ring","1","Regal D1","x","kabel gummi 5x1,5","x","Beispiel – prüfen"),
- ("L-0012","Elektro","Kabelbinder & Befestigung","Kabelbinder UV-beständig schwarz","4,8 x 300","","Mosecker","","Paket","100 Stk","1","Regal D2","x","kabelbinder","x","Beispiel – prüfen"),
- ("L-0013","Kondensat","Kondensatschlauch","Kondensatschlauch","16 mm","","Mosecker","","m","30 m Rolle","1","Regal E1","x","schlauch kondenswasser","x","Beispiel – prüfen"),
- ("L-0014","Kondensat","Kondensatpumpen","Kondensatpumpe Mini","","","Mosecker","","Stk","1 Stk","2","Regal E2","","pumpe kondensat","x","Beispiel – prüfen"),
- ("L-0015","Befestigung & Montage","Wandkonsolen","Wandkonsole 450 mm","bis 140 kg","","Mosecker","","Satz","1 Paar","2","Regal F1","x","konsole wand","x","Beispiel – prüfen"),
- ("L-0016","Befestigung & Montage","Schwingungsdämpfer","Schwingungsdämpfer M8","","","Mosecker","","Stk","4 Stk","1","Regal F2","","dämpfer gummi","x","Beispiel – prüfen"),
- ("L-0017","Leitungsabdeckung","Kanal gerade","Leitungsabdeckkanal 80 mm weiß","2 m","","Mosecker","","Stk","1 Stk","5","Regal G1","x","kanal abdeckung","x","Beispiel – prüfen"),
- ("L-0018","Ventile & Regelung","Schrader-Ventile & Einsätze","Ventileinsätze 1/4\"","","","Mosecker","","Paket","10 Stk","1","Regal H1","","schrader einsatz","x","Beispiel – prüfen"),
- ("L-0019","Verbrauchsmaterial","Silikon & Dichtstoff","Silikon transparent","310 ml","","Mosecker","","Kartusche","1 Kartusche","5","Regal K1","x","silikon","x","Beispiel – prüfen"),
- ("L-0020","Verbrauchsmaterial","Reiniger & Klimareiniger","Klimareiniger Spray","400 ml","","Mosecker","","Dose","12 Dosen","1","Regal K2","","reiniger verdampfer","x","Beispiel – prüfen"),
-]
+import json, re
+EX = json.load(open("../mos/rows.json"))
+ORDER = {k[0]: n for n, k in enumerate(KAT)}
+SUBORD = {sub: n for _, _, subs in KAT for n, sub in enumerate(subs)}
+num = lambda t: float((re.search(r"\d+", t) or [0])[0]) if re.search(r"\d+", t) else 0
+EX.sort(key=lambda r: (ORDER.get(r[1], 99), SUBORD.get(r[2], 99), num(r[4] if r[1] != "Befestigung & Montage" else r[3])))
+for n, r in enumerate(EX, 1): r[0] = f"L-{n:04d}"
+
 for r in EX: a.append(list(r))
 NROWS = 1000
 for row in a.iter_rows(min_row=2, max_row=NROWS, max_col=len(ACOLS)):
@@ -159,7 +145,7 @@ lines = [
  ("Häufig (x): erscheint in der App ganz oben – für die Artikel, die ständig gemeldet werden.", ""),
  ("Suchbegriffe: zusätzliche Wörter für die Suche (Marken, Abkürzungen, z. B. „armaflex“, „cu“).", ""),
  ("Aktiv (x): nur aktive Artikel erscheinen in der App.", ""),
- ("Die 20 Beispielzeilen (Bemerkung „Beispiel – prüfen“) zeigen das Format – bitte anpassen oder löschen.", ""), ("", ""),
+ ("Eingetragen sind die Mosecker-Artikel aus deiner Liste (Bestellnummer = Mosecker-Artikelnummer). Die Original-Bezeichnung steht in „Bemerkung“.", ""), ("", ""),
  ("Blatt „Kategorien“", "h"),
  ("Spalte A–D: die Hauptkategorien (Name, Schlüssel K01 …, Symbol für die App, Sortierung).", ""),
  ("Ab Spalte F: je Kategorie eine Spalte mit ihren Unterkategorien (bis zu 20). Neue Unterkategorie = einfach darunter eintragen.", ""),
