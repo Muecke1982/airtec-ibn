@@ -32,10 +32,12 @@ NK = len(KAT)
 MAP = {"Kupferrohr Stange (hart)": ("Kupfer Kälte", "Stangenrohr"), "Kupferrohr vorisoliert": ("Kupfer Kälte", "Rollenrohr"),
        "Hartlot": ("Kältezubehör", "Hartlot & Löten"), "Boden- & Dachständer": ("Kältezubehör", "Aufstellfüße"),
        "Rohrschellen": ("Montagematerial", "Kälteschellen")}
-src = json.load(open("../mos/rows.json"))
+src = json.load(open("quellen/mosecker_1.json"))
 by = {k[1]: [] for k in KAT}
 for r in src:
     kat, sub = MAP[r[2]]; r[1], r[2] = kat, sub; by[kat].append(r)
+for r in json.load(open("quellen/mosecker_2.json")):      # 2. Mosecker-Liste: Kabelbahnen (Kategorie schon gesetzt)
+    by[r[1]].append(r)
 num = lambda t: float(re.search(r"\d+", t)[0]) if re.search(r"\d+", t) else 0
 
 COLS = ["Art.-Nr", "Unterkategorie", "Bezeichnung", "Größe / Typ", "Hersteller", "Lieferant", "Bestellnummer Lieferant",
@@ -53,7 +55,9 @@ for i, (kat, sheet, pre, sym, subs, extra) in enumerate(KAT):
     for j, w in enumerate(WID, 1): ws.column_dimensions[L(j)].width = w
     ws.freeze_panes = "C2"; ws.sheet_properties.tabColor = BLUE if kat else "C8D1DA"
     if kat:
-        rows = sorted(by[kat], key=lambda r: (subs.index(r[2]), num(r[4] if kat not in ("Kältezubehör", "Montagematerial") else r[3])))
+        def width(r):
+            m = re.search(r"x\s*(\d+)\s*mm|(\d+)\s*mm", r[3]); return float(next(g for g in m.groups() if g)) if m else 0
+        rows = sorted(by[kat], key=lambda r: (subs.index(r[2]), ("Deckel" in r[3]), width(r) if kat == "Elektro" else num(r[4] if kat not in ("Kältezubehör", "Montagematerial") else r[3])))
         for n, r in enumerate(rows, 1):
             ws.append([f"{pre}-{n:03d}", r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15]])
     for row in ws.iter_rows(min_row=2, max_row=NROWS, max_col=len(COLS)):
