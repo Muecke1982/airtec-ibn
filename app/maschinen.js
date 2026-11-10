@@ -18,7 +18,7 @@
     <section class="card hide" id="maMineCard"><h2>Bei dir</h2><ul class="malist" id="maMine"></ul></section>
     <section class="card">
       <h2>Maschinen</h2>
-      <div class="maopts" id="maOpts"><button class="add" id="maLendBtn">↗ Maschine verleihen</button><button class="add" id="maSiteBtn">📍 Auf Baustelle gelassen</button></div>
+      <div class="maopts" id="maOpts"><button class="add" id="maLendBtn">↗ Maschine verleihen</button><button class="add" id="maSiteBtn">📍 Auf Baustelle gelassen</button><button class="add" id="maResBtn">📅 Reservieren</button></div>
       <div id="maLend" class="hide"></div>
       <input id="maQ" type="search" placeholder="Suchen (Name, Nr., Monteur) …" autocomplete="off">
       <div class="machips"><button data-f="alle" class="on">Alle</button><button data-f="frei">Im Lager</button><button data-f="weg">Unterwegs</button></div>
@@ -46,6 +46,7 @@
     paint();
   }
 
+  const span = r => { const a = String(r.von).slice(0, 6), b = String(r.bis).slice(0, 6); return a === b ? a : a + " – " + b; };
   function row(m, inMine) {
     const mine = isMine(m), out = !!m.aus;
     let btn = "";
@@ -63,10 +64,18 @@
       ? `<span class="mast out">${mine ? "bei dir" : "bei " + esc(m.aus.wer)} · seit ${esc(short(m.aus.seit))}${m.aus.faellig && (mine || office()) ? ` <b class="mafaellig">${m.aus.tage} Tage</b>` : ""}</span>`
       : `<span class="mast in">im Lager</span>`;
     const sub = [m.nr, m.typ].filter(Boolean).map(esc).join(" · ");
+    const res = m.res || [];
+    const forMe = r => norm(r.fuer) === norm(me());
+    const resNow = res.find(r => r.jetzt);
+    const resLine = res.length ? `<span class="mares${resNow ? (forMe(resNow) ? " me" : " now") : ""}">📅 ${res.slice(0, 2).map(r =>
+      `${r.jetzt ? "heute " : ""}${forMe(r) ? "für dich" : esc(r.fuer.split(" ")[0])} ${esc(span(r))}`).join(" · ")}${res.length > 2 ? ` · +${res.length - 2}` : ""}</span>` : "";
+    // Warnung für den, der sie hat, wenn bald jemand anderes reserviert hat
+    const warn = mine && res.find(r => r.bald && !forMe(r)) ? `<small class="mawarn">⚠ ab ${esc(span(res.find(r => r.bald && !forMe(r))).split(" – ")[0])} für ${esc(res.find(r => r.bald && !forMe(r)).fuer)} reserviert – bitte rechtzeitig zurücklegen</small>` : "";
     const hist = office() && open === m.id && m.verlauf ? `<div class="mahist">${m.verlauf.length ? m.verlauf.map(v =>
-      `<div><b>${v.an ? "an " + esc(v.an) + (v.kontakt ? " (" + esc(v.kontakt) + ")" : "") + "</b> <small>durch " + esc(v.wer) + ", bis " + esc(dd(v.frist)) + "</small><b>" : esc(v.wer)}</b> ${esc(short(v.von))} → ${v.bis ? esc(short(v.bis)) : "<i>noch unterwegs</i>"}${v.bem ? ` <small>(${esc(v.bem)})</small>` : ""}</div>`).join("") : "<div>Noch keine Ausleihe.</div>"}</div>` : "";
-    return `<li class="${out ? (m.aus.baustelle ? "site" : m.aus.extern ? "lent" : mine ? "mine" : "out") : "in"}" data-id="${esc(m.id)}">
-      <div class="mainfo"${office() && !inMine ? ' data-hist="1"' : ""}><b>${esc(m.name)}</b>${sub ? `<small>${sub}</small>` : ""}${status}${m.bem && !/^beispiel/i.test(m.bem) ? `<small class="mabem">${esc(m.bem)}</small>` : ""}</div>
+      `<div><b>${v.an ? "an " + esc(v.an) + (v.kontakt ? " (" + esc(v.kontakt) + ")" : "") + "</b> <small>durch " + esc(v.wer) + ", bis " + esc(dd(v.frist)) + "</small><b>" : esc(v.wer)}</b> ${esc(short(v.von))} → ${v.bis ? esc(short(v.bis)) : "<i>noch unterwegs</i>"}${v.bem ? ` <small>(${esc(v.bem)})</small>` : ""}</div>`).join("") : "<div>Noch keine Ausleihe.</div>"}${res.length ? `<div class="mahres"><b>Reservierungen</b>${res.map(r =>
+      `<div>${esc(r.fuer)}: ${esc(span(r))}${r.notiz ? " · " + esc(r.notiz) : ""} <button class="mastorno" data-storno="${esc(r.rid)}" data-id="${esc(m.id)}">stornieren</button></div>`).join("")}</div>` : ""}</div>` : "";
+    return `<li class="${out ? (m.aus.baustelle ? "site" : m.aus.extern ? "lent" : mine ? "mine" : "out") : resNow && !forMe(resNow) ? "in resv" : "in"}" data-id="${esc(m.id)}">
+      <div class="mainfo"${office() && !inMine ? ' data-hist="1"' : ""}><b>${esc(m.name)}</b>${sub ? `<small>${sub}</small>` : ""}${status}${resLine}${warn}${m.bem && !/^beispiel/i.test(m.bem) ? `<small class="mabem">${esc(m.bem)}</small>` : ""}</div>
       <div class="maact">${btn}</div>${hist}</li>`;
   }
 
@@ -115,6 +124,12 @@
       setTimeout(() => { if (btn.isConnected) { btn.classList.remove("sure"); btn.textContent = "Übernehmen"; } }, 4000);
       return;
     }
+    const rn = m && (m.res || []).find(r => r.jetzt && norm(r.fuer) !== norm(me()));
+    if ((a === "nehmen" || a === "uebernehmen") && rn && !btn.classList.contains("sure2")) {
+      btn.classList.add("sure", "sure2"); btn.textContent = "Für " + rn.fuer.split(" ")[0] + " reserviert – trotzdem?";
+      setTimeout(() => { if (btn.isConnected) { btn.classList.remove("sure", "sure2"); btn.textContent = a === "nehmen" ? "Mitnehmen" : "Übernehmen"; } }, 4000);
+      return;
+    }
     if (a === "zurueck" && m && m.aus && !isMine(m) && !isLender(m) && !m.aus.baustelle && !btn.closest(".maask") && !btn.classList.contains("sure")) {
       btn.classList.add("sure"); btn.textContent = "Wirklich zurück?";
       setTimeout(() => { if (btn.isConnected) { btn.classList.remove("sure"); btn.textContent = "Ist zurück"; } }, 4000);
@@ -127,7 +142,7 @@
       const d = await AT.api("maschinen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: a, id }) });
       d.geladen = Date.now(); data = d; ls.set("ma_cache", d);
       const name = m ? m.name : "Maschine";
-      toast2({ baustelle: "Eingetragen", erinnern: `Okay – Erinnerung in ${data.erinnerung_tage || 3} Tagen`, nehmen: name + " mitgenommen", uebernehmen: name + " übernommen", zurueck: name + " zurückgelegt", bestaetigen: "Danke – wir fragen in 10 Tagen nochmal" }[a] || "Gespeichert");
+      toast2({ storno: "Reservierung storniert", baustelle: "Eingetragen", erinnern: `Okay – Erinnerung in ${data.erinnerung_tage || 3} Tagen`, nehmen: name + " mitgenommen", uebernehmen: name + " übernommen", zurueck: name + " zurückgelegt", bestaetigen: "Danke – wir fragen in 10 Tagen nochmal" }[a] || "Gespeichert");
     } catch (e) {
       toast2(e.message);
       await load(true);
@@ -227,9 +242,79 @@
     lend.classList.remove("hide"); $("#maOpts").classList.add("hide");
   }
   $("#maSiteBtn").onclick = () => { if (data) openSite(); else toast2("Liste wird noch geladen"); };
+
+  /* ---------- Reservieren ---------- */
+  const isoToday = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  const isoAdd = (s, n) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const de = iso => iso.split("-").reverse().join(".");
+  async function openRes(preId) {
+    const all = data.maschinen || [];
+    let names = [];
+    if (office()) { names = ls.get("at_names") || []; if (!names.length) try { names = (await AT.api("login?liste=1")).namen || []; ls.set("at_names", names); } catch (e) {} }
+    const t = isoToday();
+    lend.innerHTML = `<div class="malend">
+      <label>Maschine</label><select id="mrM">${all.map(m => `<option value="${esc(m.id)}" ${m.id === preId ? "selected" : ""}>${esc(m.name)}${m.nr ? " (" + esc(m.nr) + ")" : ""}</option>`).join("")}</select>
+      <div id="mrInfo" class="mrinfo"></div>
+      ${office() ? `<label>Für</label><select id="mrF">${[me(), ...names.filter(n => norm(n) !== norm(me()))].map(n => `<option>${esc(n)}</option>`).join("")}</select>` : ""}
+      <div class="row"><div><label>von</label><input type="date" id="mrV" value="${t}" min="${t}"></div><div><label>bis einschließlich</label><input type="date" id="mrB" value="${t}" min="${t}"></div></div>
+      <div class="machips mldays"><button data-q="0">1 Tag</button><button data-q="1">2 Tage</button><button data-q="fr">bis Freitag</button><button data-q="7">1 Woche</button></div>
+      <label>Notiz (optional)</label><input id="mrN" placeholder="z. B. Baustelle Bochum" autocomplete="off">
+      <button class="bigbtn primary" id="mrGo">Reservieren</button>
+      <button class="add" id="mrX">Abbrechen</button>
+      <div id="mrMine"></div></div>`;
+    const $$ = s => lend.querySelector(s);
+    const info = () => {
+      const m = all.find(x => x.id === $$("#mrM").value), res = (m && m.res) || [];
+      const st = !m ? "" : m.aus ? (m.aus.baustelle ? "steht auf Baustelle " + esc(m.aus.baustelle) : m.aus.extern ? "verliehen an " + esc(m.aus.an) + " bis " + esc(dd(m.aus.frist)) : "gerade bei " + esc(m.aus.wer)) : "im Lager";
+      $$("#mrInfo").innerHTML = m ? `Jetzt: <b>${st}</b>${res.length ? `<br>Schon reserviert: ${res.map(r => esc(r.fuer.split(" ")[0]) + " " + esc(span(r))).join(", ")}` : "<br>Noch keine Reservierung."}` : "";
+      if ($$("#mrB").value < $$("#mrV").value) $$("#mrB").value = $$("#mrV").value;
+      $$("#mrB").min = $$("#mrV").value;
+    };
+    info();
+    $$("#mrM").onchange = info; $$("#mrV").onchange = info; $$("#mrB").onchange = info;
+    lend.querySelectorAll(".mldays button").forEach(b => b.onclick = () => {
+      const v = $$("#mrV").value || t, q = b.dataset.q, wdv = (new Date(v + "T12:00:00Z").getUTCDay() + 6) % 7;
+      $$("#mrB").value = q === "fr" ? isoAdd(v, Math.max(0, 4 - wdv)) : isoAdd(v, +q);
+      lend.querySelectorAll(".mldays button").forEach(x => x.classList.toggle("on", x === b)); info();
+    });
+    // eigene Reservierungen mit Stornieren
+    const mineRes = all.flatMap(m => (m.res || []).filter(r => norm(r.fuer) === norm(me()) || norm(r.by) === norm(me())).map(r => ({ m, r })));
+    $$("#mrMine").innerHTML = mineRes.length ? `<div class="mrlist"><b>Deine Reservierungen</b>${mineRes.map(({ m, r }) =>
+      `<div>${esc(m.name)}: ${esc(span(r))}${norm(r.fuer) !== norm(me()) ? " (für " + esc(r.fuer) + ")" : ""} <button class="mastorno" data-storno="${esc(r.rid)}" data-id="${esc(m.id)}">stornieren</button></div>`).join("")}</div>` : "";
+    $$("#mrX").onclick = closeLend;
+    $$("#mrGo").onclick = async () => {
+      const id = $$("#mrM").value, von = $$("#mrV").value, bis = $$("#mrB").value || von;
+      if (!id || !von) return;
+      if (!navigator.onLine) { toast2("Keine Internetverbindung"); return; }
+      const go = $$("#mrGo"); go.disabled = true; go.textContent = "Wird gespeichert …";
+      try {
+        const d = await AT.api("maschinen", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aktion: "reservieren", id, von: de(von), bis: de(bis), notiz: $$("#mrN").value.trim(), fuer: office() ? $$("#mrF").value : "" }) });
+        d.geladen = Date.now(); data = d; ls.set("ma_cache", d);
+        const m = d.maschinen.find(x => x.id === id);
+        toast2(`${m ? m.name : "Maschine"} reserviert ${von === bis ? "für " + de(von).slice(0, 6) : de(von).slice(0, 6) + " – " + de(bis).slice(0, 6)}`);
+        closeLend(); paint();
+      } catch (e) { toast2(e.message); go.disabled = false; go.textContent = "Reservieren"; }
+    };
+    lend.classList.remove("hide"); $("#maOpts").classList.add("hide");
+  }
+  $("#maResBtn").onclick = () => { if (data) openRes(); else toast2("Liste wird noch geladen"); };
+  AT.reserve = id => { AT.tab("maschinen"); if (data) openRes(id); };
   $("#maLendBtn").onclick = () => { if (data) openLend(); else toast2("Liste wird noch geladen"); };
 
-  root.addEventListener("click", e => {
+  root.addEventListener("click", async e => {
+    const st = e.target.closest(".mastorno");
+    if (st) {
+      e.stopPropagation();
+      if (!st.classList.contains("sure")) { st.classList.add("sure"); st.textContent = "wirklich?"; setTimeout(() => { if (st.isConnected) { st.classList.remove("sure"); st.textContent = "stornieren"; } }, 4000); return; }
+      st.disabled = true;
+      try {
+        const d = await AT.api("maschinen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: "storno", id: st.dataset.id, rid: st.dataset.storno }) });
+        d.geladen = Date.now(); data = d; ls.set("ma_cache", d); toast2("Reservierung storniert");
+        if (st.closest("#mrMine")) openRes(); else paint();
+      } catch (err) { toast2(err.message); st.disabled = false; }
+      return;
+    }
     const b = e.target.closest(".mabtn");
     if (b) { doAct(b); return; }
     const h = e.target.closest(".mainfo[data-hist]");

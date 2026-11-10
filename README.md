@@ -92,4 +92,7 @@ Vorlage: `vorlagen/Airtec_Maschinen.xlsx` → liegt neben den Stammdaten (andere
   Fehlen Blatt oder Spalten in einer älteren Datei, ergänzt die App sie beim nächsten Speichern.
 * „Auf Baustelle gelassen“: mitgenommene Maschine einer Baustelle zuordnen (Spalte „Baustelle“); angezeigt wird dann die Baustelle,
   abholen oder zurückstellen darf jeder. Vorschlag: eigene Baustelle laut Wochenplan heute + zuletzt benutzte.
+* „Reservieren“: Zeitraum je Maschine (Blatt „Reservierungen“, wird bei Bedarf angelegt). Überschneidungen werden abgelehnt;
+  wer reserviert hat und mitnimmt, „verbraucht“ die Reservierung. Andere brauchen zum Mitnehmen einen zweiten Tipp;
+  wer die Maschine hat, wird auf der Startseite gewarnt, wenn sie bald für jemand anderen reserviert ist.
 * Gespeichert wird nur, wenn die Datei seit dem Laden unverändert ist (eTag) – sonst wird neu geladen und wiederholt.

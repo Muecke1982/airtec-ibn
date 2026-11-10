@@ -51,6 +51,16 @@
     const items = [];
     // Maschinen
     for (const m of (ma && ma.maschinen) || []) {
+      // Reservierungen: heute für mich / bald für jemand anderen, während ich sie habe
+      const span = r => { const x = String(r.von).slice(0, 6), y = String(r.bis).slice(0, 6); return x === y ? x : x + " – " + y; };
+      const rMe = (m.res || []).find(r => r.jetzt && norm(r.fuer) === me);
+      if (rMe) items.push(`<section class="card hicard hires"><div class="hihead">📅 Reservierung</div><b>„${esc(m.name)}“ ist für dich reserviert</b>
+        <div>${esc(span(rMe))} · ${m.aus ? (m.aus.baustelle ? "steht auf Baustelle " + esc(m.aus.baustelle) : m.aus.extern ? "noch verliehen an " + esc(m.aus.an) : norm(m.aus.wer) === me ? "hast du schon" : "noch bei " + esc(m.aus.wer)) : "steht im Lager"}</div>
+        ${!m.aus || m.aus.baustelle ? `<div class="maaskbtn"><button class="mabtn take" data-ma="nehmen" data-id="${esc(m.id)}">Jetzt mitnehmen</button></div>` : ""}</section>`);
+      const rOther = m.aus && !m.aus.extern && !m.aus.baustelle && norm(m.aus.wer) === me && (m.res || []).find(r => r.bald && norm(r.fuer) !== me);
+      if (rOther) items.push(`<section class="card hicard hima"><div class="hihead">📅 Reservierung</div><b>„${esc(m.name)}“ wird gebraucht</b>
+        <div>Ab ${esc(String(rOther.von).slice(0, 6))} für ${esc(rOther.fuer)} reserviert – bitte rechtzeitig zurücklegen.</div>
+        <div class="maaskbtn"><button class="mabtn back" data-ma="zurueck" data-id="${esc(m.id)}">Zurückgelegt</button></div></section>`);
       const a = m.aus; if (!a) continue;
       if (!a.extern && !a.baustelle && norm(a.wer) === me && a.faellig)
         items.push(`<section class="card hicard hima"><div class="hihead">🔧 Maschine</div><b>Hast du „${esc(m.name)}“ noch?</b>
@@ -125,7 +135,7 @@
     box.querySelectorAll("[data-ma]").forEach(b => b.onclick = async () => {
       if (busy) return; busy = true; b.disabled = true; b.textContent = "…";
       try { ma = await post("maschinen", { aktion: b.dataset.ma, id: b.dataset.id }); ma.geladen = Date.now(); ls.set("ma_cache", ma);
-        toast2({ bestaetigen: "Danke – wir fragen in 10 Tagen nochmal", zurueck: "Als zurück eingetragen", erinnern: "Okay, Erinnerung später" }[b.dataset.ma]);
+        toast2({ nehmen: "Mitgenommen ✓", bestaetigen: "Danke – wir fragen in 10 Tagen nochmal", zurueck: "Als zurück eingetragen", erinnern: "Okay, Erinnerung später" }[b.dataset.ma]);
         if (AT.checkMaschinen) AT.checkMaschinen(true);
       } catch (e) { toast2(e.message); }
       busy = false; paint();
