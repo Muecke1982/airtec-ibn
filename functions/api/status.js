@@ -43,6 +43,11 @@ export async function onRequestGet({ request, env }) {
     let who = ""; try { who = " – Dienstkonto: " + saEmail(env); } catch {}
     out.wochenplan = "FEHLER: " + e.message + who;
   }
+  try {
+    const { list: lagerList, path: lagerPath } = await import("../../lib/lager.js");
+    const L = await lagerList(env, { name: "Status", schreiben: true }, true);
+    out.lager = `OK – ${L.kats.length} Kategorien, ${L.arts.length} Artikel, ${L.arts.filter(a => a.offen).length} offen gemeldet (${lagerPath(env)})`;
+  } catch (e) { out.lager = "FEHLER: " + e.message; }
   if (new URL(request.url).searchParams.get("schreibtest") === "ja") {
     try {
       const pdf = new TextEncoder().encode("%PDF-1.4\n% Airtec IBN Schreibtest – Datei kann gelöscht werden\n" + " ".repeat(200) + "\n%%EOF");

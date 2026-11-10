@@ -40,8 +40,9 @@
   let hin = ls.get("hi_cache"), ma = ls.get("ma_cache"), busy = false, formOpen = false, listOpen = false;
 
   async function load() {
-    const [h, m] = await Promise.allSettled([AT.api("hinweise"), AT.api("maschinen")]);
+    const [h, m, lg] = await Promise.allSettled([AT.api("hinweise"), AT.api("maschinen"), office() ? AT.api("lager") : Promise.reject()]);
     if (h.status === "fulfilled") { hin = h.value; ls.set("hi_cache", hin); }
+    if (lg.status === "fulfilled") { ls.set("lg_cache", lg.value); }
     if (m.status === "fulfilled") { ma = m.value; ma.geladen = Date.now(); ls.set("ma_cache", ma); }
     paint();
   }
@@ -124,7 +125,20 @@
         }).join("") : '<div class="hint">Noch keine Hinweise.</div>'}</div>
       </section>`;
     }
+    // Büro: Lager – was muss bestellt werden?
+    if (office()) {
+      const lgd = ls.get("lg_cache");
+      const open = ((lgd && lgd.arts) || []).filter(a => a.offen);
+      const byL = {};
+      for (const a of open) byL[a.lief || "ohne Lieferant"] = (byL[a.lief || "ohne Lieferant"] || 0) + 1;
+      items.push(`<section class="card hicard hilager"><div class="hihead">📦 Lager</div>
+        <b>${open.length ? `${open.length} Artikel zu bestellen` : "Nichts zu bestellen"}</b>
+        ${open.length ? `<div class="hivon">${Object.entries(byL).map(([l, n]) => esc(l) + ": " + n).join(" · ")}</div>` : ""}
+        <button class="hidone" id="hiLager" style="background:var(--blue)">${open.length ? "Bestellliste öffnen" : "Lager ansehen"}</button></section>`);
+    }
     box.innerHTML = items.join("") + ofc;
+    const hl = box.querySelector("#hiLager");
+    if (hl) hl.onclick = () => { const d = ls.get("lg_cache"); if (d && (d.arts || []).some(a => a.offen) && AT.lagerOrders) AT.lagerOrders(); else AT.tab("lager"); };
     // Monteure: Hinweis ans Büro + Status der eigenen Nachrichten
     const msg = root.querySelector("#stMsg");
     msg.classList.toggle("hide", office());

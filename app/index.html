@@ -25,7 +25,7 @@ main{max-width:720px;margin:0 auto;padding:12px 12px 120px}
 .card h2{margin:0 0 10px;font-size:16px;display:flex;align-items:center;gap:8px}
 .card h2:before{content:"";width:4px;height:18px;border-radius:2px;background:var(--green)}
 label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
-input[type=text],input[type=date],input[type=email],input[type=password],input[type=number],#mlAn,#mlK,#mrN,#msB,#mrF,input:not([type]),textarea,select{width:100%;font:inherit;font-size:16px;padding:10px 11px;border:1px solid #cfd5dc;border-radius:10px;background:#fff;color:var(--ink)}
+input[type=text],input[type=date],input[type=email],input[type=password],input[type=number],#mlAn,#mlK,#mrN,#msB,#mrF,#lmTo,#lmCc,#lmSub,input:not([type]),textarea,select{width:100%;font:inherit;font-size:16px;padding:10px 11px;border:1px solid #cfd5dc;border-radius:10px;background:#fff;color:var(--ink)}
 textarea{min-height:80px;resize:vertical}
 input:focus,textarea:focus,select:focus{outline:2px solid var(--blue);border-color:transparent}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -253,6 +253,53 @@ body:has(#krView:not(.hide)) .krzone:hover{border-color:#cfe9f5}
 #mrF{margin-top:8px}
 .mrinfo{font-size:13.5px;color:#374151;background:#fff;border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.45}
 .mrlist{margin-top:14px;font-size:14px;line-height:1.7}
+#laView{padding-bottom:calc(env(safe-area-inset-bottom) + 86px)}
+.lgtop{display:flex;gap:6px;margin-bottom:8px}
+#lgQ{flex:1;min-width:0;font:inherit;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.lgorders{flex:0 0 auto;border:1.5px solid var(--blue);background:#fff;color:var(--blue);border-radius:10px;padding:0 12px;font:inherit;font-size:14px;font-weight:700}
+.lgorders.on{background:var(--blue);color:#fff}
+.lgorders b{background:var(--bad);color:#fff;border-radius:10px;padding:0 6px;margin-left:2px}
+.lgorders b:empty{display:none}
+.lgsubs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;position:sticky;top:calc(env(safe-area-inset-top) + 104px);z-index:2;background:var(--bg)}
+.lgsubs::-webkit-scrollbar{display:none}
+.lgsubs button{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;border-radius:20px;padding:8px 13px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.lgsubs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.lgsubinfo{font-size:14px;color:var(--mut);padding:6px 2px}
+.lglist,.lgolist{list-style:none;margin:0;padding:0}
+.lglist li{display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;padding:10px 10px 10px 12px;margin-bottom:7px;box-shadow:0 1px 2px rgba(0,0,0,.05);border-left:5px solid #e3e8ee}
+.lglist li.wenig{border-left-color:#e08a00;background:#fff8ec}
+.lglist li.leer{border-left-color:var(--bad);background:#fdeeee}
+.lginfo{flex:1;min-width:0;display:flex;flex-direction:column}
+.lginfo b{font-size:15px;line-height:1.3}
+.lginfo small{font-size:12.5px;color:var(--mut);margin-top:1px}
+.lgst{font-size:12.5px;font-weight:700;margin-top:3px;color:#9a5b00}
+li.leer .lgst{color:var(--bad)}
+.lgback{border:1px solid var(--line);background:#fff;border-radius:7px;padding:1px 7px;font:inherit;font-size:11.5px;color:var(--mut);margin-left:4px}
+.lgbtns{display:flex;gap:5px}
+.lgbtns button{border:1.5px solid #e08a00;background:#fff;color:#9a5b00;border-radius:9px;padding:12px 8px;font:inherit;font-size:13px;font-weight:700;min-width:64px}
+.lgbtns .lgl{border-color:var(--bad);color:var(--bad)}
+.lgbtns .lgw.on{background:#e08a00;color:#fff}
+.lgbtns .lgl.on{background:var(--bad);color:#fff}
+.lgkats{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;gap:6px;overflow-x:auto;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);background:#fff;border-top:1px solid var(--line);box-shadow:0 -2px 10px rgba(0,0,0,.06);scrollbar-width:none;scroll-snap-type:x proximity}
+.lgkats::-webkit-scrollbar{display:none}
+.lgkats button{position:relative;flex:0 0 auto;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:78px;max-width:110px;border:0;background:#eef1f4;border-radius:12px;padding:7px 8px;font:inherit;font-size:12px;font-weight:600;color:var(--ink);line-height:1.15;text-align:center}
+.lgkats button span{font-size:20px}
+.lgkats button.on{background:var(--blue);color:#fff}
+.lgkats button i{position:absolute;top:3px;right:5px;font-style:normal;background:var(--bad);color:#fff;border-radius:9px;font-size:10.5px;padding:0 5px}
+.lgogroup h3{margin:0;font-size:17px}
+.lgogroup h3 small{font-weight:400;color:var(--mut);font-size:13px}
+.lgolist li{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:9px 0}
+.lgochk input{width:22px;height:22px}
+.lgoqty{display:flex;flex-direction:column;align-items:center}
+.lgoqty input{width:56px;font:inherit;font-size:16px;padding:7px 4px;border:1px solid var(--line);border-radius:8px;text-align:center}
+.lgoqty small{font-size:11px;color:var(--mut)}
+.lgdone{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 9px;font:inherit;font-size:13px;color:#2d7d43;font-weight:700}
+.lgdone.sure{background:#3aa655;color:#fff}
+.lgobuy{margin-top:10px}
+.lgmail textarea{width:100%;box-sizing:border-box;font:13.5px/1.45 ui-monospace,Menlo,Consolas,monospace;padding:10px;border:1px solid var(--line);border-radius:10px}
+.lgmail input{width:100%;box-sizing:border-box}
+.lgmail .bigbtn{margin-top:12px}
+.hilager{background:#fff;border:2px solid var(--blue)}
 .malist li.lent{border-left-color:#7b4fd6;background:#f3eefc}
 .mast.lent{color:#5b35a8}
 .malend{background:#f7f8fa;border-radius:12px;padding:4px 12px 12px;margin-bottom:12px}
