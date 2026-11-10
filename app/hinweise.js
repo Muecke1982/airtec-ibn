@@ -128,9 +128,9 @@
     // Büro: Lager – was muss bestellt werden?
     if (office()) {
       const lgd = ls.get("lg_cache");
-      const open = ((lgd && lgd.arts) || []).filter(a => a.offen);
+      const open = [...((lgd && lgd.arts) || []).filter(a => a.offen), ...((lgd && lgd.frei) || [])];
       const byL = {};
-      for (const a of open) byL[a.lief || "ohne Lieferant"] = (byL[a.lief || "ohne Lieferant"] || 0) + 1;
+      for (const a of open) { const k = a.lief || (a.frei ? "🆕 nicht in der Liste" : "ohne Lieferant"); byL[k] = (byL[k] || 0) + 1; }
       items.push(`<section class="card hicard hilager"><div class="hihead">📦 Lager</div>
         <b>${open.length ? `${open.length} Artikel zu bestellen` : "Nichts zu bestellen"}</b>
         ${open.length ? `<div class="hivon">${Object.entries(byL).map(([l, n]) => esc(l) + ": " + n).join(" · ")}</div>` : ""}
@@ -138,7 +138,7 @@
     }
     box.innerHTML = items.join("") + ofc;
     const hl = box.querySelector("#hiLager");
-    if (hl) hl.onclick = () => { const d = ls.get("lg_cache"); if (d && (d.arts || []).some(a => a.offen) && AT.lagerOrders) AT.lagerOrders(); else AT.tab("lager"); };
+    if (hl) hl.onclick = () => { const d = ls.get("lg_cache"); if (d && ((d.arts || []).some(a => a.offen) || (d.frei || []).length) && AT.lagerOrders) AT.lagerOrders(); else AT.tab("lager"); };
     // Monteure: Hinweis ans Büro + Status der eigenen Nachrichten
     const msg = root.querySelector("#stMsg");
     msg.classList.toggle("hide", office());

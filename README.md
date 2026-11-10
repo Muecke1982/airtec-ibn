@@ -10,7 +10,7 @@ Module (getrennt gebaut, nur über Anmeldung und Monteurliste verbunden):
 | Krankmeldung (Büro) | `app/krank.js`, `functions/api/plan.js` | Tagesbrett: krank melden, Teams per Antippen neu einteilen, Baustellen streichen |
 | Start (Begrüßung + Hinweise, Hinweis ans Büro) | `app/hinweise.js`, `lib/hinweise.js`, `functions/api/hinweise.js` | Begrüßung, Maschinen-Hinweise, Büro-Hinweise zum Abhaken (Airtec_Hinweise.xlsx) |
 | Maschinen | `app/maschinen.js`, `lib/maschinen.js`, `lib/xlsx.js`, `functions/api/maschinen.js` | Ausleihe mit einem Tipp, Protokoll in der Excel |
-| Lager | `app/lager.js`, `lib/lager.js`, `functions/api/lager.js` | Artikel aus Airtec_Lager.xlsx, Fast leer/Leer melden, Bestellliste + Bestell-Mail (MAIL_FROM = Absender-Postfach, braucht Mail.Send) |
+| Lager | `app/lager.js`, `lib/lager.js`, `functions/api/lager.js` | Artikel aus Airtec_Lager.xlsx, Fast leer/Leer melden, Material außerhalb der Liste melden (Büro: in Excel aufnehmen oder einmalig bestellen), Bestellliste + Bestell-Mail (MAIL_FROM = Absender-Postfach, braucht Mail.Send) |
 
 Web-App für Inbetriebnahmeprotokolle (Split, Multisplit, VRF, Direktverdampfer, Kaltwassersatz, Wärmepumpe, Klimaschrank).
 Die Monteure füllen das Protokoll auf dem Handy aus, die App erzeugt ein PDF und legt es automatisch in SharePoint ab.
