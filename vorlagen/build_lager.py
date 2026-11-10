@@ -1,104 +1,118 @@
+import json, re
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.comments import Comment
 from openpyxl.utils import get_column_letter as L
+from openpyxl.worksheet.hyperlink import Hyperlink
+def link(c, sheet):
+    c.hyperlink = Hyperlink(ref=c.coordinate, location=f"'{sheet}'!A1")
 
 F = "Arial"
-HEAD = PatternFill("solid", fgColor="009FDA"); HF = Font(name=F, bold=True, color="FFFFFF")
-INPUT = PatternFill("solid", fgColor="FFF7CC")   # vom Büro zu pflegen
-APP = PatternFill("solid", fgColor="E8EEF3")     # schreibt die App
+BLUE = "009FDA"
+HEAD = PatternFill("solid", fgColor=BLUE); HF = Font(name=F, bold=True, color="FFFFFF")
+INPUT = PatternFill("solid", fgColor="FFF7CC")
+GREY = PatternFill("solid", fgColor="5B6B7A")
 thin = Side(style="thin", color="D0D7DE")
-def head(ws, cols, widths, fill=HEAD):
-    ws.append(cols)
-    for c in ws[1]:
-        c.font = HF; c.fill = fill; c.alignment = Alignment(vertical="center", wrap_text=True)
-    ws.row_dimensions[1].height = 30
-    for i, w in enumerate(widths, 1): ws.column_dimensions[L(i)].width = w
-    ws.freeze_panes = "A2"
+NROWS = 400   # Zeilen je Kategorie-Blatt mit Auswahllisten
 
+# (Kategorie, Blattname, Kürzel für Art.-Nr, Symbol, Unterkategorien)
 KAT = [
- ("Kupferrohr & Formteile", "🟠", ["Kupferrohr Ring (weich)", "Kupferrohr Stange (hart)", "Kupferrohr vorisoliert", "Bögen", "T-Stücke", "Muffen & Reduzierungen", "Bördelmuttern & Verschraubungen", "Lötfittings sonstige"]),
- ("Isolierung", "🧱", ["Kautschuk-Schlauch", "Kautschuk-Platte & Band", "Kleber & Reiniger", "Isolierband & Klebeband"]),
- ("Kältemittel & Öle", "🧪", ["Kältemittel Einweg/Pfand", "Kältemaschinenöl", "Lecksuchmittel", "Zusätze & Dichtmittel"]),
- ("Löten & Gase", "🔥", ["Hartlot", "Flussmittel", "Stickstoff / Formiergas", "Brenngas (Propan/Acetylen)"]),
- ("Elektro", "⚡", ["Leitungen", "Busleitungen", "Klemmen & Verbinder", "Kabelbinder & Befestigung", "Schutzschlauch & Rohr", "Sicherungen & Schutz"]),
- ("Kondensat", "💧", ["Kondensatpumpen", "Kondensatschlauch", "PVC-Rohr & Formteile", "Siphons & Geruchsverschlüsse", "Heizband"]),
- ("Befestigung & Montage", "🔩", ["Wandkonsolen", "Boden- & Dachständer", "Schwingungsdämpfer", "Montageschienen & Zubehör", "Rohrschellen", "Dübel & Schrauben", "Gewindestangen & Muttern"]),
- ("Leitungsabdeckung", "📏", ["Kanal gerade", "Bögen & Winkel", "Wanddurchführungen & Endstücke", "Zubehör Kanal"]),
- ("Ventile & Regelung", "🔧", ["Schrader-Ventile & Einsätze", "Ventilkappen", "Kugelhähne", "Filtertrockner", "Schaugläser", "Druckschalter & Sensoren", "Fernbedienungen"]),
- ("Lüftung", "🌀", ["Wickelfalzrohr", "Formteile", "Flexrohr", "Gitter & Ventile", "Dichtband & Schellen", "Filter"]),
- ("Verbrauchsmaterial", "📦", ["Silikon & Dichtstoff", "Reiniger & Klimareiniger", "Schutzausrüstung (PSA)", "Bohrer & Kronen", "Trennscheiben & Sägeblätter", "Sonstiges"]),
+ ("Kupferrohr & Formteile", "Kupfer", "KU", "🟠", ["Kupferrohr Ring (weich)", "Kupferrohr Stange (hart)", "Kupferrohr vorisoliert", "Bögen", "T-Stücke", "Muffen & Reduzierungen", "Bördelmuttern & Verschraubungen", "Lötfittings sonstige"]),
+ ("Isolierung", "Isolierung", "IS", "🧱", ["Kautschuk-Schlauch", "Kautschuk-Platte & Band", "Kleber & Reiniger", "Isolierband & Klebeband"]),
+ ("Kältemittel & Öle", "Kältemittel", "KM", "🧪", ["Kältemittel Einweg/Pfand", "Kältemaschinenöl", "Lecksuchmittel", "Zusätze & Dichtmittel"]),
+ ("Löten & Gase", "Löten", "LG", "🔥", ["Hartlot", "Flussmittel", "Stickstoff / Formiergas", "Brenngas (Propan/Acetylen)"]),
+ ("Elektro", "Elektro", "EL", "⚡", ["Leitungen", "Busleitungen", "Klemmen & Verbinder", "Kabelbinder & Befestigung", "Schutzschlauch & Rohr", "Sicherungen & Schutz"]),
+ ("Kondensat", "Kondensat", "KO", "💧", ["Kondensatpumpen", "Kondensatschlauch", "PVC-Rohr & Formteile", "Siphons & Geruchsverschlüsse", "Heizband"]),
+ ("Befestigung & Montage", "Befestigung", "BF", "🔩", ["Wandkonsolen", "Boden- & Dachständer", "Schwingungsdämpfer", "Montageschienen & Zubehör", "Rohrschellen", "Dübel & Schrauben", "Gewindestangen & Muttern"]),
+ ("Leitungsabdeckung", "Abdeckung", "LA", "📏", ["Kanal gerade", "Bögen & Winkel", "Wanddurchführungen & Endstücke", "Zubehör Kanal"]),
+ ("Ventile & Regelung", "Ventile", "VR", "🔧", ["Schrader-Ventile & Einsätze", "Ventilkappen", "Kugelhähne", "Filtertrockner", "Schaugläser", "Druckschalter & Sensoren", "Fernbedienungen"]),
+ ("Lüftung", "Lüftung", "LU", "🌀", ["Wickelfalzrohr", "Formteile", "Flexrohr", "Gitter & Ventile", "Dichtband & Schellen", "Filter"]),
+ ("Verbrauchsmaterial", "Verbrauch", "VB", "📦", ["Silikon & Dichtstoff", "Reiniger & Klimareiniger", "Schutzausrüstung (PSA)", "Bohrer & Kronen", "Trennscheiben & Sägeblätter", "Sonstiges"]),
 ]
-LIEF = [("Mosecker", "", "", "", "", "", "Beispiel – E-Mail-Adresse und Kundennummer bitte eintragen")]
+COLS = ["Art.-Nr", "Unterkategorie", "Bezeichnung", "Größe / Typ", "Hersteller", "Lieferant", "Bestellnummer Lieferant",
+        "Einheit", "Verpackungsgröße (VE)", "Standard-Bestellmenge", "Lagerort", "Häufig (x)", "Suchbegriffe", "Aktiv (x)", "Bemerkung"]
+WID = [10, 28, 36, 18, 15, 14, 20, 9, 15, 13, 12, 10, 28, 9, 40]
 EINH = ["Stk", "m", "Rolle", "Ring", "Karton", "Paket", "Flasche", "Dose", "Kartusche", "Satz", "kg", "l"]
+LIEF = [("Mosecker", "", "", "", "", "", "E-Mail-Adresse und Kundennummer bitte eintragen")]
+
+# Artikel aus der Mosecker-Liste (Kategorie in Spalte 1 → Blatt)
+src = json.load(open("../mos/rows.json"))
+by = {k[0]: [] for k in KAT}
+for r in src: by[r[1]].append(r)
+num = lambda t: float(re.search(r"\d+", t)[0]) if re.search(r"\d+", t) else 0
 
 wb = Workbook()
-# ---------------- Artikel ----------------
-a = wb.active; a.title = "Artikel"
-ACOLS = ["Art.-Nr", "Kategorie", "Unterkategorie", "Bezeichnung", "Größe / Typ", "Hersteller", "Lieferant", "Bestellnummer Lieferant",
-         "Einheit", "Verpackungsgröße (VE)", "Standard-Bestellmenge", "Lagerort", "Häufig (x)", "Suchbegriffe", "Aktiv (x)", "Bemerkung"]
-head(a, ACOLS, [10, 24, 28, 34, 16, 16, 16, 20, 9, 14, 13, 12, 10, 26, 9, 30])
-import json, re
-EX = json.load(open("../mos/rows.json"))
-ORDER = {k[0]: n for n, k in enumerate(KAT)}
-SUBORD = {sub: n for _, _, subs in KAT for n, sub in enumerate(subs)}
-num = lambda t: float((re.search(r"\d+", t) or [0])[0]) if re.search(r"\d+", t) else 0
-EX.sort(key=lambda r: (ORDER.get(r[1], 99), SUBORD.get(r[2], 99), num(r[4] if r[1] != "Befestigung & Montage" else r[3])))
-for n, r in enumerate(EX, 1): r[0] = f"L-{n:04d}"
+ov = wb.active; ov.title = "Übersicht"
 
-for r in EX: a.append(list(r))
-NROWS = 1000
-for row in a.iter_rows(min_row=2, max_row=NROWS, max_col=len(ACOLS)):
-    for c in row:
-        c.font = Font(name=F, size=10); c.fill = INPUT
-        c.border = Border(bottom=thin)
-for row in a.iter_rows(min_row=2, max_row=NROWS, min_col=8, max_col=8):
-    for c in row: c.number_format = "@"      # Bestellnummern als Text (führende Nullen)
-a.auto_filter.ref = f"A1:{L(len(ACOLS))}{NROWS}"
-a["A1"].comment = Comment("Eindeutige Nummer je Artikel (z. B. L-0001). Bitte nicht mehr ändern – Meldungen aus der App hängen daran.", "Airtec")
-a["G1"].comment = Comment("Aus der Liste im Blatt „Lieferanten“ wählen – danach werden Bestellungen gruppiert.", "Airtec")
-a["M1"].comment = Comment("x = erscheint in der App oben unter „Häufig“ – für schnelles Melden.", "Airtec")
-a["N1"].comment = Comment("Weitere Wörter, unter denen die Monteure suchen (z. B. Markennamen, Abkürzungen).", "Airtec")
-a["O1"].comment = Comment("x = in der App sichtbar. Leer = ausgeblendet (z. B. Auslaufartikel).", "Airtec")
+# ---------------- Kategorie-Blätter ----------------
+for idx, (kat, sheet, pre, sym, subs) in enumerate(KAT, 1):
+    ws = wb.create_sheet(sheet)
+    ws.append(COLS)
+    for c in ws[1]:
+        c.font = HF; c.fill = HEAD; c.alignment = Alignment(vertical="center", wrap_text=True)
+    ws.row_dimensions[1].height = 30
+    for i, w in enumerate(WID, 1): ws.column_dimensions[L(i)].width = w
+    ws.freeze_panes = "C2"
+    ws.sheet_properties.tabColor = BLUE
+    rows = sorted(by[kat], key=lambda r: (subs.index(r[2]) if r[2] in subs else 99, num(r[4] if sheet != "Befestigung" else r[3])))
+    for n, r in enumerate(rows, 1):
+        ws.append([f"{pre}-{n:03d}", r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15]])
+    for row in ws.iter_rows(min_row=2, max_row=NROWS, max_col=len(COLS)):
+        for c in row:
+            c.font = Font(name=F, size=10); c.fill = INPUT; c.border = Border(bottom=thin)
+    for row in ws.iter_rows(min_row=2, max_row=NROWS, min_col=7, max_col=7):
+        for c in row: c.number_format = "@"
+    ws.auto_filter.ref = f"A1:{L(len(COLS))}{NROWS}"
+    # Auswahllisten
+    key = f"U_{pre}"
+    dvs = [
+        (DataValidation(type="list", formula1=key, allow_blank=True, showErrorMessage=True, errorTitle="Unterkategorie",
+                        error="Bitte eine Unterkategorie aus der Liste wählen (neue im Blatt „Kategorien“ eintragen)."), f"B2:B{NROWS}"),
+        (DataValidation(type="list", formula1="LiefListe", allow_blank=True, showErrorMessage=True, errorTitle="Lieferant",
+                        error="Lieferant zuerst im Blatt „Lieferanten“ anlegen."), f"F2:F{NROWS}"),
+        (DataValidation(type="list", formula1="EinheitListe", allow_blank=True), f"H2:H{NROWS}"),
+        (DataValidation(type="list", formula1='"x"', allow_blank=True), f"L2:L{NROWS}"),
+        (DataValidation(type="list", formula1='"x"', allow_blank=True), f"N2:N{NROWS}"),
+    ]
+    for dv, rng in dvs: ws.add_data_validation(dv); dv.add(rng)
+    ws["A1"].comment = Comment(f"Eindeutige Nummer – in diesem Blatt mit „{pre}-“ (z. B. {pre}-001). Die nächste freie Nummer steht in der Übersicht. Später nicht mehr ändern.", "Airtec")
+    ws["L1"].comment = Comment("x = erscheint in der App ganz oben unter „Häufig“.", "Airtec")
+    ws["M1"].comment = Comment("Weitere Wörter für die Suche in der App (Marken, Abkürzungen).", "Airtec")
+    ws["N1"].comment = Comment("x = in der App sichtbar. Leer = ausgeblendet.", "Airtec")
+    # Link zurück zur Übersicht
+    ws["Q1"] = "← Übersicht"; link(ws["Q1"], "Übersicht"); ws["Q1"].font = Font(name=F, bold=True, color=BLUE, underline="single")
+    ws.column_dimensions["Q"].width = 14
 
 # ---------------- Kategorien ----------------
 k = wb.create_sheet("Kategorien")
-k.append(["Kategorie", "Schlüssel", "Symbol", "Sortierung", "", "Unterkategorien je Kategorie → (Spalten ab F)"])
-for c in k[1][:4]: c.font = HF; c.fill = HEAD
-k["F1"].font = Font(name=F, bold=True, italic=True, color="555555")
-for col, w in zip("ABCD", [28, 10, 8, 11]): k.column_dimensions[col].width = w
-for i, (name, sym, subs) in enumerate(KAT, 1):
-    key = f"K{i:02d}"
-    k.append([name, key, sym, i])
-    col = 5 + i                       # F, G, H …
-    cl = L(col)
+k.append(["Kategorie", "Blatt", "Kürzel", "Symbol", "Sortierung", "", "Unterkategorien je Kategorie (eine Spalte je Kategorie) →"])
+for c in k[1][:5]: c.font = HF; c.fill = HEAD
+k["G1"].font = Font(name=F, bold=True, italic=True, color="555555")
+for col, w in zip("ABCDE", [26, 14, 8, 8, 11]): k.column_dimensions[col].width = w
+for i, (kat, sheet, pre, sym, subs) in enumerate(KAT, 1):
+    k.append([kat, sheet, pre, sym, i])
+    col = 6 + i; cl = L(col)
     k.column_dimensions[cl].width = 30
-    k.cell(row=2, column=col, value=name).font = HF; k.cell(row=2, column=col).fill = HEAD
-    k.cell(row=3, column=col, value=key).font = Font(name=F, size=9, color="888888")
-    for j, s in enumerate(subs):
-        c = k.cell(row=4 + j, column=col, value=s); c.fill = INPUT; c.font = Font(name=F, size=10)
-    for j in range(len(subs), 20):
-        k.cell(row=4 + j, column=col).fill = INPUT
-    wb.defined_names[key] = DefinedName(key, attr_text=f"Kategorien!${cl}$4:${cl}$23")
-for row in k.iter_rows(min_row=2, max_row=1 + len(KAT), max_col=4):
+    hc = k.cell(row=2, column=col, value=kat); hc.font = HF; hc.fill = HEAD
+    for j in range(20):
+        c = k.cell(row=3 + j, column=col, value=subs[j] if j < len(subs) else None); c.fill = INPUT; c.font = Font(name=F, size=10)
+    wb.defined_names[f"U_{pre}"] = DefinedName(f"U_{pre}", attr_text=f"Kategorien!${cl}$3:${cl}$22")
+for row in k.iter_rows(min_row=2, max_row=1 + len(KAT), max_col=5):
     for c in row: c.fill = INPUT; c.font = Font(name=F, size=10)
-for r in range(2 + len(KAT), 31):
-    for c in "ABCD": k[f"{c}{r}"].fill = INPUT
 k.freeze_panes = "A2"
-wb.defined_names["KatListe"] = DefinedName("KatListe", attr_text="Kategorien!$A$2:$A$30")
-wb.defined_names["KatTabelle"] = DefinedName("KatTabelle", attr_text="Kategorien!$A$2:$B$30")
 
-# ---------------- Lieferanten ----------------
+# ---------------- Lieferanten / Einheiten ----------------
 l = wb.create_sheet("Lieferanten")
-head(l, ["Lieferant", "Bestell-E-Mail", "Kopie an (CC)", "Kundennummer", "Ansprechpartner", "Telefon", "Bemerkung"], [22, 32, 28, 16, 22, 18, 40])
+l.append(["Lieferant", "Bestell-E-Mail", "Kopie an (CC)", "Kundennummer", "Ansprechpartner", "Telefon", "Bemerkung"])
+for c in l[1]: c.font = HF; c.fill = HEAD
+for col, w in zip("ABCDEFG", [22, 32, 28, 16, 22, 18, 40]): l.column_dimensions[col].width = w
 for r in LIEF: l.append(list(r))
-for row in l.iter_rows(min_row=2, max_row=60, max_col=7):
+for row in l.iter_rows(min_row=2, max_row=40, max_col=7):
     for c in row: c.fill = INPUT; c.font = Font(name=F, size=10)
-wb.defined_names["LiefListe"] = DefinedName("LiefListe", attr_text="Lieferanten!$A$2:$A$60")
-
-# ---------------- Einheiten (Hilfsliste) ----------------
+l.freeze_panes = "A2"
+wb.defined_names["LiefListe"] = DefinedName("LiefListe", attr_text="Lieferanten!$A$2:$A$40")
 e = wb.create_sheet("Einheiten")
 e.append(["Einheit"]); e["A1"].font = HF; e["A1"].fill = HEAD; e.column_dimensions["A"].width = 14
 for x in EINH: e.append([x])
@@ -106,63 +120,82 @@ for row in e.iter_rows(min_row=2, max_row=40, max_col=1):
     for c in row: c.fill = INPUT; c.font = Font(name=F, size=10)
 wb.defined_names["EinheitListe"] = DefinedName("EinheitListe", attr_text="Einheiten!$A$2:$A$40")
 
-# ---------------- Meldungen (schreibt die App) ----------------
-m = wb.create_sheet("Meldungen")
-head(m, ["Art.-Nr", "Artikel", "Lieferant", "Status", "Gemeldet von", "Gemeldet am", "Bestellt am", "Bestellt von", "Bemerkung"],
-     [10, 34, 16, 14, 20, 17, 17, 20, 30], fill=PatternFill("solid", fgColor="5B6B7A"))
-m["D1"].comment = Comment("„Nur noch wenig“ oder „Leer“ – kommt aus der App. Nach der Bestellung trägt die App „Bestellt am“ ein.", "Airtec")
+# ---------------- Meldungen / Bestellungen (schreibt die App) ----------------
+for name, cols, wid in [("Meldungen", ["Art.-Nr", "Artikel", "Lieferant", "Status", "Gemeldet von", "Gemeldet am", "Bestellt am", "Bestellt von", "Bemerkung"], [10, 34, 16, 14, 20, 17, 17, 20, 30]),
+                        ("Bestellungen", ["Bestellt am", "Lieferant", "An E-Mail", "Bestellt von", "Positionen", "Anzahl Pos."], [17, 16, 30, 20, 70, 11])]:
+    s = wb.create_sheet(name); s.append(cols)
+    for c in s[1]: c.font = HF; c.fill = GREY
+    for i, w in enumerate(wid, 1): s.column_dimensions[L(i)].width = w
+    s.freeze_panes = "A2"; s.sheet_properties.tabColor = "5B6B7A"
 
-# ---------------- Bestellungen (schreibt die App) ----------------
-b = wb.create_sheet("Bestellungen")
-head(b, ["Bestellt am", "Lieferant", "An E-Mail", "Bestellt von", "Positionen", "Anzahl Pos."],
-     [17, 16, 30, 20, 70, 11], fill=PatternFill("solid", fgColor="5B6B7A"))
+# ---------------- Übersicht ----------------
+ov.column_dimensions["A"].width = 3
+for col, w in zip("BCDEFG", [30, 12, 10, 12, 16, 50]): ov.column_dimensions[col].width = w
+ov["B1"] = "Airtec Lager – Übersicht"; ov["B1"].font = Font(name=F, size=16, bold=True)
+ov["B2"] = "Kategorie anklicken → springt in das Blatt. Gelbe Felder pflegt das Büro, graue Blätter schreibt die App."; ov["B2"].font = Font(name=F, size=10, italic=True, color="555555")
+hdr = ["Kategorie (Link)", "Artikel", "davon aktiv", "nächste Nr.", "Unterkategorien – Anzahl Artikel"]
+for i, h in enumerate(hdr):
+    c = ov.cell(row=4, column=2 + i, value=h); c.font = HF; c.fill = HEAD
+r0 = 5
+for i, (kat, sheet, pre, sym, subs) in enumerate(KAT):
+    r = r0 + i
+    q = f"'{sheet}'"
+    c = ov.cell(row=r, column=2, value=f"{sym}  {kat}"); link(c, sheet); c.font = Font(name=F, color=BLUE, underline="single", bold=True)
+    ov.cell(row=r, column=3, value=f"=COUNTA({q}!A2:A{NROWS})")
+    ov.cell(row=r, column=4, value=f'=COUNTIF({q}!N2:N{NROWS},"x")')
+    ov.cell(row=r, column=5, value=f'="{pre}-"&TEXT(SUMPRODUCT(MAX(IFERROR(VALUE(MID({q}!A2:A{NROWS},4,4)),0)))+1,"000")')
+    # Unterkategorien mit Anzahl als Text, z. B. "Stange (hart): 10 · vorisoliert: 7"
+    parts = [f'IF(COUNTIF({q}!B2:B{NROWS},"{s}")>0,"{s}: "&COUNTIF({q}!B2:B{NROWS},"{s}")&"   ","")' for s in subs]
+    ov.cell(row=r, column=6, value="=" + "&".join(parts))
+    for col in range(2, 7): ov.cell(row=r, column=col).border = Border(bottom=thin)
+    for col in range(3, 6): ov.cell(row=r, column=col).alignment = Alignment(horizontal="center")
+ov.merge_cells(start_row=4, start_column=6, end_row=4, end_column=7)
+for i in range(len(KAT)): ov.merge_cells(start_row=r0 + i, start_column=6, end_row=r0 + i, end_column=7)
+rt = r0 + len(KAT)
+ov.cell(row=rt, column=2, value="Summe").font = Font(name=F, bold=True)
+ov.cell(row=rt, column=3, value=f"=SUM(C{r0}:C{rt-1})").font = Font(name=F, bold=True)
+ov.cell(row=rt, column=4, value=f"=SUM(D{r0}:D{rt-1})").font = Font(name=F, bold=True)
 
-# ---------------- Auswahllisten in „Artikel“ ----------------
-dv_k = DataValidation(type="list", formula1="=KatListe", allow_blank=True, showErrorMessage=True,
-                      errorTitle="Kategorie", error="Bitte eine Kategorie aus der Liste wählen (Blatt „Kategorien“).")
-dv_u = DataValidation(type="list", formula1="=INDIRECT(VLOOKUP($B2,KatTabelle,2,FALSE))", allow_blank=True, showErrorMessage=True,
-                      errorTitle="Unterkategorie", error="Bitte zuerst die Kategorie wählen, dann eine passende Unterkategorie.")
-dv_l = DataValidation(type="list", formula1="=LiefListe", allow_blank=True, showErrorMessage=True,
-                      errorTitle="Lieferant", error="Lieferant zuerst im Blatt „Lieferanten“ anlegen.")
-dv_e = DataValidation(type="list", formula1="=EinheitListe", allow_blank=True)
-dv_x = DataValidation(type="list", formula1='"x"', allow_blank=True)
-for dv, rng in [(dv_k, f"B2:B{NROWS}"), (dv_u, f"C2:C{NROWS}"), (dv_l, f"G2:G{NROWS}"), (dv_e, f"I2:I{NROWS}"), (dv_x, f"M2:M{NROWS} O2:O{NROWS}")]:
-    a.add_data_validation(dv)
-    for part in rng.split(): dv.add(part)
+# Lieferanten-Übersicht
+rl = rt + 3
+for i, h in enumerate(["Lieferant", "Artikel", "", "", "Bestell-E-Mail"]):
+    c = ov.cell(row=rl, column=2 + i, value=h or None); c.font = HF; c.fill = HEAD
+for i in range(15):
+    r = rl + 1 + i
+    ov.cell(row=r, column=2, value=f'=IF(Lieferanten!A{2+i}="","",Lieferanten!A{2+i})')
+    cnt = "+".join(f"COUNTIF('{s}'!F2:F{NROWS},B{r})" for _, s, *_ in KAT)
+    ov.cell(row=r, column=3, value=f'=IF(B{r}="","",{cnt})').alignment = Alignment(horizontal="center")
+    ov.cell(row=r, column=6, value=f'=IF(B{r}="","",IF(Lieferanten!B{2+i}="","– fehlt –",Lieferanten!B{2+i}))')
+# weitere Links
+rlk = rl + 18
+for j, (txt, tgt) in enumerate([("Kategorien & Unterkategorien bearbeiten", "Kategorien"), ("Lieferanten bearbeiten", "Lieferanten"),
+                                 ("Meldungen aus der App ansehen", "Meldungen"), ("Bestellungen ansehen", "Bestellungen")]):
+    c = ov.cell(row=rlk + j, column=2, value="→ " + txt); link(c, tgt); c.font = Font(name=F, color=BLUE, underline="single")
+ov.sheet_properties.tabColor = "1F2937"
+for row in ov.iter_rows(min_row=4, max_row=rlk + 4, min_col=2, max_col=7):
+    for c in row:
+        if c.font is None or c.font.name != F: c.font = Font(name=F, size=10, bold=c.font.b if c.font else False, color=c.font.color if c.font else None, underline=c.font.u if c.font else None)
 
 # ---------------- Anleitung ----------------
-h = wb.create_sheet("Anleitung", 0)
-h.column_dimensions["A"].width = 4; h.column_dimensions["B"].width = 110
-lines = [
- ("Airtec Lager – Artikelliste für die App", "t"), ("", ""),
- ("Gelbe Felder pflegt das Büro. Graue Blätter (Meldungen, Bestellungen) schreibt die App – bitte nicht von Hand ändern.", "b"), ("", ""),
- ("Blatt „Artikel“ – eine Zeile je Artikel", "h"),
- ("Art.-Nr: eindeutig (L-0001, L-0002 …), später nicht mehr ändern.", ""),
- ("Kategorie / Unterkategorie: aus der Auswahlliste wählen. Die Unterkategorien passen sich der Kategorie an.", ""),
- ("Bezeichnung + Größe/Typ: so, wie der Monteur den Artikel kennt (z. B. „Kupferrohr weich 1/4\"“ + „6,35 mm“).", ""),
- ("Lieferant + Bestellnummer: daraus baut die App später die Bestell-Mail je Lieferant.", ""),
- ("Einheit, Verpackungsgröße (VE), Standard-Bestellmenge: erscheinen in der Bestell-Vorschau.", ""),
- ("Häufig (x): erscheint in der App ganz oben – für die Artikel, die ständig gemeldet werden.", ""),
- ("Suchbegriffe: zusätzliche Wörter für die Suche (Marken, Abkürzungen, z. B. „armaflex“, „cu“).", ""),
- ("Aktiv (x): nur aktive Artikel erscheinen in der App.", ""),
- ("Eingetragen sind die Mosecker-Artikel aus deiner Liste (Bestellnummer = Mosecker-Artikelnummer). Die Original-Bezeichnung steht in „Bemerkung“.", ""), ("", ""),
- ("Blatt „Kategorien“", "h"),
- ("Spalte A–D: die Hauptkategorien (Name, Schlüssel K01 …, Symbol für die App, Sortierung).", ""),
- ("Ab Spalte F: je Kategorie eine Spalte mit ihren Unterkategorien (bis zu 20). Neue Unterkategorie = einfach darunter eintragen.", ""),
- ("Neue Kategorie: unten in A–D anhängen mit dem nächsten Schlüssel (K12 …) – dann sag Bescheid, damit die Auswahlliste dafür ergänzt wird.", ""), ("", ""),
- ("Blatt „Lieferanten“", "h"),
- ("Name (genau so wie in der Artikel-Spalte „Lieferant“), Bestell-E-Mail, ggf. Kopie, Kundennummer und Ansprechpartner.", ""), ("", ""),
- ("So wird die App arbeiten", "h"),
- ("Monteur sucht den Artikel (Kategorie antippen oder Suche) und meldet „Nur noch wenig“ oder „Leer“ → Zeile im Blatt „Meldungen“.", ""),
- ("Büro: „Was muss bei Mosecker bestellt werden?“ → Vorschau aller offenen Meldungen dieses Lieferanten mit Bestellnummer, VE und Menge.", ""),
- ("„Bestellen“ → Mail an die Bestell-E-Mail des Lieferanten, Eintrag im Blatt „Bestellungen“, Meldungen werden als bestellt markiert.", ""),
-]
+h = wb.create_sheet("Anleitung", 1)
+h.column_dimensions["A"].width = 3; h.column_dimensions["B"].width = 110
+lines = [("So pflegt ihr die Lagerliste", "t"), ("", ""),
+ ("Jede Hauptkategorie hat ein eigenes Blatt (Kupfer, Isolierung, Elektro …) – dort nur die Artikel dieser Gruppe.", ""),
+ ("In jedem Blatt: oben in der Kopfzeile über die Filterpfeile z. B. nur eine Unterkategorie oder einen Lieferanten anzeigen.", ""),
+ ("Neuer Artikel: im passenden Blatt unten anhängen. Art.-Nr = nächste freie Nr. aus der Übersicht (z. B. KU-018).", ""),
+ ("Unterkategorie, Lieferant, Einheit: aus der Auswahlliste wählen.", ""),
+ ("Lieferant + Bestellnummer: daraus baut die App die Bestell-Mail je Lieferant.", ""),
+ ("Häufig (x): oben in der App. Aktiv (x): nur aktive Artikel erscheinen in der App.", ""), ("", ""),
+ ("Kategorien ändern", "h"),
+ ("Neue Unterkategorie: im Blatt „Kategorien“ in der Spalte der Kategorie unten eintragen – erscheint sofort in der Auswahlliste.", ""),
+ ("Neue Hauptkategorie oder Blatt umbenennen: bitte kurz Bescheid geben, damit Auswahllisten und App angepasst werden.", ""), ("", ""),
+ ("Was die App damit macht", "h"),
+ ("Monteur meldet „Nur noch wenig“ oder „Leer“ → Blatt „Meldungen“.", ""),
+ ("Büro: Vorschau „Was muss bei Mosecker bestellt werden?“ → Bestell-Mail an die E-Mail aus „Lieferanten“ → Blatt „Bestellungen“.", "")]
 for i, (t, s) in enumerate(lines, 1):
     c = h.cell(row=i, column=2, value=t)
-    c.font = Font(name=F, size=16 if s == "t" else 11, bold=s in ("t", "h", "b"), color="009FDA" if s == "h" else "000000")
-    c.alignment = Alignment(wrap_text=True, vertical="top")
-h.cell(row=3, column=2).fill = INPUT
-
-wb.active = 1
+    c.font = Font(name=F, size=16 if s == "t" else 11, bold=s in ("t", "h"), color=BLUE if s == "h" else "000000")
+    c.alignment = Alignment(wrap_text=True)
+wb.active = 0
 wb.save("Airtec_Lager.xlsx")
 print("ok")
