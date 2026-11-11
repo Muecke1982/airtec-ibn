@@ -9,6 +9,7 @@ import * as maschinen from "../functions/api/maschinen.js";
 import * as plan from "../functions/api/plan.js";
 import * as hinweise from "../functions/api/hinweise.js";
 import * as lager from "../functions/api/lager.js";
+import * as muell from "../functions/api/muell.js";
 import { json } from "../lib/graph.js";
 
 const routes = {
@@ -22,6 +23,8 @@ const routes = {
   "GET /api/hinweise": hinweise.onRequestGet,
   "GET /api/lager": lager.onRequestGet,
   "POST /api/lager": lager.onRequestPost,
+  "GET /api/muell": muell.onRequestGet,
+  "POST /api/muell": muell.onRequestPost,
   "POST /api/hinweise": hinweise.onRequestPost,
   "GET /api/maschinen": maschinen.onRequestGet,
   "POST /api/maschinen": maschinen.onRequestPost,

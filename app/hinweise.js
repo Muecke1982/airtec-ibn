@@ -37,10 +37,11 @@
     } catch (e) { root.querySelector("#stMe").textContent = navigator.onLine ? "" : "Offline – Wochenplan nicht geladen."; }
   }
 
-  let hin = ls.get("hi_cache"), ma = ls.get("ma_cache"), busy = false, formOpen = false, listOpen = false;
+  let hin = ls.get("hi_cache"), ma = ls.get("ma_cache"), mu = ls.get("mu_cache"), muStep = 0, busy = false, formOpen = false, listOpen = false;
 
   async function load() {
-    const [h, m, lg] = await Promise.allSettled([AT.api("hinweise"), AT.api("maschinen"), office() ? AT.api("lager") : Promise.reject()]);
+    const [h, m, lg, mm] = await Promise.allSettled([AT.api("hinweise"), AT.api("maschinen"), office() ? AT.api("lager") : Promise.reject(), AT.api("muell")]);
+    if (mm.status === "fulfilled") { mu = mm.value; ls.set("mu_cache", mu); }
     if (h.status === "fulfilled") { hin = h.value; ls.set("hi_cache", hin); }
     if (lg.status === "fulfilled") { ls.set("lg_cache", lg.value); }
     if (m.status === "fulfilled") { ma = m.value; ma.geladen = Date.now(); ls.set("ma_cache", ma); }
@@ -136,6 +137,20 @@
         ${open.length ? `<div class="hivon">${Object.entries(byL).map(([l, n]) => esc(l) + ": " + n).join(" · ")}</div>` : ""}
         <button class="hidone" id="hiLager" style="background:var(--blue)">${open.length ? "Bestellliste öffnen" : "Lager ansehen"}</button></section>`);
     }
+    // Restmüll: für alle
+    const lz = mu && mu.letzte;
+    const muQ = [
+      "",
+      `<div class="muq">Ist die Tonne richtig voll?<br><small>Wir zahlen pauschal für eine Leerung, deshalb sollte die Tonne schön voll sein!</small></div>
+       <div class="maaskbtn"><button class="mabtn take" data-mu="1">Ja, sie ist richtig voll</button><button class="mabtn back" data-mu="x">Abbrechen</button></div>`,
+      `<div class="muq">Leerung jetzt anfordern?</div>
+       <div class="maaskbtn"><button class="mabtn take" data-mu="go">Jetzt anfordern</button><button class="mabtn back" data-mu="x">Abbrechen</button></div>`,
+      `<div class="muq">⚠ ${esc(muWarn)}<br><small>Trotzdem nochmal anfordern?</small></div>
+       <div class="maaskbtn"><button class="mabtn take" data-mu="force">Trotzdem anfordern</button><button class="mabtn back" data-mu="x">Abbrechen</button></div>`,
+    ];
+    items.push(`<section class="card hicard himuell"><div class="hihead">🗑️ Restmüll</div>
+      <div class="hivon" style="margin-top:0">${lz ? `Letzte Leerung angefordert: <b>${esc(String(lz.am).slice(0, 10))}</b> von ${esc(lz.von)}` : "Noch keine Leerung über die App angefordert."}</div>
+      ${muStep ? muQ[muStep] : `<button class="hidone mubtn" data-mu="0">Restmüll leeren</button>`}</section>`);
     box.innerHTML = items.join("") + ofc;
     const hl = box.querySelector("#hiLager");
     if (hl) hl.onclick = () => { const d = ls.get("lg_cache"); if (d && ((d.arts || []).some(a => a.offen) || (d.frei || []).length) && AT.lagerOrders) AT.lagerOrders(); else AT.tab("lager"); };
@@ -162,7 +177,27 @@
     return AT.api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   }
 
+  let muWarn = "";
+  async function muSend(force) {
+    if (busy) return; busy = true;
+    const b = box.querySelector('[data-mu="go"],[data-mu="force"]'); if (b) { b.disabled = true; b.textContent = "Wird gesendet …"; }
+    try {
+      mu = await post("muell", force ? { trotzdem: true } : {}); ls.set("mu_cache", mu); muStep = 0;
+      toast2("🗑️ Leerung angefordert – Mail an den Entsorger ist raus ✓");
+    } catch (e) {
+      if (e.status === 409) { muWarn = e.message; muStep = 3; }
+      else { toast2(e.message); muStep = 0; }
+    }
+    busy = false; paint();
+  }
+
   function bind() {
+    box.querySelectorAll("[data-mu]").forEach(b => b.onclick = () => {
+      const a = b.dataset.mu;
+      if (a === "0") muStep = 1; else if (a === "1") muStep = 2; else if (a === "x") muStep = 0;
+      else if (a === "go") return muSend(false); else if (a === "force") return muSend(true);
+      paint();
+    });
     box.querySelectorAll("[data-ma]").forEach(b => b.onclick = async () => {
       if (busy) return; busy = true; b.disabled = true; b.textContent = "…";
       try { ma = await post("maschinen", { aktion: b.dataset.ma, id: b.dataset.id }); ma.geladen = Date.now(); ls.set("ma_cache", ma);
