@@ -167,16 +167,31 @@
             <div class="lgnewform hide"></div></li>`).join("")}</ul></section>` : "") +
       [...groups].map(([g, list]) => {
         const L = groupBy === "lief" && (data.lieferanten || []).find(l => norm(l.name) === norm(g));
-        return `<section class="card lgogroup" data-g="${esc(g)}"><div class="lgogh"><h3>${esc(g)} <small>${list.length} Artikel</small></h3></div>
-          <ul class="lgolist">${list.map(a => `<li data-nr="${esc(a.nr)}">
-            <label class="lgochk"><input type="checkbox" checked></label>
-            <div class="lginfo"><b>${esc(a.bez)}</b><small>${[a.gr, a.best && "Best.-Nr. " + a.best, a.ve && "VE " + a.ve, groupBy !== "lief" && a.lief].filter(Boolean).map(esc).join(" · ")}</small>
+        const canBuy = groupBy === "lief" && g !== "Ohne Lieferant";
+        return `<section class="card lgogroup" data-g="${esc(g)}"><div class="lgogh"><h3>${esc(g)} <small>${list.length} Artikel</small></h3>
+            <label class="lgoall"><input type="checkbox" data-all${list.every(a => sel.has(a.nr)) ? " checked" : ""}> alle</label></div>
+          <ul class="lgolist">${list.map(a => `<li data-nr="${esc(a.nr)}" class="${sel.has(a.nr) ? "on" : ""}">
+            <label class="lgochk"><input type="checkbox" data-sel${sel.has(a.nr) ? " checked" : ""}></label>
+            <div class="lginfo"><b>${esc(a.bez)}</b><small>${[a.gr, a.best && "Best.-Nr. " + a.best, groupBy !== "lief" && a.lief].filter(Boolean).map(esc).join(" · ")}</small>
+              ${a.ve ? `<small class="lgove">📦 VE: ${esc(a.ve)}</small>` : ""}
               <span class="lgst">${a.frei ? "🆕 nicht in der Liste" : stLabel(a.offen.status)} · ${esc(a.offen.von)} · ${esc(short(a.offen.am).slice(0, 6))}</span></div>
-            <div class="lgoqty"><input type="number" min="1" inputmode="numeric" value="${esc(parseInt(a.menge) || 1)}"><small>${esc(a.einh || "")}</small></div>
+            <div class="lgoqty"><input type="number" min="1" inputmode="numeric" placeholder="Anz." value="${esc(qty[a.nr] ?? (parseInt(a.menge) || ""))}"><small>${esc(a.einh || "Menge")}</small></div>
             <button class="lgdone" data-done="${esc(a.nr)}" title="ohne Bestellung abhaken">✓</button></li>`).join("")}</ul>
-          ${groupBy === "lief" && g !== "Ohne Lieferant" ? `<button class="bigbtn primary lgobuy" data-buy="${esc(g)}">✉️ Bei ${esc(g)} bestellen</button>${L && !L.mail ? `<div class="hint">Für ${esc(g)} ist noch keine Bestell-E-Mail in der Excel (Blatt „Lieferanten“) hinterlegt.</div>` : ""}` : groupBy === "lief" ? `<div class="hint">Diesen Artikeln ist in der Excel kein Lieferant zugeordnet.</div>` : ""}
+          <div class="lgobar">${canBuy ? `<button class="bigbtn primary lgobuy" data-buy="${esc(g)}">✉️ <span class="n">0</span> ausgewählte bei ${esc(g)} bestellen</button>` : ""}
+            <button class="add lgooff" data-off>✓ <span class="n">0</span> ausgewählte abhaken (ohne Bestellung)</button></div>
+          ${canBuy ? `${L && !L.mail ? `<div class="hint">Für ${esc(g)} ist noch keine Bestell-E-Mail in der Excel (Blatt „Lieferanten“) hinterlegt.</div>` : ""}` : groupBy === "lief" ? `<div class="hint">Diesen Artikeln ist in der Excel kein Lieferant zugeordnet.</div>` : ""}
         </section>`;
       }).join("");
+    box.querySelectorAll(".lgogroup").forEach(counts);
+  }
+
+  // Auswahl und Mengen bleiben beim Neuzeichnen erhalten
+  const sel = new Set(), qty = {};
+  function counts(grp) {
+    const n = grp.querySelectorAll("input[data-sel]:checked").length;
+    grp.querySelectorAll(".lgobar .n").forEach(x => x.textContent = n);
+    grp.querySelectorAll(".lgobar button").forEach(b => b.disabled = !n);
+    const all = grp.querySelector("input[data-all]"); if (all) all.checked = n && n === grp.querySelectorAll("input[data-sel]").length;
   }
 
   function liefField(id) {
@@ -298,6 +313,11 @@
 
   root.addEventListener("change", e => {
     const t = e.target;
+    if (t.matches("input[data-sel]")) { const li = t.closest("li"); t.checked ? sel.add(li.dataset.nr) : sel.delete(li.dataset.nr); li.classList.toggle("on", t.checked); counts(t.closest(".lgogroup")); return; }
+    if (t.matches("input[data-all]")) { const g = t.closest(".lgogroup");
+      g.querySelectorAll("input[data-sel]").forEach(c => { c.checked = t.checked; const li = c.closest("li"); t.checked ? sel.add(li.dataset.nr) : sel.delete(li.dataset.nr); li.classList.toggle("on", t.checked); });
+      counts(g); return; }
+    if (t.closest(".lgoqty")) { qty[t.closest("li").dataset.nr] = t.value; t.classList.remove("miss"); return; }
     if (t.id === "liFile" && t.files[0]) { importFile(t.files[0]); return; }
     if (!impItems) return;
     if (t.id === "liAllK") { impItems.forEach(x => { if (x.on) { x.kat = t.value; x.sub = ""; } }); paintImport(); return; }
@@ -311,9 +331,9 @@
 
   function selected(groupEl) {
     const out = [];
-    groupEl.querySelectorAll("li").forEach(li => {
-      if (li.querySelector("input[type=checkbox]").checked)
-        out.push({ a: findArt(li.dataset.nr), menge: li.querySelector(".lgoqty input").value || "1" });
+    groupEl.querySelectorAll("li[data-nr]").forEach(li => {
+      const c = li.querySelector("input[data-sel]");
+      if (c && c.checked) out.push({ a: findArt(li.dataset.nr), menge: li.querySelector(".lgoqty input").value.trim(), li });
     });
     return out;
   }
@@ -404,7 +424,21 @@
     if (buy) {
       const pos = selected(buy.closest(".lgogroup"));
       if (!pos.length) { toast2("Bitte mindestens einen Artikel anhaken"); return; }
-      openMail(buy.dataset.buy, pos); return;
+      const leer = pos.filter(p => !(+p.menge > 0));
+      buy.closest(".lgogroup").querySelectorAll(".lgoqty input").forEach(i => i.classList.remove("miss"));
+      if (leer.length) { leer.forEach(p => p.li.querySelector(".lgoqty input").classList.add("miss")); leer[0].li.querySelector(".lgoqty input").focus();
+        toast2(`Bitte bei ${leer.length === 1 ? "dem markierten Artikel" : leer.length + " Artikeln"} die Menge eintragen`); return; }
+      openMail(buy.dataset.buy, pos.map(({ a, menge }) => ({ a, menge }))); return;
+    }
+    const off = t.closest("[data-off]");
+    if (off) {
+      const pos = selected(off.closest(".lgogroup")); if (!pos.length) return;
+      if (!off.classList.contains("sure")) { off.classList.add("sure"); off.innerHTML = `Wirklich ${pos.length} Artikel ohne Bestellung abhaken?`;
+        setTimeout(() => { if (off.isConnected) { off.classList.remove("sure"); counts(off.closest(".lgogroup")); off.innerHTML = `✓ <span class="n">${pos.length}</span> ausgewählte abhaken (ohne Bestellung)`; } }, 4000); return; }
+      off.disabled = true;
+      try { data = await post({ aktion: "abhaken", nrs: pos.map(p => p.a.nr) }); ls.set("lg_cache", data); pos.forEach(p => sel.delete(p.a.nr)); toast2(`${pos.length} Artikel abgehakt ✓`); }
+      catch (err) { toast2(err.message); }
+      paint(); return;
     }
   });
   $("#lgQ").oninput = paint;
