@@ -1,5 +1,5 @@
 // Offline-Fähigkeit: App-Dateien werden auf dem Handy zwischengespeichert.
-const CACHE = "airtec-ibn-v17";
+const CACHE = "airtec-ibn-v18";
 const FILES = ["/", "/index.html", "/manifest.webmanifest", "/apple-touch-icon.png", "/login.js", "/wochenplan.js", "/hinweise.js", "/krank.js", "/maschinen.js", "/lager.js", "/icon-192.png",
   "/vendor/jspdf.umd.min.js", "/vendor/jspdf.plugin.autotable.min.js", "/vendor/xlsx.full.min.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });

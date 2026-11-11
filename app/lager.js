@@ -145,7 +145,8 @@
     const box = $("#lgOrder"); box.classList.remove("hide");
     const all = openList();
     const neu = all.filter(a => a.frei && !a.lief), items = all.filter(a => !(a.frei && !a.lief));
-    if (!all.length) { box.innerHTML = `<section class="card"><h2>Bestellliste</h2><div class="hint" style="margin:0">Nichts zu bestellen – alles da. 👍</div></section>`; return; }
+    const imp = `<button class="add" id="lgImp">📥 Artikel aus Excel in die Liste importieren</button>`;
+    if (!all.length) { box.innerHTML = `<section class="card"><h2>Bestellliste</h2><div class="hint" style="margin:0">Nichts zu bestellen – alles da. 👍</div>${imp}</section>`; return; }
     const keyOf = a => groupBy === "lief" ? (a.lief || "Ohne Lieferant") : (data.kats.find(k => k.id === a.kat) || {}).name || "–";
     const groups = new Map();
     for (const a of items.sort((x, y) => (x.offen.status === "Leer" ? 0 : 1) - (y.offen.status === "Leer" ? 0 : 1) || x.bez.localeCompare(y.bez)))
@@ -155,7 +156,7 @@
     for (const a of items.sort((x, y) => (x.offen.status === "Leer" ? 0 : 1) - (y.offen.status === "Leer" ? 0 : 1) || x.bez.localeCompare(y.bez)))
       { const k = keyOf2(a); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(a); }
     box.innerHTML = `<section class="card lgohead"><h2>Bestellliste</h2>
-        <div class="machips"><button data-g="lief" class="${groupBy === "lief" ? "on" : ""}">nach Lieferant</button><button data-g="kat" class="${groupBy === "kat" ? "on" : ""}">nach Kategorie</button></div></section>` +
+        <div class="machips"><button data-g="lief" class="${groupBy === "lief" ? "on" : ""}">nach Lieferant</button><button data-g="kat" class="${groupBy === "kat" ? "on" : ""}">nach Kategorie</button></div>${imp}</section>` +
       (neu.length ? `<section class="card lgogroup lgonew"><div class="lgogh"><h3>🆕 Nicht in der Liste <small>${neu.length} Meldung${neu.length === 1 ? "" : "en"}</small></h3></div>
         <div class="hint" style="margin-top:2px">In die Lager-Liste aufnehmen (mit Kategorie und Lieferant) oder nur einmalig bei einem Lieferanten bestellen.</div>
         <ul class="lgolist">${neu.map(a => `<li data-nr="${esc(a.nr)}" class="lgnewli"><div class="lgnewrow">
@@ -239,6 +240,72 @@
       } catch (err) { toast2(err.message); btn.disabled = false; btn.textContent = t; }
     };
   }
+
+  /* ---------- Büro: Artikel aus Excel importieren ---------- */
+  let impItems = null;
+  function openImport() {
+    const box = $("#lgOrder");
+    box.innerHTML = `<section class="card lgimp"><h2>Artikel importieren</h2>
+      <div class="hint" style="margin-top:0">Excel-Datei wählen: entweder im Lager-Format (Spalten Kategorie, Unterkategorie, Bezeichnung, Größe / Typ, Hersteller, Lieferant, Bestellnummer, Einheit, VE …)
+      oder ein Artikel-Export vom Lieferanten (z. B. Mosecker). Danach siehst du eine Vorschau und kannst Kategorie und Unterkategorie je Artikel festlegen.</div>
+      <input type="file" id="liFile" accept=".xlsx">
+      <div id="liPrev"></div>
+      <button class="add" id="liX">Zurück zur Bestellliste</button></section>`;
+    window.scrollTo(0, 0);
+  }
+
+  function paintImport() {
+    const P = $("#liPrev"), it = impItems;
+    const kopt = sel => `<option value="">– Kategorie –</option>` + data.kats.map(k => `<option value="${k.id}"${k.id === sel ? " selected" : ""}>${esc(k.sym)} ${esc(k.name)}</option>`).join("");
+    const sopt = x => { const K = data.kats.find(k => k.id === x.kat); if (!K) return `<option value="">–</option>`;
+      const subs = [...K.subs]; if (x.sub && !subs.includes(x.sub)) subs.push(x.sub);
+      return `<option value="">– keine –</option>` + subs.map(s => `<option${s === x.sub ? " selected" : ""}>${esc(s)}${K.subs.includes(s) ? "" : " (neu)"}</option>`).join(""); };
+    const n = it.filter(x => x.on).length;
+    P.innerHTML = `<div class="lgimpall"><label>Kategorie für alle markierten</label><select id="liAllK">${kopt("")}</select></div>
+      <ul class="lgimpl">${it.map((x, i) => `<li data-i="${i}" class="${x.doppelt ? "dup" : ""}">
+        <label class="lgochk"><input type="checkbox" data-on${x.on ? " checked" : ""}></label>
+        <div class="lgimpb"><input data-f="bez" value="${esc(x.bez)}"><input data-f="gr" value="${esc(x.gr)}" placeholder="Größe / Typ">
+          <small>${[x.best && "Best.-Nr. " + x.best, x.lief, x.herst, x.einh].filter(Boolean).map(esc).join(" · ")}${x.doppelt ? ` · <b>schon in der Liste</b>` : ""}</small>
+          <div class="lgimpk"><select data-f="kat">${kopt(x.kat)}</select><select data-f="sub">${sopt(x)}</select></div></div></li>`).join("")}</ul>
+      <button class="bigbtn primary" id="liGo">${n} Artikel importieren</button>`;
+  }
+
+  async function importFile(f) {
+    const P = $("#liPrev"); P.innerHTML = `<div class="hint">Datei wird gelesen …</div>`;
+    const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(f); });
+    try {
+      const d = await post({ aktion: "vorschau", datei: b64 });
+      impItems = d.vorschau.map(x => ({ ...x, on: !x.doppelt }));
+      paintImport();
+    } catch (e) { P.innerHTML = `<div class="lerr">${esc(e.message)}</div>`; }
+  }
+
+  async function importGo(btn) {
+    const sel = impItems.filter(x => x.on);
+    if (!sel.length) { toast2("Bitte Artikel anhaken"); return; }
+    const ohne = sel.filter(x => !x.kat).length;
+    if (ohne) { toast2(`${ohne} Artikel ohne Kategorie – bitte zuordnen`); return; }
+    btn.disabled = true; btn.textContent = "Wird in die Excel geschrieben …";
+    try {
+      data = await post({ aktion: "importieren", items: sel.map(({ on, doppelt, katName, subNeu, ...x }) => x) });
+      ls.set("lg_cache", data);
+      toast2(`${data.importiert.length} Artikel importiert ✓${data.uebersprungen ? ` (${data.uebersprungen} schon vorhanden)` : ""}`);
+      impItems = null; paint();
+    } catch (e) { toast2(e.message); btn.disabled = false; btn.textContent = sel.length + " Artikel importieren"; }
+  }
+
+  root.addEventListener("change", e => {
+    const t = e.target;
+    if (t.id === "liFile" && t.files[0]) { importFile(t.files[0]); return; }
+    if (!impItems) return;
+    if (t.id === "liAllK") { impItems.forEach(x => { if (x.on) { x.kat = t.value; x.sub = ""; } }); paintImport(); return; }
+    const li = t.closest(".lgimpl li"); if (!li) return;
+    const x = impItems[+li.dataset.i];
+    if (t.hasAttribute("data-on")) { x.on = t.checked; $("#liGo").textContent = impItems.filter(y => y.on).length + " Artikel importieren"; return; }
+    const f = t.dataset.f; if (!f) return;
+    x[f] = t.value;
+    if (f === "kat") { x.sub = ""; paintImport(); }
+  });
 
   function selected(groupEl) {
     const out = [];
@@ -328,6 +395,9 @@
     }
     const nf = t.closest("[data-auf],[data-once]");
     if (nf) { openForm(nf.closest("li"), nf.dataset.auf ? "auf" : "once"); return; }
+    if (t.closest("#lgImp")) { openImport(); return; }
+    if (t.closest("#liX")) { impItems = null; paint(); return; }
+    if (t.closest("#liGo")) { importGo(t.closest("#liGo")); return; }
     const buy = t.closest("[data-buy]");
     if (buy) {
       const pos = selected(buy.closest(".lgogroup"));
