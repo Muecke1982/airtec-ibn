@@ -65,14 +65,18 @@
         <div class="maaskbtn"><button class="mabtn back" data-ma="zurueck" data-id="${esc(m.id)}">Zurückgelegt</button></div></section>`);
       const a = m.aus; if (!a) continue;
       if (!a.extern && !a.baustelle && norm(a.wer) === me && a.faellig)
-        items.push(`<section class="card hicard hima"><div class="hihead">🔧 Maschine</div><b>Hast du „${esc(m.name)}“ noch?</b>
+        items.push(a.wiederDa ? `<section class="card hicard hima"><div class="hihead">🔧 Maschine – Reservierung zu Ende</div><b>Wieder da? „${esc(m.name)}“</b>
+          <div>War für dich geplant bis ${esc(String(a.frist).slice(0, 6))}.</div>
+          <div class="maaskbtn"><button class="mabtn back" data-ma="zurueck" data-id="${esc(m.id)}">Ja, zurückgelegt</button>
+          <button class="mabtn take" data-ma="bestaetigen" data-id="${esc(m.id)}">Brauche sie noch</button></div></section>`
+          : `<section class="card hicard hima"><div class="hihead">🔧 Maschine</div><b>Hast du „${esc(m.name)}“ noch?</b>
           <div>Bei dir seit ${esc(short(a.seit))} (${a.tage} Tage).</div>
           <div class="maaskbtn"><button class="mabtn take" data-ma="bestaetigen" data-id="${esc(m.id)}">Ja, noch bei mir</button>
           <button class="mabtn back" data-ma="zurueck" data-id="${esc(m.id)}">Zurückgelegt</button></div></section>`);
       if (office() && a.extern && a.erinnern)
-        items.push(`<section class="card hicard hima"><div class="hihead">⏰ Verliehen – überfällig</div><b>${esc(m.name)}</b>
+        items.push(`<section class="card hicard hima"><div class="hihead">⏰ Verliehen – Rückgabe fällig</div><b>Wieder da? ${esc(m.name)}</b>
           <div>an ${esc(a.an)}${a.kontakt ? " (" + esc(a.kontakt) + ")" : ""}, Rückgabe war bis ${esc(String(a.frist).slice(0, 6))}</div>
-          <div class="maaskbtn"><button class="mabtn take" data-ma="zurueck" data-id="${esc(m.id)}">Ist zurück</button>
+          <div class="maaskbtn"><button class="mabtn take" data-ma="zurueck" data-id="${esc(m.id)}">Ja, ist zurück</button>
           <button class="mabtn back" data-ma="erinnern" data-id="${esc(m.id)}">In ${(ma && ma.erinnerung_tage) || 3} Tagen erinnern</button></div></section>`);
     }
     // Büro-Hinweise an mich

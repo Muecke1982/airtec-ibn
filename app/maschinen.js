@@ -22,11 +22,12 @@
       <div id="maLend" class="hide"></div>
       <input id="maQ" type="search" placeholder="Suchen (Name, Nr., Monteur) …" autocomplete="off">
       <div class="machips"><button data-f="alle" class="on">Alle</button><button data-f="frei">Im Lager</button><button data-f="weg">Unterwegs</button></div>
+      <div class="makats" id="maKats"></div>
       <div class="wptools" style="margin:6px 0 0"><span id="maState"></span><button id="maReload">⟳ aktualisieren</button></div>
       <div id="maList"><div class="hint">Wird geladen …</div></div>
     </section>`;
   const $ = s => root.querySelector(s);
-  let data = ls.get("ma_cache"), filter = "alle", busy = false, offline = false, open = null;
+  let data = ls.get("ma_cache"), filter = "alle", kat = ls.get("ma_kat") || "", busy = false, offline = false, open = null;
   const me = () => (AT.user && AT.user.name) || "";
   const isMine = m => m.aus && !m.aus.extern && !m.aus.baustelle && norm(m.aus.wer) === norm(me());
   const isLender = m => m.aus && m.aus.extern && norm(m.aus.wer) === norm(me());
@@ -63,7 +64,7 @@
       : out && m.aus.extern
       ? `<span class="mast lent">verliehen an ${esc(m.aus.an)}${m.aus.kontakt ? " (" + esc(m.aus.kontakt) + ")" : ""} · bis ${esc(dd(m.aus.frist))}${m.aus.ueberfaellig ? ' <b class="mafaellig">überfällig</b>' : ""}</span>`
       : out
-      ? `<span class="mast out">${mine ? "bei dir" : "bei " + esc(m.aus.wer)} · seit ${esc(short(m.aus.seit))}${m.aus.faellig && (mine || office()) ? ` <b class="mafaellig">${m.aus.tage} Tage</b>` : ""}</span>`
+      ? `<span class="mast out">${mine ? "bei dir" : "bei " + esc(m.aus.wer)} · seit ${esc(short(m.aus.seit))}${m.aus.frist ? " · bis " + esc(dd(m.aus.frist)) : ""}${m.aus.wiederDa && (mine || office()) ? ` <b class="mafaellig">Rückgabe fällig</b>` : m.aus.faellig && (mine || office()) ? ` <b class="mafaellig">${m.aus.tage} Tage</b>` : ""}</span>`
       : `<span class="mast in">im Lager</span>`;
     const sub = [m.nr, m.typ].filter(Boolean).map(esc).join(" · ");
     const res = m.res || [];
@@ -91,22 +92,31 @@
     $("#maMine").innerHTML = mine.map(m => row(m, true)).join("");
     // Nachfrage nach 10 Tagen
     const due = mine.filter(m => m.aus.faellig);
-    $("#maAsk").innerHTML = due.map(m => `<section class="card maask"><b>Hast du „${esc(m.name)}“ noch?</b>
+    $("#maAsk").innerHTML = due.map(m => m.aus.wiederDa
+      ? `<section class="card maask"><b>Wieder da? „${esc(m.name)}“</b>
+      <div>Reserviert und bei dir bis ${esc(dd(m.aus.frist))} – ist die Maschine wieder im Lager?</div>
+      <div class="maaskbtn"><button class="mabtn back" data-a="zurueck" data-id="${esc(m.id)}">Ja, zurückgelegt</button>
+      <button class="mabtn take" data-a="bestaetigen" data-id="${esc(m.id)}">Brauche sie noch</button></div></section>`
+      : `<section class="card maask"><b>Hast du „${esc(m.name)}“ noch?</b>
       <div>Bei dir seit ${esc(short(m.aus.seit))} (${m.aus.tage} Tage).</div>
       <div class="maaskbtn"><button class="mabtn take" data-a="bestaetigen" data-id="${esc(m.id)}">Ja, noch bei mir</button>
       <button class="mabtn back" data-a="zurueck" data-id="${esc(m.id)}">Nein, zurückgelegt</button></div></section>`).join("");
     // Büro: Erinnerung an überfällige Verleihe (+ was zuletzt erledigt wurde)
     const rem = office() ? all.filter(m => m.aus && m.aus.extern && m.aus.erinnern) : [];
-    $("#maRem").innerHTML = rem.map(m => `<section class="card maask"><b>⏰ ${esc(m.name)} ist überfällig</b>
+    $("#maRem").innerHTML = rem.map(m => `<section class="card maask"><b>⏰ Wieder da? ${esc(m.name)}</b>
       <div>Verliehen an <b>${esc(m.aus.an)}</b>${m.aus.kontakt ? " (" + esc(m.aus.kontakt) + ")" : ""} durch ${esc(m.aus.wer)} am ${esc(short(m.aus.seit))} – Rückgabe war bis <b>${esc(dd(m.aus.frist))}</b></div>
-      <div class="maaskbtn"><button class="mabtn take" data-a="zurueck" data-id="${esc(m.id)}">Ist zurück</button>
+      <div class="maaskbtn"><button class="mabtn take" data-a="zurueck" data-id="${esc(m.id)}">Ja, ist zurück</button>
       <button class="mabtn back" data-a="erinnern" data-id="${esc(m.id)}">In ${data.erinnerung_tage || 3} Tagen erinnern</button></div></section>`).join("") +
       (office() && data.erledigt && data.erledigt.length ? `<section class="card madone">${data.erledigt.map(e =>
         `<div>✓ <b>${esc(e.name)}</b> von ${esc(e.an)} zurück – eingetragen von ${esc(e.von)}, ${esc(short(e.bis))}</div>`).join("")}</section>` : "");
     if ($("#maLend").innerHTML && !$("#maLend").classList.contains("hide") && $("#mlM")) fillLend();
     // Liste
     const q = norm($("#maQ").value.trim());
-    const list = all.filter(m => (filter === "alle" || (filter === "frei" ? !m.aus : !!m.aus)) &&
+    const kats = [...new Set(all.map(m => m.kat))];
+    if (kat && !kats.includes(kat)) kat = "";
+    $("#maKats").innerHTML = kats.length > 1 ? `<button data-k="" class="${kat ? "" : "on"}">Alle Kategorien</button>` + kats.map(k => {
+      const l = all.filter(m => m.kat === k); return `<button data-k="${esc(k)}" class="${k === kat ? "on" : ""}">${esc(k)} <small>${l.filter(m => !m.aus).length}/${l.length}</small></button>`; }).join("") : "";
+    const list = all.filter(m => (!kat || q || m.kat === kat) && (filter === "alle" || (filter === "frei" ? !m.aus : !!m.aus)) &&
       (!q || norm([m.name, m.nr, m.typ, m.kat, m.sn, m.aus && m.aus.wer, m.aus && m.aus.an, m.aus && m.aus.kontakt, m.aus && m.aus.baustelle].join(" ")).includes(q)));
     if (!list.length) { $("#maList").innerHTML = `<div class="hint">${all.length ? "Keine Maschine passt zur Auswahl." : "Noch keine Maschinen in der Liste."}</div>`; return; }
     const groups = new Map();
@@ -144,7 +154,7 @@
       const d = await AT.api("maschinen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: a, id }) });
       d.geladen = Date.now(); data = d; ls.set("ma_cache", d);
       const name = m ? m.name : "Maschine";
-      toast2({ storno: "Reservierung storniert", baustelle: "Eingetragen", erinnern: `Okay – Erinnerung in ${data.erinnerung_tage || 3} Tagen`, nehmen: name + " mitgenommen", uebernehmen: name + " übernommen", zurueck: name + " zurückgelegt", bestaetigen: "Danke – wir fragen in 10 Tagen nochmal" }[a] || "Gespeichert");
+      toast2({ storno: "Reservierung storniert", baustelle: "Eingetragen", erinnern: `Okay – Erinnerung in ${data.erinnerung_tage || 3} Tagen`, nehmen: name + " mitgenommen", uebernehmen: name + " übernommen", zurueck: name + " zurückgelegt", bestaetigen: m && m.aus && m.aus.wiederDa ? "Okay – bleibt bei dir" : "Danke – wir fragen in 10 Tagen nochmal" }[a] || "Gespeichert");
     } catch (e) {
       toast2(e.message);
       await load(true);
@@ -331,6 +341,7 @@
     if (h) { const id = h.closest("li").dataset.id; open = open === id ? null : id; paint(); }
   });
   $("#maQ").oninput = paint;
+  $("#maKats").onclick = e => { const b = e.target.closest("button"); if (!b) return; kat = b.dataset.k; ls.set("ma_kat", kat); paint(); };
   root.querySelectorAll(".machips button").forEach(b => b.onclick = () => {
     filter = b.dataset.f; root.querySelectorAll(".machips button").forEach(x => x.classList.toggle("on", x === b)); paint();
   });
