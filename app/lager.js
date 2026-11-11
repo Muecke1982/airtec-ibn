@@ -256,8 +256,10 @@
 
   function paintImport() {
     const P = $("#liPrev"), it = impItems;
-    const kopt = sel => `<option value="">– Kategorie –</option>` + data.kats.map(k => `<option value="${k.id}"${k.id === sel ? " selected" : ""}>${esc(k.sym)} ${esc(k.name)}</option>`).join("");
-    const sopt = x => { const K = data.kats.find(k => k.id === x.kat); if (!K) return `<option value="">–</option>`;
+    const neuK = [...new Set(it.map(x => x.kat).filter(k => /^neu:/.test(k || "")))];
+    const kopt = sel => `<option value="">– Kategorie –</option>` + data.kats.map(k => `<option value="${k.id}"${k.id === sel ? " selected" : ""}>${esc(k.sym)} ${esc(k.name)}</option>`).join("")
+      + neuK.map(k => `<option value="${esc(k)}"${k === sel ? " selected" : ""}>🧰 ${esc(k.slice(4))} (neue Kategorie)</option>`).join("");
+    const sopt = x => { const K = data.kats.find(k => k.id === x.kat) || (/^neu:/.test(x.kat || "") ? { subs: [] } : null); if (!K) return `<option value="">–</option>`;
       const subs = [...K.subs]; if (x.sub && !subs.includes(x.sub)) subs.push(x.sub);
       return `<option value="">– keine –</option>` + subs.map(s => `<option${s === x.sub ? " selected" : ""}>${esc(s)}${K.subs.includes(s) ? "" : " (neu)"}</option>`).join(""); };
     const n = it.filter(x => x.on).length;
