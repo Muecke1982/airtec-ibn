@@ -20,6 +20,27 @@
 
   let st = null;   // { day, data, orig:{name:val}, cur:{name:val}, extra:[orte], gone:[keys], sel }
   const OFF = "__frei__", SICK = "__krank__", KRANK = "Krank";
+  // feste Abwesenheits-Felder unten auf dem Brett: Ziel-Kennung → Eintrag in der Tabelle
+  const FIX = [[SICK, "Krank", "🤒", "krsick"], ["__urlaub__", "Urlaub", "🌴", "krvac"], ["__freitag__", "Frei", "🏠", "krdayoff"]];
+  const fixOf = v => { const a = W.absence(v); return FIX.find(f => f[1] === a) || null; };
+
+  // gesetzliche Feiertage NRW (inkl. Ostern-abhängige)
+  function easter(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25),
+      g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4,
+      l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+      mon = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return `${y}-${String(mon).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  function holiday(iso) {
+    const y = +iso.slice(0, 4), md = iso.slice(5), E = easter(y);
+    const fix = { "01-01": "Neujahr", "05-01": "Tag der Arbeit", "10-03": "Tag der Deutschen Einheit", "11-01": "Allerheiligen", "12-25": "1. Weihnachtstag", "12-26": "2. Weihnachtstag" };
+    if (fix[md]) return fix[md];
+    const rel = { "-2": "Karfreitag", "1": "Ostermontag", "39": "Christi Himmelfahrt", "50": "Pfingstmontag", "60": "Fronleichnam" };
+    for (const k in rel) if (addDays(E, +k) === iso) return rel[k];
+    return "";
+  }
+  W.holiday = holiday;
   const isSick = v => W.absence(v) === "Krank";
   const isOffice = o => /^(buro|buero|werkstatt|lager)$/.test(norm(o));
   const label = s => WT[wd(s)] + ", " + dShort(s) + (s === todayIso() ? " · heute" : "");
@@ -48,19 +69,21 @@
   }
 
   function groups() {
-    const teams = new Map(), abs = [], free = [], sick = [];
+    const teams = new Map(), abs = [], free = [], fixed = {};
+    FIX.forEach(f => fixed[f[0]] = []);
     for (const o of st.extra) teams.set(norm(o), { ort: o, leute: [] });
     for (const n of st.data.spalten || []) {
       const v = st.cur[n];
       if (!v) { free.push(n); continue; }
-      if (isSick(v)) { sick.push(n); continue; }
+      const fx = fixOf(v);
+      if (fx) { fixed[fx[0]].push(n); continue; }
       if (W.absence(v)) { abs.push({ n, v }); continue; }
       const k = norm(v);
       if (!teams.has(k)) teams.set(k, { ort: v, leute: [] });
       teams.get(k).leute.push(n);
     }
     for (const k of st.gone) if (teams.has(k) && !teams.get(k).leute.length) teams.delete(k);
-    return { teams: [...teams.values()], abs, free, sick };
+    return { teams: [...teams.values()], abs, free, fixed };
   }
 
   function changes() {
@@ -71,7 +94,7 @@
   const chip = n => `<button class="krchip${st.sel === n ? " sel" : ""}${(st.cur[n] || "") !== (st.orig[n] || "") ? " moved" : ""}" data-n="${esc(n)}">${esc(n)}</button>`;
 
   function paint() {
-    const G = groups(), ch = changes(), names = st.data.spalten || [];
+    const G = groups(), ch = changes(), names = st.data.spalten || [], hol = holiday(st.day);
     view.innerHTML = `
       <section class="card krhead">
         <h2>Änderungen</h2>
@@ -80,11 +103,11 @@
           <label class="wpday"><b>${esc(WT[wd(st.day)] + ", " + dShort(st.day))}</b><small>${st.day === todayIso() ? "heute · " : ""}KW ${W.isoWeek(st.day).week} · Datum wählen</small><input type="date" id="krDay" value="${st.day}"></label>
           <button id="krNext" aria-label="Tag vor">›</button>
         </div>
-        <div class="hint">Monteur antippen, dann das Ziel antippen – Baustelle, „Krank“ oder „Nicht eingeplant“.</div>
+        <div class="hint">Monteur antippen, dann das Ziel antippen – eine Baustelle, „Nicht eingeplant“, „Krank“, „Urlaub“ oder „Frei“.</div>
+        ${hol ? `<div class="krhol">🎉 Feiertag: <b>${esc(hol)}</b>${names.some(n => W.absence(st.cur[n]) !== "Feiertag") ? `<button class="krholbtn" id="krHol">Alle auf „Feiertag“ setzen</button>` : ""}</div>` : ""}
       </section>
       ${st.fehlt ? `<section class="card"><div class="lerr">Für KW ${st.data.kw} gibt es noch kein Blatt in der Tabelle.</div></section>` : ""}
       <div class="krhint${st.sel ? "" : " hide"}">${st.sel ? `<b>${esc(st.sel)}</b> ausgewählt – jetzt Ziel antippen <button id="krDesel">✕</button>` : ""}</div>
-      <section class="card krzone krsick" data-to="${SICK}"><h3>🤒 Krank</h3><div class="krchips">${G.sick.map(chip).join("") || `<span class="krempty">${st.sel ? "hierher tippen" : "niemand"}</span>`}</div></section>
       ${G.teams.map(t => {
         const n = t.leute.length, off = isOffice(t.ort);
         const lost = names.filter(x => st.orig[x] && norm(st.orig[x]) === norm(t.ort) && !t.leute.includes(x));
@@ -97,6 +120,7 @@
       }).join("")}
       <button class="add" id="krNew">+ neue Baustelle</button>
       <section class="card krzone krfree" data-to="${OFF}"><h3>Nicht eingeplant</h3><div class="krchips">${G.free.map(chip).join("") || `<span class="krempty">${st.sel ? "hierher tippen" : "niemand"}</span>`}</div></section>
+      ${FIX.map(([to, name, ic, cls]) => `<section class="card krzone ${cls}" data-to="${to}"><h3>${ic} ${name}</h3><div class="krchips">${G.fixed[to].map(chip).join("") || `<span class="krempty">${st.sel ? "hierher tippen" : "niemand"}</span>`}</div></section>`).join("")}
       ${G.abs.length ? `<section class="card krabs"><h3>Abwesend</h3><div class="krchips">${G.abs.map(a => `<button class="krchip abs${st.sel === a.n ? " sel" : ""}" data-n="${esc(a.n)}">${esc(a.n)} <small>${esc(a.v)}</small></button>`).join("")}</div></section>` : ""}
       <section class="card krsave">
         <h3>Änderungen (${ch.length})</h3>
@@ -108,7 +132,8 @@
   }
 
   function moveTo(n, to) {
-    if (to === SICK) st.cur[n] = KRANK;
+    const fx = FIX.find(f => f[0] === to);
+    if (fx) st.cur[n] = fx[1];
     else if (to === OFF) st.cur[n] = "";
     else { st.cur[n] = to; st.gone = st.gone.filter(k => k !== norm(to)); }
     st.sel = null;
@@ -120,7 +145,9 @@
     const stamp = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
     const list = ch.map(c => {
       const a = { datum: st.day, name: c.name, wert: c.nach };
-      if (isSick(c.nach) && !isSick(c.von)) a.notiz = (c.von ? `vorher: ${c.von} – ` : "") + `Krank gemeldet von ${AT.user.name} am ${stamp}`;
+      const fx = fixOf(c.nach);
+      if (fx && (!fixOf(c.von) || fixOf(c.von)[1] !== fx[1]))
+        a.notiz = (c.von ? `vorher: ${c.von} – ` : "") + (fx[1] === "Krank" ? "Krank gemeldet" : fx[1] + " eingetragen") + ` von ${AT.user.name} am ${stamp}`;
       return a;
     });
     await AT.api("plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aenderungen: list }) });
@@ -145,6 +172,7 @@
     $("#krNext").onclick = () => stepDay(1);
     $("#krDay").onchange = e => { if (e.target.value && e.target.value !== st.day) goDay(e.target.value); else e.target.value = st.day; };
     if ($("#krDesel")) $("#krDesel").onclick = () => { st.sel = null; paint(); };
+    if ($("#krHol")) $("#krHol").onclick = () => { for (const n of st.data.spalten || []) st.cur[n] = "Feiertag"; st.sel = null; paint(); toast2("Alle auf „Feiertag“ gesetzt – zum Übernehmen speichern"); };
     view.querySelectorAll(".krchip").forEach(b => b.onclick = e => {
       e.stopPropagation();
       const n = b.dataset.n;
