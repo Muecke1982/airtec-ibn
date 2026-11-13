@@ -10,6 +10,9 @@ import * as plan from "../functions/api/plan.js";
 import * as hinweise from "../functions/api/hinweise.js";
 import * as lager from "../functions/api/lager.js";
 import * as muell from "../functions/api/muell.js";
+import * as urlaub from "../functions/api/urlaub.js";
+import { sync as urlaubSync } from "../lib/urlaub.js";
+import { users } from "../lib/auth.js";
 import { json } from "../lib/graph.js";
 
 const routes = {
@@ -26,6 +29,8 @@ const routes = {
   "GET /api/muell": muell.onRequestGet,
   "POST /api/muell": muell.onRequestPost,
   "POST /api/hinweise": hinweise.onRequestPost,
+  "GET /api/urlaub": urlaub.onRequestGet,
+  "POST /api/urlaub": urlaub.onRequestPost,
   "GET /api/maschinen": maschinen.onRequestGet,
   "POST /api/maschinen": maschinen.onRequestPost,
 };
@@ -38,5 +43,9 @@ export default {
       return h ? h({ request, env }) : json(404, { error: "Unbekannte Adresse" });
     }
     return env.ASSETS.fetch(request);
+  },
+  // Zeitgesteuert (siehe wrangler.jsonc „triggers“): Urlaubs-Postfach abrufen
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(users(env).then(p => urlaubSync(env, p)).catch(e => console.error("Urlaub-Sync:", e.message)));
   },
 };
