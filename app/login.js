@@ -32,7 +32,7 @@
       const u = this.user; if (!u) return false;
       if (u.admin) return true;
       if (Array.isArray(u.rechte)) return u.rechte.includes(recht);
-      return ["wochenplan", "protokolle", "maschinen", "lager"].includes(recht) || !!u.schreiben;
+      return ["wochenplan", "protokolle", "maschinen", "lager", "autos"].includes(recht) || !!u.schreiben;
     },
     logout(expired) {
       ls.del("at_session"); ls.del("kapp_code"); this.session = null;
@@ -125,7 +125,7 @@
     if (navigator.onLine) AT.api("login").then(r => { AT.session.user = r.user; ls.set("at_session", AT.session); reiter(); }).catch(e => { if (e.status === 401) AT.logout(true); });
   }
   // Reiter nur für freigegebene Bereiche zeigen (Zusatzrecht schließt den Bereich ein)
-  const BEREICH = { wochenplan: ["wochenplan", "plan_aendern"], protokolle: ["protokolle"], maschinen: ["maschinen", "maschinen_buero"], lager: ["lager", "lager_bestellen"] };
+  const BEREICH = { wochenplan: ["wochenplan", "plan_aendern"], protokolle: ["protokolle"], maschinen: ["maschinen", "maschinen_buero"], lager: ["lager", "lager_bestellen"], autos: ["autos", "autos_verwalten"] };
   function reiter() {
     document.querySelectorAll("#tabs button").forEach(b => {
       const need = BEREICH[b.dataset.tab];

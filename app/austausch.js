@@ -1,4 +1,4 @@
-/* Airtec KApp – Reiter „Austausch“: Nachrichten, angepinnte Mitteilungen, Antworten, Abstimmungen.
+/* Airtec KApp – Reiter „Nachrichten“ (intern „austausch“): Nachrichten, angepinnte Mitteilungen, Antworten, Abstimmungen.
    • alle: an Kollegen oder ans Büro schreiben (Priorität, Ablaufdatum), antworten, 👍, abhaken, abstimmen
    • Büro (Recht „hinweise“): an alle, anpinnen mit Ablaufdatum + Erinnerung, „sichtbar ab“, Abstimmungen, löschen
    Die Startseite zeigt eine Kurzübersicht (siehe hinweise.js, AT.austausch). */
@@ -20,14 +20,14 @@
 
   // ---------- Reiter + Ansicht ----------
   const tabBtn = document.createElement("button");
-  tabBtn.dataset.tab = "austausch"; tabBtn.textContent = "Austausch";
+  tabBtn.dataset.tab = "austausch"; tabBtn.textContent = "Nachrichten";
   document.querySelector('#tabs button[data-tab="protokolle"]').before(tabBtn);
   tabBtn.onclick = () => AT.tab("austausch");
   const view = document.createElement("main");
   view.id = "auView"; view.dataset.mod = "austausch"; view.className = "hide";
   document.getElementById("app").before(view);
   const hdr = document.querySelector("#hdrType");
-  if (hdr) { const s = document.createElement("small"); s.dataset.mod = "austausch"; s.className = "hide"; s.textContent = "Austausch"; hdr.parentNode.appendChild(s); }
+  if (hdr) { const s = document.createElement("small"); s.dataset.mod = "austausch"; s.className = "hide"; s.textContent = "Nachrichten"; hdr.parentNode.appendChild(s); }
 
   const css = document.createElement("style");
   css.textContent = `
@@ -82,7 +82,7 @@
   function karte(m, klein) {
     const [plabel, picon] = PRIO[m.prio] || PRIO.normal;
     const an = m.eigene ? "an " + m.an.join(", ") : (m.an.includes("Alle") ? "an alle" : m.an.includes("Büro") ? "ans Büro" : "an dich");
-    const head = `<div class="auhead">${m.pin ? `<span class="aubadge pin">📌 Angepinnt${m.bis ? " bis " + dd(m.bis) : ""}</span>` : ""}
+    const head = `<div class="auhead">${m.pin ? `<span class="aubadge pin">📌 Angepinnt${m.bis && m.typ !== "auto" ? " bis " + dd(m.bis) : ""}</span>` : ""}
       ${m.prio !== "normal" ? `<span class="aubadge ${m.prio}">${picon} ${plabel}</span>` : ""}${m.typ === "umfrage" ? '<span class="aubadge">📊 Abstimmung</span>' : ""}
       <b>${esc(m.eigene ? "Du" : m.von)}</b><span>${esc(an)} · ${esc(wann(m.erstellt))}${!m.pin && m.bis ? " · gilt bis " + dd(m.bis) : ""}${m.ab && m.eigene ? " · sichtbar ab " + dd(m.ab) : ""}</span></div>`;
     let poll = "";
@@ -139,14 +139,51 @@
         <button class="bigbtn secondary" id="auCancel" style="flex:1">Abbrechen</button></div></section>`;
   }
 
+  // „Autoinfo an Büro“ – nur für Mitarbeiter mit zugeordnetem Auto
+  const AUTO_GRUND = [["tuev", "Mein Auto muss zum TÜV – bitte Termin erstellen"], ["defekt", "Mein Auto ist defekt – bitte Termin erstellen"], ["sonst", "Sonstiges zum Auto"]];
+  function autoFormular(autos) {
+    return `<section class="card auform"><h2>🚐 Autoinfo an Büro</h2>
+      ${autos.length > 1 ? `<label>Welches Fahrzeug?</label><select id="aiAuto">${autos.map(a => `<option value="${a.id}">${esc(a.kennzeichen)}${a.name ? " – " + esc(a.name) : ""}</option>`).join("")}</select>`
+        : `<div class="hint" style="margin-top:0">${esc(autos[0].kennzeichen)}${autos[0].name ? " – " + esc(autos[0].name) : ""}</div>`}
+      <label>Worum geht es?</label><div class="aupick" style="max-height:none">${AUTO_GRUND.map(([k, l], i) => `<label><input type="radio" name="aiGrund" value="${k}" ${i === 0 ? "checked" : ""}> ${l}</label>`).join("")}</div>
+      <div id="aiWasBox" class="hide"><label id="aiWasL">Was ist defekt?</label><textarea id="aiWas" rows="3" placeholder="z. B. Warnleuchte Motor, Bremsen quietschen …"></textarea></div>
+      <div class="vwbtns" style="display:flex;gap:8px;margin-top:12px"><button class="bigbtn primary" id="aiSend" style="flex:2">An das Büro senden</button>
+        <button class="bigbtn secondary" id="auCancel" style="flex:1">Abbrechen</button></div></section>`;
+  }
+  function bindAuto() {
+    const q = s => view.querySelector(s);
+    const autos = data.meineAutos || [];
+    q("#auCancel").onclick = () => { form = null; paint(); };
+    const grund = () => (view.querySelector('[name="aiGrund"]:checked') || {}).value;
+    view.querySelectorAll('[name="aiGrund"]').forEach(r => r.onchange = () => {
+      q("#aiWasBox").classList.toggle("hide", grund() === "tuev");
+      q("#aiWasL").textContent = grund() === "defekt" ? "Was ist defekt?" : "Worum geht es?";
+      if (grund() !== "tuev") q("#aiWas").focus();
+    });
+    q("#aiSend").onclick = async () => {
+      const a = autos.find(x => x.id === +(q("#aiAuto") ? q("#aiAuto").value : autos[0].id)) || autos[0];
+      const g = grund(), was = q("#aiWas").value.trim();
+      if (g !== "tuev" && !was) { q("#aiWas").focus(); return say(g === "defekt" ? "Bitte kurz beschreiben, was defekt ist" : "Bitte kurz beschreiben, worum es geht"); }
+      const fz = `${a.kennzeichen}${a.name ? " (" + a.name + ")" : ""}`;
+      const text = g === "tuev" ? `🚐 ${fz} muss zum TÜV – bitte Termin erstellen.`
+        : g === "defekt" ? `🚐 ${fz} ist defekt – bitte Termin erstellen.\nDefekt: ${was}` : `🚐 ${fz}: ${was}`;
+      q("#aiSend").disabled = true;
+      try { await post({ aktion: "senden", an: ["*buero"], text, prio: g === "sonst" ? "normal" : "wichtig" }); form = null; filter = "ges"; say("An das Büro gesendet ✓"); }
+      catch (e) { say(e.message); q("#aiSend").disabled = false; return; }
+      paint();
+    };
+  }
+
   function paint() {
     if (!AT.user) { view.innerHTML = ""; return; }
     if (!data) { view.innerHTML = `<section class="card">Lade …</section>`; return; }
     const alle = (data.nachrichten || []).filter(m => m.typ !== "gruss");
     const mir = alle.filter(m => m.anMich && !m.eigene), ges = alle.filter(m => m.eigene);
     const list = filter === "mir" ? mir : ges;
-    view.innerHTML = `${form ? formular() : `<div class="hirow" style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="add" id="auNew" style="margin:0">✉️ Neue Nachricht</button>${buero() ? `<button class="add" id="auPoll" style="margin:0">📊 Abstimmung</button>` : ""}</div>`}
+    const autos = data.meineAutos || [];
+    view.innerHTML = `${form === "auto" ? autoFormular(autos) : form ? formular() : `<div class="hirow" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="add" id="auNew" style="margin:0;flex:1">✉️ Neue Nachricht</button>${buero() ? `<button class="add" id="auPoll" style="margin:0;flex:1">📊 Abstimmung</button>` : ""}
+        ${autos.length ? `<button class="add" id="auAuto" style="margin:0;flex:1 1 100%">🚐 Autoinfo an Büro</button>` : ""}</div>`}
       <div class="seg" style="margin-bottom:12px"><button data-f="mir" class="${filter === "mir" ? "on" : ""}">Für mich${data.ungelesen ? ` (${data.ungelesen})` : ""}</button>
         <button data-f="ges" class="${filter === "ges" ? "on" : ""}">Gesendet (${ges.length})</button></div>
       ${list.length ? list.map(m => karte(m)).join("") : `<section class="card"><div class="hint" style="margin:0">${filter === "mir" ? "Keine offenen Nachrichten. 👍" : "Noch nichts gesendet."}</div></section>`}`;
@@ -158,8 +195,10 @@
     const q = s => view.querySelector(s);
     const nn = q("#auNew"); if (nn) nn.onclick = () => { form = "nachricht"; prio = "normal"; paint(); };
     const np = q("#auPoll"); if (np) np.onclick = () => { form = "umfrage"; paint(); };
+    const na = q("#auAuto"); if (na) na.onclick = () => { form = "auto"; paint(); };
     view.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { filter = b.dataset.f; paint(); gelesenMelden(); });
-    if (form) {
+    if (form === "auto") bindAuto();
+    else if (form) {
       q("#auCancel").onclick = () => { form = null; paint(); };
       view.querySelectorAll("[data-prio]").forEach(b => b.onclick = () => { prio = b.dataset.prio; view.querySelectorAll("[data-prio]").forEach(x => x.classList.toggle("on", x === b)); });
       const pin = q("#auPin"); if (pin) pin.onchange = () => q("#auPinBox").classList.toggle("hide", !pin.checked);
@@ -232,7 +271,7 @@
     if (!list.length) return;
     remGezeigt = Date.now();
     rem.querySelector(".box").innerHTML = `<h3>📌 Erinnerung</h3>${list.map(m => `<div class="card au ${m.prio} pin" style="margin:10px 0">
-      <div class="auhead"><b>${esc(m.von)}</b><span>${m.bis ? "gilt bis " + dd(m.bis) : ""}</span></div><div class="autext">${esc(m.text)}</div>
+      <div class="auhead"><b>${esc(m.von)}</b><span>${m.bis && m.typ !== "auto" ? "gilt bis " + dd(m.bis) : ""}</span></div><div class="autext">${esc(m.text)}</div>
       <div class="auacts"><button class="ok" data-rem-ok="${m.id}">Zur Kenntnis genommen ✓</button></div></div>`).join("")}
       <div class="btns"><button class="secondary" id="auRemLater">Später erinnern</button></div>`;
     rem.classList.add("show");

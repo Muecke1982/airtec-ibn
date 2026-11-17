@@ -28,7 +28,7 @@ const id = n => ma.find(m => m.name === n).id;
 const sebi = ma.find(m => m.name === "Sebastian");
 assert.ok(sebi && sebi.admin, "Sebastian ist nach dem Import Admin");
 assert.equal(ma.filter(m => m.admin).length, 1, "genau ein Admin");
-assert.deepEqual(ma.find(m => m.name === "Nick").rechte, ["wochenplan", "protokolle", "maschinen", "lager"], "ohne Schreibrecht = Monteur-Rechte");
+assert.deepEqual(ma.find(m => m.name === "Nick").rechte, ["wochenplan", "protokolle", "maschinen", "lager", "autos"], "ohne Schreibrecht = Monteur-Rechte");
 const stefan = ma.find(m => m.name === "Stefan Wermers");
 assert.ok(stefan.rechte.includes("mitarbeiter") && !stefan.admin, "Excel-Schreibrecht = alle Rechte, aber kein Admin");
 
@@ -38,7 +38,7 @@ await V.mitarbeiterPasswort(env, admin, { id: sebi.id, passwort: "admin-pw-1" })
 await V.mitarbeiterPasswort(env, admin, { id: stefan.id, passwort: "stefan-pw-1" });
 const sA = await login(env, "Sebastian", "admin-pw-1");
 const meA = await auth(env, req(sA.token));
-assert.equal(meA.admin, true); assert.equal(meA.rechte.length, 11, "Admin bekommt alle Rechte");
+assert.equal(meA.admin, true); assert.equal(meA.rechte.length, 13, "Admin bekommt alle Rechte");
 const sS = await login(env, "Stefan Wermers", "stefan-pw-1");
 const meS = await auth(env, req(sS.token));
 assert.equal(meS.admin, false); assert.ok(darf(meS, "mitarbeiter"));
@@ -56,7 +56,7 @@ await rejects(V.mitarbeiterLoeschen(env, meS2, { id: sebi.id }), /nicht gelösch
 await rejects(V.mitarbeiterLoeschen(env, meA, { id: sebi.id }), /nicht gelöscht/);
 // Admin behält immer alle Rechte, auch wenn er sich selbst Häkchen wegnimmt
 ma = await V.mitarbeiterSpeichern(env, meA, { id: sebi.id, name: "Sebastian", rechte: ["protokolle"], aktiv: false });
-assert.ok(ma.find(m => m.id === sebi.id).aktiv && ma.find(m => m.id === sebi.id).rechte.length === 11, "Admin bleibt aktiv mit allen Rechten");
+assert.ok(ma.find(m => m.id === sebi.id).aktiv && ma.find(m => m.id === sebi.id).rechte.length === 13, "Admin bleibt aktiv mit allen Rechten");
 
 // „Mitarbeiter verwalten“ vergibt/entzieht nur der Admin
 ma = await V.mitarbeiterSpeichern(env, meS2, { name: "Testa Monteur", mail: "t@example.com", geb: "24.3", passwort: "abcdef", rechte: ["protokolle", "hinweise"] });

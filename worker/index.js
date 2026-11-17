@@ -14,6 +14,9 @@ import * as urlaub from "../functions/api/urlaub.js";
 import * as admin from "../functions/api/admin.js";
 import * as austausch from "../functions/api/austausch.js";
 import { aufraeumen as austauschAufraeumen } from "../lib/austausch.js";
+import * as autos from "../functions/api/autos.js";
+import * as suche from "../functions/api/suche.js";
+import { pruefen as autosPruefen } from "../lib/autos.js";
 import { sync as urlaubSync } from "../lib/urlaub.js";
 import { users, auth } from "../lib/auth.js";
 import { schreibe, beschreibe, aufraeumen } from "../lib/logbuch.js";
@@ -42,6 +45,9 @@ const routes = {
   "POST /api/admin": admin.onRequestPost,
   "GET /api/austausch": austausch.onRequestGet,
   "POST /api/austausch": austausch.onRequestPost,
+  "GET /api/autos": autos.onRequestGet,
+  "POST /api/autos": autos.onRequestPost,
+  "GET /api/suche": suche.onRequestGet,
 };
 
 // Logbuch: Änderungen (POST) und Anmeldungen aufzeichnen – im Hintergrund, damit die Antwort nicht wartet
@@ -71,6 +77,8 @@ export default {
       if ((request.headers.get("content-type") || "").includes("json")) body = await request.clone().json().catch(() => ({}));
       if (url.pathname.startsWith("/api/admin") && body.id && !body.name)
         body._name = ((await one(env, "SELECT name FROM mitarbeiter WHERE id = ?", +body.id).catch(() => null)) || {}).name;
+      if (url.pathname.startsWith("/api/autos") && body.id && !body.kennzeichen)   // Kennzeichen fürs Logbuch
+        body.kennzeichen = ((await one(env, "SELECT kennzeichen FROM autos WHERE id = ?", +body.id).catch(() => null)) || {}).kennzeichen;
       const me = url.pathname.startsWith("/api/login") ? null : await auth(env, request).catch(() => null);   // vor der Aktion (z. B. eigenes Passwort ändern)
       const res = await h({ request, env });
       if (ctx && ctx.waitUntil) ctx.waitUntil(protokolliere(env, me, url, body, res).catch(e => console.error("Logbuch:", e.message)));
@@ -83,5 +91,6 @@ export default {
     ctx.waitUntil(users(env).then(p => urlaubSync(env, p)).catch(e => console.error("Urlaub-Sync:", e.message)));
     ctx.waitUntil(aufraeumen(env).catch(e => console.error("Logbuch aufräumen:", e.message)));
     ctx.waitUntil(austauschAufraeumen(env).catch(e => console.error("Austausch aufräumen:", e.message)));
+    ctx.waitUntil(autosPruefen(env).catch(e => console.error("Autos prüfen:", e.message)));
   },
 };

@@ -9,9 +9,9 @@
   const say = m => { if (typeof toast === "function") toast(m); };
   // Rechte – gleiche Schlüssel wie lib/rechte.js
   const RECHTE = [
-    ["Bereiche", [["wochenplan", "Wochenplan"], ["protokolle", "Protokolle"], ["maschinen", "Maschinen"], ["lager", "Lager (Material melden)"]]],
-    ["Zusatzrechte", [["plan_aendern", "Wochenplan ändern (Tagesbrett, krank)"], ["hinweise", "Austausch (Büro): an alle, anpinnen, Abstimmungen"], ["urlaub", "Urlaub verwalten"],
-      ["maschinen_buero", "Maschinen (Büro)"], ["lager_bestellen", "Lager bestellen"], ["stammdaten", "Stammdaten pflegen"], ["mitarbeiter", "Mitarbeiter verwalten"]]],
+    ["Bereiche", [["wochenplan", "Wochenplan"], ["protokolle", "Protokolle"], ["maschinen", "Maschinen"], ["lager", "Lager (Material melden)"], ["autos", "Autos"]]],
+    ["Zusatzrechte", [["hinweise", "Büro"], ["plan_aendern", "Wochenplan ändern (Tagesbrett, krank)"], ["urlaub", "Urlaub verwalten"],
+      ["maschinen_buero", "Maschinen (Büro)"], ["lager_bestellen", "Lager bestellen"], ["autos_verwalten", "Autos verwalten"], ["stammdaten", "Stammdaten pflegen"], ["mitarbeiter", "Mitarbeiter verwalten"]]],
   ];
   const ALLE = RECHTE.flatMap(g => g[1].map(r => r[0])), MONTEUR = RECHTE[0][1].map(r => r[0]), ZUSATZ = RECHTE[1][1].map(r => r[0]);
   const darf = r => !!(AT && AT.darf && AT.darf(r));

@@ -19,7 +19,7 @@ const U = n => ({ name: n, rechte: n === "Sebastian Stern" ? ALLE.split(",") : n
 const seb = U("Sebastian Stern"), chr = U("Christina Schatz"), nick = U("Nick Pauls"), elv = U("Elvin Morawez");
 const rejects = (p, rx) => assert.rejects(p, e => rx.test(e.message), "erwartet: " + rx);
 const finde = (l, text) => l.nachrichten.find(m => m.text === text);
-const morgen = new Date(Date.now() + 864e5).toISOString().slice(0, 10), gestern = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+const morgen = heute(new Date(Date.now() + 864e5)), gestern = heute(new Date(Date.now() - 864e5));   // deutsche Zeit wie in der App
 
 // Monteur → Kollege, Priorität
 await aktion(env, nick, { aktion: "senden", an: ["Elvin Morawez"], text: "Hast du die Vakuumpumpe?", prio: "wichtig" });

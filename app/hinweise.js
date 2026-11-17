@@ -20,8 +20,56 @@
   const root = document.getElementById("stView");
   root.innerHTML = `<section class="card sthello"><div class="hi" id="stHi"></div><div class="me" id="stMe"></div>
       <button class="mehint" id="stToPlan">Wochenplan ansehen →</button></section>
+    <section class="card stsuche"><input id="stQ" type="search" placeholder="🔍 Suchen: Kennzeichen, Name, Telefon, Maschine, Artikel …" autocomplete="off" enterkeyhint="search">
+      <div id="stRes"></div></section>
     <div id="hiBox"></div>`;
   const box = root.querySelector("#hiBox");
+
+  // ---------- Suche ----------
+  // Server: Mitarbeiter (Name, Telefon) + Autos (Kennzeichen, Marke, Fahrer). Lokal: Maschinen, Lager-Artikel, Nachrichten.
+  const sst = document.createElement("style");
+  sst.textContent = `.stsuche{padding:10px 12px} .stsuche input{margin:0}
+    .sres{margin-top:8px} .sres h4{margin:10px 2px 4px;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
+    .sres .sr{display:block;width:100%;text-align:left;border:0;border-top:1px solid #eef1f4;background:none;padding:8px 2px;font:inherit;color:var(--ink)}
+    .sres .sr b{font-size:15px} .sres .sr small{display:block;color:var(--mut);font-size:13px;margin-top:1px}
+    .sres .sr a{color:var(--blue);font-weight:600;text-decoration:none} .sres .kzs{font:700 13px ui-monospace,Consolas,monospace;border:1.5px solid #1a1a1a;border-left:6px solid #1f4fa8;border-radius:4px;padding:1px 5px;margin-right:6px}`;
+  document.head.appendChild(sst);
+  const tel = t => t ? `<a href="tel:${esc(String(t).replace(/[^\d+]/g, ""))}">📞 ${esc(t)}</a>` : "";
+  const kzNorm = s => String(s || "").toUpperCase().replace(/[^A-Z0-9ÄÖÜ]/g, "");
+  let sTimer = null, sNr = 0;
+  function sucheLokal(q) {
+    const ql = q.toLowerCase(), kz = kzNorm(q);
+    const has = (...f) => f.some(x => String(x || "").toLowerCase().includes(ql));
+    const mas = (((ls.get("ma_cache") || {}).maschinen) || []).filter(m => has(m.name, m.nr, m.typ, m.sn, m.kat) || (kz.length >= 2 && kzNorm(m.nr) === kz)).slice(0, 6);
+    const arts = (((ls.get("lg_cache") || {}).arts) || []).filter(a => has(a.bez, a.gr, a.nr, a.best, a.herst, a.such)).slice(0, 6);
+    const msgs = (((AT.austausch && AT.austausch.data) || {}).nachrichten || []).filter(m => m.typ !== "gruss" && (has(m.text, m.von) || m.antworten.some(a => has(a.text)))).slice(0, 5);
+    return { mas, arts, msgs };
+  }
+  async function suchen(q) {
+    const res = root.querySelector("#stRes"), nr = ++sNr;
+    if (q.length < 2) { res.innerHTML = ""; return; }
+    const lok = sucheLokal(q);
+    let srv = { personen: [], autos: [] };
+    try { srv = await AT.api("suche?q=" + encodeURIComponent(q)); } catch (e) {}
+    if (nr !== sNr) return;   // inzwischen weitergetippt
+    const out = [];
+    if (srv.autos.length) out.push(`<h4>Fahrzeuge</h4>` + srv.autos.map(a => `<div class="sr"><b><span class="kzs">${esc(a.kennzeichen)}</span>${esc(a.name || (a.art === "anhaenger" ? "Anhänger" : "Auto"))}</b>
+      <small>${a.fahrer ? `👤 ${esc(a.fahrer)} ${tel(a.fahrerTel)}` : "keinem Mitarbeiter zugeordnet"}${a.tuev ? ` · TÜV bis ${esc(a.tuev)}` : ""}</small></div>`).join(""));
+    if (srv.personen.length) out.push(`<h4>Mitarbeiter</h4>` + srv.personen.map(p => `<div class="sr"><b>${esc(p.name)}</b>
+      <small>${[tel(p.telefon), p.mail ? `<a href="mailto:${esc(p.mail)}">✉️ ${esc(p.mail)}</a>` : "", p.autos ? "🚐 " + esc(p.autos) : ""].filter(Boolean).join(" · ") || "keine Kontaktdaten hinterlegt"}</small></div>`).join(""));
+    if (lok.mas.length) out.push(`<h4>Maschinen</h4>` + lok.mas.map(m => `<button class="sr" data-go="maschinen"><b>${esc(m.name)}</b>
+      <small>${[m.nr, m.typ].filter(Boolean).map(esc).join(" · ")}${m.aus ? ` · ${m.aus.baustelle ? "auf Baustelle " + esc(m.aus.baustelle) : m.aus.extern ? "verliehen an " + esc(m.aus.an) : "bei " + esc(m.aus.wer)}` : " · im Lager"}</small></button>`).join(""));
+    if (lok.arts.length) out.push(`<h4>Lager</h4>` + lok.arts.map(a => `<button class="sr" data-go="lager"><b>${esc(a.bez)}${a.gr ? " – " + esc(a.gr) : ""}</b>
+      <small>${[a.nr, a.ort ? "Lagerort " + a.ort : "", a.lief].filter(Boolean).map(esc).join(" · ")}</small></button>`).join(""));
+    if (lok.msgs.length) out.push(`<h4>Nachrichten</h4>` + lok.msgs.map(m => `<button class="sr" data-msg="${m.id}"><b>${esc(m.von)}</b>
+      <small>${esc(m.text.length > 90 ? m.text.slice(0, 90) + "…" : m.text)}</small></button>`).join(""));
+    res.innerHTML = out.length ? `<div class="sres">${out.join("")}</div>` : `<div class="hint">Nichts gefunden für „${esc(q)}“.</div>`;
+    res.querySelectorAll("[data-go]").forEach(b => b.onclick = () => AT.tab(b.dataset.go));
+    res.querySelectorAll("[data-msg]").forEach(b => b.onclick = () => AT.austausch.oeffnen(+b.dataset.msg));
+  }
+  const qIn = root.querySelector("#stQ");
+  qIn.oninput = () => { clearTimeout(sTimer); sTimer = setTimeout(() => suchen(qIn.value.trim()), 300); };
+  qIn.onkeydown = e => { if (e.key === "Escape") { qIn.value = ""; suchen(""); } };
 
   async function hello() {
     const W = AT.wp;
@@ -73,16 +121,16 @@
       const N = (A.nachrichten || []).filter(m => m.typ !== "gruss");
       const pins = N.filter(m => m.pin && m.anMich && !m.eigene);
       const dringend = N.filter(m => !m.pin && m.neu && m.prio === "dringend" && m.anMich && !m.eigene);
-      for (const m of pins) items.push(`<section class="card hicard hipin au ${m.prio}"><div class="hihead">📌 ${esc(m.von.split(" ")[0])}${m.bis ? " · bis " + esc(dd(m.bis)) : ""}${m.prio !== "normal" ? (m.prio === "dringend" ? " · 🔴 dringend" : " · 🟠 wichtig") : ""}</div>
+      for (const m of pins) items.push(`<section class="card hicard hipin au ${m.prio}"><div class="hihead">📌 ${esc(m.von.split(" ")[0])}${m.bis && m.typ !== "auto" ? " · bis " + esc(dd(m.bis)) : ""}${m.prio !== "normal" ? (m.prio === "dringend" ? " · 🔴 dringend" : " · 🟠 wichtig") : ""}</div>
         <div class="hitext">${esc(m.text)}</div>
         ${m.erledigt ? `<div class="hiwish" style="margin-top:6px">✓ zur Kenntnis genommen</div>` : `<button class="hidone" data-ok="${m.id}">Zur Kenntnis genommen ✓</button>`}</section>`);
       for (const m of dringend) items.push(`<section class="card hicard au dringend" style="border-left-width:5px"><div class="hihead">🔴 Dringend · ${esc(m.von)}</div>
         <div class="hitext">${esc(m.text.length > 220 ? m.text.slice(0, 220) + "…" : m.text)}</div>
         <button class="hidone" data-open="${m.id}" style="background:var(--bad)">Öffnen</button></section>`);
       const rest = A.ungelesen - dringend.length - pins.filter(m => m.neu).length;
-      items.push(`<section class="card hicard"><div class="hihead">✉️ Austausch</div>
+      items.push(`<section class="card hicard"><div class="hihead">✉️ Nachrichten</div>
         <b>${rest > 0 ? `${rest} neue Nachricht${rest > 1 ? "en" : ""}` : "Keine weiteren neuen Nachrichten"}</b>
-        <div class="maaskbtn"><button class="mabtn take" data-open="">Austausch öffnen</button><button class="mabtn back" id="stWrite">${AT.darf("hinweise") ? "✉️ Nachricht schreiben" : "✉️ Nachricht ans Büro"}</button></div></section>`);
+        <div class="maaskbtn"><button class="mabtn take" data-open="">Nachrichten öffnen</button><button class="mabtn back" id="stWrite">${AT.darf("hinweise") ? "✉️ Nachricht schreiben" : "✉️ Nachricht ans Büro"}</button></div></section>`);
     }
 
     // ---------- Maschinen ----------

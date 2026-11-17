@@ -24,7 +24,8 @@ const rows = await all(env, "SELECT name, admin, rechte FROM mitarbeiter ORDER B
 assert.equal(rows[0].admin, 1, "Sebastian Stern wird Admin");
 assert.equal(rows.filter(r => r.admin).length, 1);
 assert.ok(rows[1].rechte.includes("mitarbeiter") && !rows[1].admin, "früheres Büro = alle Rechte");
-assert.equal(rows[2].rechte, "wochenplan,protokolle,maschinen,lager", "Monteur = Bereiche");
+assert.equal(rows[2].rechte, "wochenplan,protokolle,maschinen,lager,autos", "Monteur = Bereiche (inkl. Autos ab Migration 7)");
+assert.ok(rows[1].rechte.includes("autos_verwalten"), "Büro bekommt Autos verwalten");
 console.log(rows.map(r => `${r.name}: ${r.admin ? "Admin" : r.rechte}`).join("\n"));
 // Migration 6: alte Hinweise im Austausch
 const na = await all(env, "SELECT n.id, n.text, n.pin, a.empfaenger FROM nachrichten n JOIN nachricht_an a ON a.nachricht_id = n.id ORDER BY n.id");
