@@ -19,8 +19,7 @@
   const root = document.getElementById("stView");
   const box = document.createElement("div");
   box.id = "urBox";
-  const hi = root.querySelector("#hiBox");
-  hi.parentNode.insertBefore(box, hi);   // über den Hinweisen
+  root.appendChild(box);   // ganz unten auf der Startseite
 
   let data = ls.get("ur_cache"), open = false, busy = false;
   const seenKey = () => "ur_seen_" + ((AT.user && AT.user.name) || "");
@@ -47,10 +46,15 @@
         <b>${ic} Dein Urlaub wurde ${esc(word)}</b><div>${esc(span(r))}${esc(days(r))}${r.hinweis && r.hinweis.includes("halber") ? " · halber Tag" : ""}</div>
         <button class="hidone" data-seen="${esc(r.id)}">OK</button></section>`);
     }
-    // kommender genehmigter Urlaub
-    const next = mine.filter(r => r.status === "genehmigt" && seen.includes(r.id) && (r.bis || "") >= today);
-    if (next.length) out.push(`<section class="card hicard urmine"><div class="hihead">🌴 Mein Urlaub</div>${next.map(r =>
-      `<div class="urline"><b>${esc(span(r))}</b>${esc(days(r))}${r.von <= today ? ' <span class="urnow">läuft gerade</span>' : ""}</div>`).join("")}</section>`);
+    // alle anstehenden genehmigten Urlaube im laufenden Jahr
+    const jahr = today.slice(0, 4);
+    const next = mine.filter(r => r.status === "genehmigt" && (r.bis || "") >= today && (r.von || "").slice(0, 4) <= jahr)
+      .sort((a, b) => (a.von || "").localeCompare(b.von || ""));
+    const summe = next.reduce((s, r) => s + (+r.tage || 0), 0);
+    out.push(`<section class="card hicard urmine"><div class="hihead">🌴 Mein Urlaub ${jahr}</div>${next.length ? next.map(r =>
+      `<div class="urline"><b>${esc(span(r))}</b>${esc(days(r))}${r.von <= today ? ' <span class="urnow">läuft gerade</span>' : ""}</div>`).join("")
+      + (next.length > 1 && summe ? `<div class="hivon">zusammen ${summe} Arbeitstage</div>` : "")
+      : '<div class="hivon" style="margin-top:0">Kein genehmigter Urlaub mehr in diesem Jahr eingetragen.</div>'}</section>`);
     // Büro
     if (office() && data.alle) {
       const all = data.alle, unklar = all.filter(r => r.status === "unklar"), offen = all.filter(r => r.status === "genehmigt" && !r.plan && (r.bis || "") >= today);

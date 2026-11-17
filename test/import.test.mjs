@@ -92,6 +92,11 @@ assert.equal(hw[0].pin, 1);
 assert.equal(hw[0].bis, "2026-11-30");
 assert.deepEqual((await all(env, "SELECT wer FROM hinweise_erledigt WHERE hinweis_id=? ORDER BY wer", hw[0].id)).map(r => r.wer), ["Elvi", "Nick"]);
 assert.equal((await one(env, "SELECT am FROM muell")).am, "2026-11-13 10:00");
+// Übernahme in den Austausch
+const na = await all(env, "SELECT n.text, n.pin, n.bis, a.empfaenger FROM nachrichten n JOIN nachricht_an a ON a.nachricht_id = n.id ORDER BY n.id");
+assert.deepEqual(na.map(x => [x.text, x.empfaenger, x.pin]), [["Freitag Grillen 🎉", "*alle", 1], ["Bohrmaschine defekt", "*buero", 0]]);
+assert.equal(na[0].bis, "2026-11-30");
+assert.equal((await one(env, "SELECT COUNT(*) n FROM nachricht_status WHERE erledigt <> ''")).n, 2);
 assert.ok((await one(env, "SELECT wert FROM einstellungen WHERE schluessel='muell_empfaenger'")).wert.includes("@"));
 console.log("Beispieldaten (Ausleihen, Reservierung, Meldungen, Bestellung, Hinweise, Müll) korrekt übernommen.");
 

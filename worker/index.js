@@ -12,6 +12,8 @@ import * as lager from "../functions/api/lager.js";
 import * as muell from "../functions/api/muell.js";
 import * as urlaub from "../functions/api/urlaub.js";
 import * as admin from "../functions/api/admin.js";
+import * as austausch from "../functions/api/austausch.js";
+import { aufraeumen as austauschAufraeumen } from "../lib/austausch.js";
 import { sync as urlaubSync } from "../lib/urlaub.js";
 import { users, auth } from "../lib/auth.js";
 import { schreibe, beschreibe, aufraeumen } from "../lib/logbuch.js";
@@ -38,6 +40,8 @@ const routes = {
   "POST /api/maschinen": maschinen.onRequestPost,
   "GET /api/admin": admin.onRequestGet,
   "POST /api/admin": admin.onRequestPost,
+  "GET /api/austausch": austausch.onRequestGet,
+  "POST /api/austausch": austausch.onRequestPost,
 };
 
 // Logbuch: Änderungen (POST) und Anmeldungen aufzeichnen – im Hintergrund, damit die Antwort nicht wartet
@@ -78,5 +82,6 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(users(env).then(p => urlaubSync(env, p)).catch(e => console.error("Urlaub-Sync:", e.message)));
     ctx.waitUntil(aufraeumen(env).catch(e => console.error("Logbuch aufräumen:", e.message)));
+    ctx.waitUntil(austauschAufraeumen(env).catch(e => console.error("Austausch aufräumen:", e.message)));
   },
 };
