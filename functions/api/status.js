@@ -17,7 +17,7 @@ export async function onRequestGet({ request, env }) {
   try { await download(env, cfg(env, "SP_STAMM_PATH")); out.stammdaten = "OK"; } catch (e) { out.stammdaten = "FEHLER: " + e.message; }
   try {
     const u = await users(env, true);
-    out.zugaenge = `OK – ${u.length} Personen, ${u.filter(x => x.write).length} mit Schreibrecht (${zugangPath(env)})`;
+    out.zugaenge = `OK – ${u.length} Personen, ${u.filter(x => x.write).length} mit Schreibrecht (${u.some(x => x.pwHash !== undefined) ? "Datenbank" : zugangPath(env)})`;
   } catch (e) { out.zugaenge = "FEHLER: " + e.message + " (" + zugangPath(env) + ")"; }
   try {
     const s = await sheets(env);

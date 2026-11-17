@@ -643,7 +643,7 @@ button,select,label,a{touch-action:manipulation}
   <div class="hide"><select id="sPick"></select><div id="sPickBox"></div><input id="sName"><input id="sMail"><input id="sCode"></div>
   <h3 style="margin-top:22px">Stammdaten (Auswahllisten)</h3>
   <div class="hint" style="margin-top:0" id="stammInfo"></div>
-  <button class="add" id="stammSync" style="margin-top:8px">Stammdaten aus SharePoint neu laden</button>
+  <button class="add" id="stammSync" style="margin-top:8px">Stammdaten neu laden</button>
   <label class="filebtn" style="margin-top:8px;font-weight:400;font-size:14px">Excel-Datei manuell laden<input type="file" id="stammIn" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
   <button class="add" id="stammReset" style="border-color:#cfd5dc;color:var(--mut)">Auf eingebaute Stammdaten zurücksetzen</button>
   <div class="btns"><button class="primary" id="sSave">Speichern</button></div>
@@ -1455,15 +1455,20 @@ async function api(path,opts={}){
   if(!r.ok){let m="Fehler "+r.status;try{m=(await r.json()).error||m}catch(e){}const err=new Error(m);err.status=r.status;throw err}
   return r;
 }
-async function syncStamm(loud){
+// Stammdaten vom Server: aus der Datenbank (JSON) oder – solange dort nichts ist bzw. mit excel=true – die Excel-Datei
+async function syncStamm(loud,excel){
   if(!appCode()||!navigator.onLine)return;
   try{
-    const buf=await (await api("stamm")).arrayBuffer();
-    if(!window.XLSX)await loadScript("/vendor/xlsx.full.min.js");
-    const st=parseWb(XLSX.read(buf,{type:"array"}));
-    st.src="SharePoint, Stand "+new Date().toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})+" Uhr";
+    const r=await api("stamm"+(excel?"?quelle=excel":""));
+    let st,quelle;
+    if((r.headers.get("content-type")||"").includes("json")){st=(await r.json()).stamm;quelle="Datenbank"}
+    else{
+      const buf=await r.arrayBuffer();
+      if(!window.XLSX)await loadScript("/vendor/xlsx.full.min.js");
+      st=parseWb(XLSX.read(buf,{type:"array"}));quelle="SharePoint"}
+    st.src=quelle+", Stand "+new Date().toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})+" Uhr";
     STAMM=st;store.set("kapp_stamm",st);stammInfo();refreshLists();
-    if(loud)toast("Stammdaten aus SharePoint geladen");
+    if(loud)toast("Stammdaten aus "+(quelle==="Datenbank"?"der Datenbank":"SharePoint")+" geladen");
   }catch(e){if(loud)toast(e.status===401?"Nicht angemeldet":"Stammdaten nicht geladen: "+e.message)}
 }
 $("#stammSync").onclick=()=>syncStamm(true);
