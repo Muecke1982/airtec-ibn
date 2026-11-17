@@ -6,6 +6,6 @@
   "keep_vars": true,
   "preview_urls": true,
   "triggers": { "crons": ["*/15 5-19 * * 1-6"] },
-  "d1_databases": [{ "binding": "DB", "database_name": "airtec-kapp", "database_id": "DATENBANK-ID-EINTRAGEN" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "airtec-kapp", "database_id": "5254fe98-178a-46ef-8d68-3300ca36d0a0" }],
   "assets": { "directory": "./app", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] }
 }
