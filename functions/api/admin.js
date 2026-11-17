@@ -35,7 +35,9 @@ export async function onRequestPost({ request, env }) {
     switch (b.aktion) {
       case "import":
         brauche(me, "mitarbeiter");
-        if (b.bereich === "mitarbeiter" && !me.admin) throw fail("Den Mitarbeiter-Import darf nur der Admin starten (er überschreibt alle Rechte).", 403);
+        // Mitarbeiter-Import überschreibt alle Rechte → nur der Admin. Solange es noch keinen Admin gibt (erster Import), auch andere Verwalter.
+        if (b.bereich === "mitarbeiter" && !me.admin && (await status(env)).adminDa)
+          throw fail("Den Mitarbeiter-Import darf nur der Admin starten (er überschreibt alle Rechte).", 403);
         { const erg = await importiere(env, me, b); return json(200, { ...erg, status: await status(env) }); }
       case "ma_speichern": brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterSpeichern(env, me, b) });
       case "ma_passwort": brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterPasswort(env, me, b) });

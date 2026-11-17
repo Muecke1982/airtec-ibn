@@ -148,7 +148,7 @@
         const imp = b.import ? `Importiert am ${esc(fmt(b.import.am))} von ${esc(b.import.von)}: ${esc(b.import.anzahl)}` : "Noch nicht importiert";
         return `<div class="vwrow"><b>${esc(b.titel)}</b> <span style="color:var(--mut)">· ${n} Einträge</span>
           <div class="hint" style="margin:2px 0 6px">${imp}</div>
-          ${b.id === "mitarbeiter" && !ichAdmin() ? `<div class="hint">Nur der Admin kann die Mitarbeiter neu importieren (überschreibt alle Rechte).</div>`
+          ${b.id === "mitarbeiter" && !ichAdmin() && db.adminDa ? `<div class="hint">Nur der Admin kann die Mitarbeiter neu importieren (überschreibt alle Rechte).</div>`
             : `<button class="add" data-imp="${esc(b.id)}" style="margin:0">${b.import ? "Erneut importieren" : "Aus Excel importieren"}</button>`}</div>`;
       }).join("")}</section>`;
   }
