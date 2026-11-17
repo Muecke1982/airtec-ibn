@@ -4,6 +4,7 @@ import { importiere, status } from "../../lib/import.js";
 import { darf } from "../../lib/rechte.js";
 import * as V from "../../lib/verwaltung.js";
 import { liste as logbuchListe } from "../../lib/logbuch.js";
+import { sichern, zurueckspielen, status as sicherungStatus } from "../../lib/sicherung.js";
 
 // Verwaltung: Mitarbeiter (Recht „mitarbeiter“), Stammdaten (Recht „stammdaten“), Datenbank-Import (Recht „mitarbeiter“;
 // Mitarbeiter-Import nur Admin, weil er alle Rechte überschreibt)
@@ -23,6 +24,10 @@ export async function onRequestGet({ request, env }) {
     const teil = new URL(request.url).searchParams.get("teil");
     if (teil === "mitarbeiter") { brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterListe(env) }); }
     if (teil === "stamm") { brauche(me, "stammdaten"); return json(200, await V.stammListe(env)); }
+    if (teil === "sicherung") {
+      if (!me.admin) throw fail("Die Datensicherung sieht nur der Admin", 403);
+      return json(200, await sicherungStatus(env));
+    }
     if (teil === "logbuch") {
       if (!me.admin) throw fail("Das Logbuch sieht nur der Admin", 403);
       const q = new URL(request.url).searchParams;
@@ -48,6 +53,12 @@ export async function onRequestPost({ request, env }) {
       case "ma_speichern": brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterSpeichern(env, me, b) });
       case "ma_passwort": brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterPasswort(env, me, b) });
       case "ma_loeschen": brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterLoeschen(env, me, b) });
+      case "sichern":
+        if (!me.admin) throw fail("Nur der Admin", 403);
+        return json(200, { ergebnis: await sichern(env, me.name), status: await sicherungStatus(env) });
+      case "zurueckspielen":
+        if (!me.admin) throw fail("Nur der Admin", 403);
+        return json(200, { ergebnis: await zurueckspielen(env, me.name, b), status: await sicherungStatus(env) });
       case "ma_admin": return json(200, { mitarbeiter: await V.adminUebergeben(env, me, b) });
       case "liste_speichern": brauche(me, "stammdaten"); return json(200, await V.listeSpeichern(env, b));
       case "liste_loeschen": brauche(me, "stammdaten"); return json(200, await V.listeLoeschen(env, b));

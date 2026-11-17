@@ -53,7 +53,7 @@
   #vwView .vwback{border:0;background:none;color:var(--blue);font:inherit;font-weight:600;padding:4px 0 10px}`;
   document.head.appendChild(style);
 
-  let teil = "mitarbeiter", offen = null, ma = null, st = null, db = null, sub = "listen", log = null;
+  let teil = "mitarbeiter", offen = null, ma = null, st = null, db = null, sub = "listen", log = null, sich = null;
   const logQ = { tage: 7, wer: "", bereich: "" };
 
   function paint() {
@@ -146,10 +146,29 @@
 
   // ---------- Datenbank ----------
   const fmt = iso => { const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/); return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}` : iso; };
+  // Datensicherung (nur Admin)
+  function paintSich() {
+    if (!ichAdmin()) return "";
+    if (!sich) return `<section class="card"><h2>Datensicherung</h2>Lade …</section>`;
+    const L = sich.letzte, kb = n => n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+    return `<section class="card"><h2>Datensicherung</h2>
+      ${L ? (L.fehler ? `<div class="warn">⚠ Letzte Sicherung am ${esc(fmt(L.am))} fehlgeschlagen: ${esc(L.fehler)}</div>`
+        : `<div style="font-size:14.5px">✅ Letzte Sicherung: <b>${esc(fmt(L.am))}</b> (${esc(L.von)}) · ${L.zeilen} Einträge · ${kb(L.groesse)}</div>`)
+        : `<div class="warn">Noch keine Sicherung erstellt.</div>`}
+      <div class="hint">Täglich automatisch nach SharePoint, Ordner <b>${esc(sich.ordner)}</b>. Aufbewahrt werden die letzten 30 Tage, danach je Monat eine Sicherung für 12 Monate.</div>
+      ${sich.fehler ? `<div class="warn">Ordner nicht lesbar: ${esc(sich.fehler)}</div>` : ""}
+      <div class="vwbtns"><button class="primary" id="siJetzt">Jetzt sichern</button></div>
+      ${sich.dateien.length ? `<label style="margin-top:16px">Zurückspielen – Sicherung wählen (${sich.dateien.length} vorhanden)</label>
+        <select id="siDatei">${sich.dateien.map(f => `<option value="${esc(f.id)}">${esc(f.name.replace(/^KApp_Sicherung_|\.json$/g, ""))} · ${kb(f.groesse)}</option>`).join("")}</select>
+        <label>Bereiche</label><div class="vwgrid">${sich.bereiche.map(b => `<label class="vwr"><input type="checkbox" data-sib="${esc(b.id)}"> ${esc(b.titel)}</label>`).join("")}</div>
+        <div class="hint">Die gewählten Bereiche werden durch den Stand der Sicherung <b>ersetzt</b>. Vorher wird der aktuelle Stand automatisch gesichert.</div>
+        <div class="vwbtns"><button class="vwdel" id="siZurueck">Zurückspielen</button></div>` : ""}</section>`;
+  }
+
   function paintDb() {
     if (!db) return `<section class="card">Lade …</section>`;
     if (!db.verbunden) return `<section class="card"><div class="warn">Die Datenbank ist noch nicht mit der App verbunden.</div></section>`;
-    return `<section class="card"><h2>Import aus Excel</h2><div class="hint" style="margin-top:0">Übernimmt die Daten aus den Excel-Dateien in SharePoint.
+    return paintSich() + `<section class="card"><h2>Import aus Excel</h2><div class="hint" style="margin-top:0">Übernimmt die Daten aus den Excel-Dateien in SharePoint.
       Ein erneuter Import <b>ersetzt</b> die Daten dieses Bereichs in der Datenbank – auch Änderungen, die hier in der Verwaltung gemacht wurden.</div>
       ${db.bereiche.map(b => {
         const n = Object.values(b.zahlen).reduce((a, x) => a + x, 0);
@@ -270,6 +289,26 @@
       const c = q("#lgCsv"); if (c) c.onclick = csv;
     }
 
+    if (teil === "db" && sich) {
+      const j = q("#siJetzt");
+      const neuLaden = async () => { sich = await get("sicherung").catch(() => sich); paint(); };
+      if (j) j.onclick = () => busy(j, async () => {
+        j.textContent = "Sichere …";
+        try { const r = await post({ aktion: "sichern" }); sich = r.status; paint(); say("Gesichert ✓ " + r.ergebnis.datei); }
+        catch (e) { await neuLaden(); throw e; }
+      });
+      const z = q("#siZurueck");
+      if (z) z.onclick = () => {
+        const bereiche = [...view.querySelectorAll("[data-sib]:checked")].map(c => c.dataset.sib);
+        if (!bereiche.length) return say("Bitte mindestens einen Bereich wählen");
+        if (!sure(z, "Wirklich? Ersetzt die gewählten Bereiche")) return;
+        busy(z, async () => {
+          z.textContent = "Spiele zurück …";
+          try { const r = await post({ aktion: "zurueckspielen", datei: val("siDatei"), bereiche }); sich = r.status; ma = null; st = null; paint(); say("Zurückgespielt: " + r.ergebnis.zurueckgespielt.join(", ")); }
+          catch (e) { await neuLaden(); throw e; }
+        });
+      };
+    }
     if (teil === "db") view.querySelectorAll("[data-imp]").forEach(btn => btn.onclick = () => {
       if (!sure(btn, "Ersetzt die Daten – wirklich importieren?")) return;
       busy(btn, async () => {
@@ -292,7 +331,7 @@
       if (teil === "mitarbeiter") ma = (await get("mitarbeiter")).mitarbeiter;
       else if (teil === "stamm") st = await get("stamm");
       else if (teil === "log") log = await get(`logbuch&tage=${logQ.tage}&wer=${encodeURIComponent(logQ.wer)}&bereich=${encodeURIComponent(logQ.bereich)}`);
-      else db = await get("");
+      else { db = await get(""); if (ichAdmin()) sich = await get("sicherung").catch(e => ({ letzte: null, dateien: [], ordner: "", fehler: e.message, bereiche: [] })); }
     } catch (e) { say(e.message); }
     paint();
   }
