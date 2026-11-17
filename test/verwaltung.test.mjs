@@ -61,6 +61,11 @@ assert.ok(ma.find(m => m.id === sebi.id).aktiv && ma.find(m => m.id === sebi.id)
 // „Mitarbeiter verwalten“ vergibt/entzieht nur der Admin
 ma = await V.mitarbeiterSpeichern(env, meS2, { name: "Testa Monteur", mail: "t@example.com", geb: "24.3", passwort: "abcdef", rechte: ["protokolle", "hinweise"] });
 const neu = ma.find(m => m.name === "Testa Monteur");
+// neue Felder: Telefon, Adresse, Schlüssel, Alarmanlage – speichern und ändern
+ma = await V.mitarbeiterSpeichern(env, meA, { id: neu.id, name: "Testa Monteur", rechte: neu.rechte, geb: "24.03.",
+  telefon: "0170 1234567", adresse: "Max-Planck-Str. 2\n48599 Gronau", schluessel: "S-12", alarm: "A-3" });
+const nf = ma.find(m => m.id === neu.id);
+assert.deepEqual([nf.telefon, nf.adresse, nf.schluessel, nf.alarm], ["0170 1234567", "Max-Planck-Str. 2\n48599 Gronau", "S-12", "A-3"]);
 assert.deepEqual(neu.rechte, ["protokolle", "hinweise"]); assert.equal(neu.geb, "24.03."); assert.equal(neu.hatPw, true);
 await rejects(V.mitarbeiterSpeichern(env, meS2, { id: neu.id, name: "Testa Monteur", rechte: ["protokolle", "mitarbeiter"] }), /Nur der Admin/);
 await rejects(V.mitarbeiterSpeichern(env, meS2, { name: "Neu2", rechte: ["mitarbeiter"] }), /Nur der Admin/);

@@ -87,6 +87,10 @@
     <div class="row"><div><label>E-Mail</label><input id="fMail" type="email" value="${esc(m.mail)}"></div>
       <div><label>Geburtstag (TT.MM.)</label><input id="fGeb" value="${esc(m.geb)}" placeholder="24.03." inputmode="decimal"></div></div>
     <label>Name im Wochenplan (leer = wie oben)</label><input id="fPlan" value="${esc(m.plan)}">
+    <label>Telefon</label><input id="fTel" type="tel" value="${esc(m.telefon)}" inputmode="tel" autocomplete="off">
+    <label>Adresse</label><textarea id="fAdr" rows="2" style="min-height:58px" placeholder="Straße Nr., PLZ Ort">${esc(m.adresse)}</textarea>
+    <div class="row"><div><label>Schlüssel-Nr.</label><input id="fSchl" value="${esc(m.schluessel)}" autocomplete="off"></div>
+      <div><label>Alarmanlagen-Schlüssel</label><input id="fAlarm" value="${esc(m.alarm)}" autocomplete="off"></div></div>
     ${m.id ? "" : `<label>Passwort (mind. 6 Zeichen)</label><input id="fPw" type="text" autocomplete="off">`}
     ${rechteForm(m)}
     <div class="vwchk"><label><input type="checkbox" id="fAktiv" ${m.aktiv === false ? "" : "checked"} ${m.admin ? "disabled" : ""}> Aktiv (kann sich anmelden)</label></div>
@@ -217,7 +221,7 @@
       if (save) save.onclick = () => busy(save, async () => {
         const rechte = [...view.querySelectorAll("[data-recht]")].filter(c => c.checked).map(c => c.dataset.recht);
         const r = await post({ aktion: "ma_speichern", id: m && m.id, name: val("fName"), mail: val("fMail"), plan: val("fPlan"), geb: val("fGeb"),
-          rechte, aktiv: val("fAktiv"), passwort: val("fPw") });
+          rechte, aktiv: val("fAktiv"), passwort: val("fPw"), telefon: val("fTel"), adresse: val("fAdr"), schluessel: val("fSchl"), alarm: val("fAlarm") });
         ma = r.mitarbeiter; offen = null; paint(); say("Gespeichert");
       });
       view.querySelectorAll("[data-preset]").forEach(p => p.onclick = () => {
