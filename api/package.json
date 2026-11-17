@@ -1,5 +1,5 @@
 {
-  "name": "airtec-ibn-api",
+  "name": "airtec-kapp-api",
   "version": "1.0.0",
   "private": true,
   "main": "src/functions/*.js",

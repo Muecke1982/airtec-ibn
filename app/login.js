@@ -1,6 +1,6 @@
 /* Airtec App – Anmeldung (gilt für die ganze App) und Umschalten zwischen den Modulen.
    Name + Passwort werden einmal eingegeben, danach bleibt das Handy angemeldet.
-   Das Sitzungs-Token wird als "ibn_code" gespeichert, damit das Protokoll-Modul unverändert weiterarbeitet. */
+   Das Sitzungs-Token wird als "kapp_code" gespeichert, damit das Protokoll-Modul unverändert weiterarbeitet. */
 (function () {
   const ls = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
@@ -10,7 +10,7 @@
   const q = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  const prev = ls.get("ibn_code");
+  const prev = ls.get("kapp_code");
   const oldCode = ls.get("at_oldcode") || (prev && !String(prev).startsWith("s1.") ? prev : "");
   if (oldCode) ls.set("at_oldcode", oldCode);
   const AT = window.AT = {
@@ -28,7 +28,7 @@
     },
     modules: {},                               // name → { title, show() }
     logout(expired) {
-      ls.del("at_session"); ls.del("ibn_code"); this.session = null;
+      ls.del("at_session"); ls.del("kapp_code"); this.session = null;
       showLogin(expired ? "Anmeldung abgelaufen – bitte neu anmelden." : "");
     },
   };
@@ -94,7 +94,7 @@
   q("#lGo").onclick = doLogin;
   // Notausgang: Ist die Zugangsliste gestört, können Handys mit dem alten Firmen-Code weiter Protokolle hochladen.
   q("#lOld").onclick = () => {
-    ls.set("ibn_code", oldCode);
+    ls.set("kapp_code", oldCode);
     box.classList.add("hide"); document.body.classList.remove("locked");
     document.querySelector("#tabs").classList.add("hide");
     if (window.protoReady) window.protoReady();
@@ -107,8 +107,8 @@
     const u = AT.user;
     box.classList.add("hide"); document.body.classList.remove("locked");
     // Für das Protokoll-Modul: Token als Code, Monteur = angemeldete Person
-    ls.set("ibn_code", AT.session.token);
-    try { monteur = { name: u.name, mail: u.mail || "" }; ls.set("ibn_monteur", monteur); if (typeof showWho === "function") showWho(); } catch (e) {}
+    ls.set("kapp_code", AT.session.token);
+    try { monteur = { name: u.name, mail: u.mail || "" }; ls.set("kapp_monteur", monteur); if (typeof showWho === "function") showWho(); } catch (e) {}
     const who = q("#accName"); if (who) who.textContent = u.name + (u.schreiben ? " (Büro)" : "");
     if (window.protoReady) window.protoReady();
     tab("start");   // App öffnet immer auf der Startseite

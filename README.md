@@ -1,4 +1,4 @@
-# Airtec Inbetriebnahme-App
+# Airtec KApp (Kälte-App)
 
 Module (getrennt gebaut, nur über Anmeldung und Monteurliste verbunden):
 
@@ -15,7 +15,7 @@ Module (getrennt gebaut, nur über Anmeldung und Monteurliste verbunden):
 
 Web-App für Inbetriebnahmeprotokolle (Split, Multisplit, VRF, Direktverdampfer, Kaltwassersatz, Wärmepumpe, Klimaschrank).
 Die Monteure füllen das Protokoll auf dem Handy aus, die App erzeugt ein PDF und legt es automatisch in SharePoint ab.
-Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks …) kommen aus der Excel-Datei `Airtec_IBN_Stammdaten.xlsx` in SharePoint.
+Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks …) kommen aus der Excel-Datei `Airtec_Stammdaten.xlsx` in SharePoint.
 
 ## Aufbau
 
@@ -57,7 +57,7 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 | `GSHEET_ID` | `1AbC…xyz` | ID der Google-Tabelle Wochenplan (der Teil zwischen `/d/` und `/edit` im Link) |
 | `GOOGLE_SA_JSON` | *(geheim)* | Kompletter Inhalt der JSON-Schlüsseldatei des Google-Dienstkontos |
 | `SESSION_SECRET` | *(geheim, optional)* | Schlüssel für die Anmeldungen. Ändern = alle Handys müssen sich neu anmelden |
-| `SP_STAMM_PATH` | `Inbetriebnahmeprotokolle/Stammdaten/Airtec_IBN_Stammdaten.xlsx` | Pfad der Stammdaten-Excel in der Bibliothek |
+| `SP_STAMM_PATH` | `Inbetriebnahmeprotokolle/Stammdaten/Airtec_Stammdaten.xlsx` | Pfad der Stammdaten-Excel in der Bibliothek |
 
 ## Einrichtung prüfen
 

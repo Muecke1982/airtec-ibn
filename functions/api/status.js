@@ -50,7 +50,7 @@ export async function onRequestGet({ request, env }) {
   } catch (e) { out.lager = "FEHLER: " + e.message; }
   if (new URL(request.url).searchParams.get("schreibtest") === "ja") {
     try {
-      const pdf = new TextEncoder().encode("%PDF-1.4\n% Airtec IBN Schreibtest – Datei kann gelöscht werden\n" + " ".repeat(200) + "\n%%EOF");
+      const pdf = new TextEncoder().encode("%PDF-1.4\n% Airtec KApp Schreibtest – Datei kann gelöscht werden\n" + " ".repeat(200) + "\n%%EOF");
       const r = await upload(env, cfg(env, "SP_FOLDER").replace(/^\/+|\/+$/g, ""), "_Schreibtest.pdf", pdf);
       out.schreibtest = "OK – Datei " + r.name + " angelegt (kann gelöscht werden)";
     } catch (e) { out.schreibtest = "FEHLER: " + e.message; }

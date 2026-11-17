@@ -705,18 +705,18 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 function blank(){return {doc:null,a:{gewerk:"Kältetechnik"},abn_datum:"",dx:[{agTyp:"",sn:"",kitTyp:"",kitSn:"",dim:"",len:"",vor:""}],facSrc:"",type:null,datum:"",chk:{},ag:[{typ:"",sn:"",adr:""}],ig:[{m:"",sn:"",adr:"",padr:""}],sig:[{h:"",m:"",sn:""}],sag:[{h:"",m:"",sn:""}],len:{},fak:{},rest:""}}
-let S=Object.assign(blank(),store.get("ibn_draft")||{});
+let S=Object.assign(blank(),store.get("kapp_draft")||{});
 if(!Array.isArray(S.dx)||!S.dx.length)S.dx=[{agTyp:"",sn:"",kitTyp:"",kitSn:"",dim:"",len:"",vor:""}];
 if(!S.doc&&S.type)S.doc="ibn";if(S.doc&&S.docOk===undefined)S.docOk=true;S.a=S.a||{gewerk:"Kältetechnik"};
 S.ag=(S.ag||[]).map(a=>Object.assign({adr:""},a));S.ig=(S.ig||[]).map(a=>Object.assign({padr:""},a));
 if(!Array.isArray(S.sig)||!S.sig.length)S.sig=[{h:"",m:"",sn:""}];if(!Array.isArray(S.sag)||!S.sag.length)S.sag=[{h:"",m:"",sn:""}];S.sig=S.sig.slice(0,1);S.sag=S.sag.slice(0,1);S.sag[0].h=S.sig[0].h||"";
 let photos=[];
-let monteur=store.get("ibn_monteur");
+let monteur=store.get("kapp_monteur");
 
 function num(x){if(x==null||x==="")return NaN;return parseFloat(String(x).replace(",","."))}
 function fmt(n,d=0){return n.toLocaleString("de-DE",{minimumFractionDigits:d,maximumFractionDigits:d})}
 function toast(t){const e=$("#toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",2600)}
-function save(){store.set("ibn_draft",S)}
+function save(){store.set("kapp_draft",S)}
 
 /* ---------- Rendering ---------- */
 const TYPES={
@@ -806,7 +806,7 @@ function renderList(key){
 function addDev(key){S[key].push(key==="dx"?{agTyp:"",sn:"",kitTyp:"",kitSn:"",dim:"",len:"",vor:""}:devBlank(key));if(key==="dx")renderDxKm();save();renderList(key);$$(DEV[key].box+" .sub").pop().scrollIntoView({behavior:"smooth",block:"center"})}
 
 /* ---------- Stammdaten / Dropdowns ---------- */
-let STAMM=store.get("ibn_stamm")||STAMM_DEFAULT;
+let STAMM=store.get("kapp_stamm")||STAMM_DEFAULT;
 function listOf(name){return (STAMM.lists&&name in STAMM.lists?STAMM.lists[name]:STAMM_DEFAULT.lists[name])||[]}
 function isFree(name){const f=STAMM.free&&name in STAMM.free?STAMM.free:STAMM_DEFAULT.free;return !f||f[name]!==false}
 function enhance(root){
@@ -1238,11 +1238,11 @@ $("#stammIn").onchange=async e=>{
     if(!window.XLSX)await loadScript("/vendor/xlsx.full.min.js");
     const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
     const st=parseWb(wb);st.src="„"+f.name+"“, geladen am "+new Date().toLocaleDateString("de-DE");
-    STAMM=st;store.set("ibn_stamm",st);stammInfo();refreshLists();
+    STAMM=st;store.set("kapp_stamm",st);stammInfo();refreshLists();
     toast(Object.values(st.lists).filter(l=>l.length).length+" Auswahllisten, "+facRows().length+" Nachfüllmengen geladen");
   }catch(err){toast("Fehler: "+err.message)}
 };
-$("#stammReset").onclick=()=>{STAMM=STAMM_DEFAULT;store.del("ibn_stamm");stammInfo();refreshLists();toast("Eingebaute Stammdaten aktiv")};
+$("#stammReset").onclick=()=>{STAMM=STAMM_DEFAULT;store.del("kapp_stamm");stammInfo();refreshLists();toast("Eingebaute Stammdaten aktiv")};
 function refreshLists(){renderMonteure();renderKws();renderWp();enhance(document);renderFac();gwpCalc();renderDxKm();renderDocs()}
 function renderCalc(){
   $("#calcBody").innerHTML=DIMS.map(d=>`<tr><td>${d} mm</td><td><input data-len="${d}" inputmode="decimal" value="${esc(S.len[d])}"></td><td><input data-fak="${d}" inputmode="decimal" value="${esc(S.fak[d])}"></td><td class="r" id="r${d}">–</td></tr>`).join("");
@@ -1413,7 +1413,7 @@ function buildPdf(){
   const stamp=now.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})+", "+now.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})+" Uhr";
   doc.setDrawColor(...green);doc.setLineWidth(.6);doc.line(M,y,M,y+13);
   doc.setFont("helvetica","bold");doc.setFontSize(9.5);doc.text("Erstellt von: "+monteur.name+(monteur.mail?" ("+monteur.mail+")":""),M+3,y+4);
-  doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.text("Digital erfasst am "+stamp+(isAbn?" mit der Airtec-App.":" mit der Airtec Inbetriebnahme-App. Gültig ohne Unterschrift."),M+3,y+9);
+  doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.text("Digital erfasst am "+stamp+(isAbn?" mit der Airtec KApp.":" mit der Airtec KApp. Gültig ohne Unterschrift."),M+3,y+9);
   y+=18;
 
   // Fotos
@@ -1449,7 +1449,7 @@ function fileName(){
 function showUpload(name){if(!STAMM.upload)return;$("#upLink").href=STAMM.upload;$("#upName").textContent="Dateiname: "+name;$("#mUpload").classList.add("show")}
 $("#upClose").onclick=()=>$("#mUpload").classList.remove("show");
 /* ---------- Server: Stammdaten & Upload ---------- */
-const appCode=()=>store.get("ibn_code")||"";
+const appCode=()=>store.get("kapp_code")||"";
 async function api(path,opts={}){
   const r=await fetch("/api/"+path,Object.assign({},opts,{headers:Object.assign({"x-app-code":appCode()},opts.headers||{})}));
   if(!r.ok){let m="Fehler "+r.status;try{m=(await r.json()).error||m}catch(e){}const err=new Error(m);err.status=r.status;throw err}
@@ -1462,13 +1462,13 @@ async function syncStamm(loud){
     if(!window.XLSX)await loadScript("/vendor/xlsx.full.min.js");
     const st=parseWb(XLSX.read(buf,{type:"array"}));
     st.src="SharePoint, Stand "+new Date().toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})+" Uhr";
-    STAMM=st;store.set("ibn_stamm",st);stammInfo();refreshLists();
+    STAMM=st;store.set("kapp_stamm",st);stammInfo();refreshLists();
     if(loud)toast("Stammdaten aus SharePoint geladen");
   }catch(e){if(loud)toast(e.status===401?"Nicht angemeldet":"Stammdaten nicht geladen: "+e.message)}
 }
 $("#stammSync").onclick=()=>syncStamm(true);
 // Postausgang: Protokolle ohne Netz werden auf dem Handy gesammelt und später hochgeladen
-const idb=()=>new Promise((res,rej)=>{const q=indexedDB.open("airtec-ibn",1);q.onupgradeneeded=()=>q.result.createObjectStore("out",{keyPath:"id",autoIncrement:true});q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
+const idb=()=>new Promise((res,rej)=>{const q=indexedDB.open("airtec-kapp",1);q.onupgradeneeded=()=>q.result.createObjectStore("out",{keyPath:"id",autoIncrement:true});q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
 async function outTx(mode,fn){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction("out",mode);const st=t.objectStore("out");const rq=fn(st);t.oncomplete=()=>res(rq&&rq.result);t.onerror=()=>rej(t.error)})}
 const outAll=()=>outTx("readonly",s=>s.getAll());
 const outAdd=o=>outTx("readwrite",s=>s.add(o));
