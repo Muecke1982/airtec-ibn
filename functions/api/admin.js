@@ -3,6 +3,7 @@ import { json } from "../../lib/graph.js";
 import { importiere, status } from "../../lib/import.js";
 import { darf } from "../../lib/rechte.js";
 import * as V from "../../lib/verwaltung.js";
+import { liste as logbuchListe } from "../../lib/logbuch.js";
 
 // Verwaltung: Mitarbeiter (Recht „mitarbeiter“), Stammdaten (Recht „stammdaten“), Datenbank-Import (Recht „mitarbeiter“;
 // Mitarbeiter-Import nur Admin, weil er alle Rechte überschreibt)
@@ -22,6 +23,11 @@ export async function onRequestGet({ request, env }) {
     const teil = new URL(request.url).searchParams.get("teil");
     if (teil === "mitarbeiter") { brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterListe(env) }); }
     if (teil === "stamm") { brauche(me, "stammdaten"); return json(200, await V.stammListe(env)); }
+    if (teil === "logbuch") {
+      if (!me.admin) throw fail("Das Logbuch sieht nur der Admin", 403);
+      const q = new URL(request.url).searchParams;
+      return json(200, await logbuchListe(env, { tage: q.get("tage"), wer: q.get("wer"), bereich: q.get("bereich") }));
+    }
     brauche(me, "mitarbeiter");
     return json(200, await status(env));
   } catch (e) { return fehler(e); }

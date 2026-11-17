@@ -17,8 +17,8 @@
   const darf = r => !!(AT && AT.darf && AT.darf(r));
   const ichAdmin = () => !!(AT.user && AT.user.admin);
   const office = () => darf("mitarbeiter") || darf("stammdaten");
-  const TEILE = [["mitarbeiter", "Mitarbeiter", "mitarbeiter"], ["stamm", "Stammdaten", "stammdaten"], ["db", "Datenbank", "mitarbeiter"]];
-  const teile = () => TEILE.filter(x => darf(x[2]));
+  const TEILE = [["mitarbeiter", "Mitarbeiter", "mitarbeiter"], ["stamm", "Stammdaten", "stammdaten"], ["db", "Datenbank", "mitarbeiter"], ["log", "Logbuch", "admin"]];
+  const teile = () => TEILE.filter(x => x[2] === "admin" ? ichAdmin() : darf(x[2]));
   const get = async teil => (await api("admin" + (teil ? "?teil=" + teil : ""))).json();
   const post = async body => (await api("admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
 
@@ -43,6 +43,9 @@
   #vwView .vwtab th{font-size:12px;color:var(--mut);text-align:left;font-weight:600;padding:2px 4px}
   #vwView .vwtab td{padding:2px} #vwView .vwtab input{padding:7px 8px;font-size:15px;min-width:70px}
   #vwView .vwtab td.x button{border:0;background:none;color:var(--bad);font-size:18px;padding:4px 6px}
+  #vwView .vwlday{font-size:12.5px;font-weight:700;color:var(--mut);margin:12px 0 4px;border-bottom:1px solid #e6eaef;padding-bottom:3px}
+  #vwView .vwlog{display:flex;gap:10px;padding:5px 0;font-size:14px;border-bottom:1px dashed #eef1f4} #vwView .vwlog small{display:block;color:var(--mut);font-size:12.5px;word-break:break-word}
+  #vwView .vwlog.warn b{color:var(--bad)} #vwView .vwlt{color:var(--mut);font-variant-numeric:tabular-nums;min-width:38px}
   #vwView .vwgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
   #vwView .vwr{display:flex;gap:7px;align-items:flex-start;margin:4px 0;color:var(--ink);font-size:14.5px} #vwView .vwr input{margin-top:3px}
   #vwView .vwr.lock{color:var(--mut)}
@@ -50,7 +53,8 @@
   #vwView .vwback{border:0;background:none;color:var(--blue);font:inherit;font-weight:600;padding:4px 0 10px}`;
   document.head.appendChild(style);
 
-  let teil = "mitarbeiter", offen = null, ma = null, st = null, db = null, sub = "listen";
+  let teil = "mitarbeiter", offen = null, ma = null, st = null, db = null, sub = "listen", log = null;
+  const logQ = { tage: 7, wer: "", bereich: "" };
 
   function paint() {
     if (!office()) { view.innerHTML = `<section class="card"><div class="warn">Dafür fehlt das Recht.</div></section>`; return; }
@@ -58,7 +62,7 @@
     view.innerHTML = `<button class="vwback" id="vwBack">‹ Zurück zur App</button>
       <div class="seg" style="margin-bottom:12px">${teile()
         .map(([k, l]) => `<button data-teil="${k}" class="${teil === k ? "on" : ""}">${l}</button>`).join("")}</div>
-      <div id="vwBody">${teil === "mitarbeiter" ? paintMa() : teil === "stamm" ? paintSt() : paintDb()}</div>`;
+      <div id="vwBody">${teil === "mitarbeiter" ? paintMa() : teil === "stamm" ? paintSt() : teil === "log" ? paintLog() : paintDb()}</div>`;
     view.querySelector("#vwBack").onclick = () => AT.tab("start");
     view.querySelectorAll("[data-teil]").forEach(b => b.onclick = () => { teil = b.dataset.teil; offen = null; paint(); load(); });
     bind();
@@ -153,6 +157,38 @@
       }).join("")}</section>`;
   }
 
+  // ---------- Logbuch (nur Admin) ----------
+  const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  const tagTitel = iso => { const d = new Date(iso + "T12:00:00Z"); return `${WT[d.getUTCDay()]}, ${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`; };
+  function paintLog() {
+    if (!log) return `<section class="card">Lade …</section>`;
+    const opt = (v, l, cur) => `<option value="${esc(v)}" ${String(v) === String(cur) ? "selected" : ""}>${esc(l)}</option>`;
+    let tag = "", rows = "";
+    for (const e of log.eintraege) {
+      const d = e.zeit.slice(0, 10);
+      if (d !== tag) { tag = d; rows += `<div class="vwlday">${tagTitel(d)}</div>`; }
+      const warn = /fehlgeschlagen/.test(e.aktion);
+      rows += `<div class="vwlog${warn ? " warn" : ""}"><span class="vwlt">${esc(e.zeit.slice(11, 16))}</span><div><b>${esc(e.wer)}</b> · ${esc(e.aktion)}
+        <small>${esc(e.bereich)}${e.details ? " · " + esc(e.details) : ""}</small></div></div>`;
+    }
+    return `<section class="card"><h2>Logbuch</h2>
+      <div class="row"><div><label>Zeitraum</label><select id="lgTage">${[[1, "Heute"], [7, "7 Tage"], [30, "30 Tage"], [90, "90 Tage"]].map(([v, l]) => opt(v, l, logQ.tage)).join("")}</select></div>
+        <div><label>Bereich</label><select id="lgBer">${opt("", "Alle", logQ.bereich)}${log.bereiche.map(b => opt(b, b, logQ.bereich)).join("")}</select></div></div>
+      <label>Person</label><select id="lgWer">${opt("", "Alle", logQ.wer)}${log.personen.map(p => opt(p, p, logQ.wer)).join("")}</select>
+      <div class="vwbtns"><button class="secondary" id="lgCsv" ${log.eintraege.length ? "" : "disabled"}>Als Excel-Datei (CSV) speichern</button></div>
+      <div class="hint">${log.eintraege.length} Einträge${log.eintraege.length >= 2000 ? " (die neuesten 2000)" : ""}. Aufgezeichnet werden Änderungen und Anmeldungen, kein reines Ansehen. Einträge werden nach ${log.aufbewahrung} Tagen gelöscht.</div>
+      <div style="margin-top:8px">${rows || '<div class="hint">Keine Einträge im gewählten Zeitraum.</div>'}</div></section>`;
+  }
+  function csv() {
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = [["Datum", "Uhrzeit", "Person", "Bereich", "Aktion", "Details"].map(q).join(";"),
+      ...log.eintraege.map(e => [e.zeit.slice(8, 10) + "." + e.zeit.slice(5, 7) + "." + e.zeit.slice(0, 4), e.zeit.slice(11, 16), e.wer, e.bereich, e.aktion, e.details].map(q).join(";"))];
+    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `KApp_Logbuch_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
   // ---------- Bedienung ----------
   const val = id => { const el = view.querySelector("#" + id); return el ? (el.type === "checkbox" ? el.checked : el.value) : undefined; };
   async function busy(btn, fn) {
@@ -224,6 +260,12 @@
       const us = q("#upSave"); if (us) us.onclick = () => busy(us, async () => after(await post({ aktion: "tabelle_speichern", tabelle: "upload", wert: val("upVal") })));
     }
 
+    if (teil === "log" && log) {
+      const f = () => { logQ.tage = +val("lgTage"); logQ.bereich = val("lgBer"); logQ.wer = val("lgWer"); log = null; paint(); load(); };
+      ["lgTage", "lgBer", "lgWer"].forEach(id => { const el = q("#" + id); if (el) el.onchange = f; });
+      const c = q("#lgCsv"); if (c) c.onclick = csv;
+    }
+
     if (teil === "db") view.querySelectorAll("[data-imp]").forEach(btn => btn.onclick = () => {
       if (!sure(btn, "Ersetzt die Daten – wirklich importieren?")) return;
       busy(btn, async () => {
@@ -245,6 +287,7 @@
     try {
       if (teil === "mitarbeiter") ma = (await get("mitarbeiter")).mitarbeiter;
       else if (teil === "stamm") st = await get("stamm");
+      else if (teil === "log") log = await get(`logbuch&tage=${logQ.tage}&wer=${encodeURIComponent(logQ.wer)}&bereich=${encodeURIComponent(logQ.bereich)}`);
       else db = await get("");
     } catch (e) { say(e.message); }
     paint();

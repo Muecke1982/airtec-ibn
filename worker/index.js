@@ -13,7 +13,9 @@ import * as muell from "../functions/api/muell.js";
 import * as urlaub from "../functions/api/urlaub.js";
 import * as admin from "../functions/api/admin.js";
 import { sync as urlaubSync } from "../lib/urlaub.js";
-import { users } from "../lib/auth.js";
+import { users, auth } from "../lib/auth.js";
+import { schreibe, beschreibe, aufraeumen } from "../lib/logbuch.js";
+import { one } from "../lib/db.js";
 import { json } from "../lib/graph.js";
 
 const routes = {
@@ -38,17 +40,43 @@ const routes = {
   "POST /api/admin": admin.onRequestPost,
 };
 
+// Logbuch: Änderungen (POST) und Anmeldungen aufzeichnen – im Hintergrund, damit die Antwort nicht wartet
+async function protokolliere(env, me, url, body, res) {
+  const pfad = url.pathname.replace(/\/+$/, "");
+  if (pfad === "/api/login") {
+    const name = String(body.name || "").trim().slice(0, 80) || "?";
+    return schreibe(env, name, "Anmeldung", res.ok ? "Angemeldet" : "Anmeldung fehlgeschlagen");
+  }
+  if (!res.ok) return;
+  const b = { ...body };
+  if (pfad === "/api/admin" && b.id && !b.name)   // Mitarbeiter-Name statt interner Nummer
+    b.name = body._name || "";
+  const e = beschreibe(pfad, b, url.searchParams);
+  if (e) await schreibe(env, (me && (me.name || (me.legacy ? "Firmen-Code" : ""))) || "?", e.bereich, e.aktion, e.details);
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
       const h = routes[`${request.method} ${url.pathname.replace(/\/+$/, "")}`];
-      return h ? h({ request, env }) : json(404, { error: "Unbekannte Adresse" });
+      if (!h) return json(404, { error: "Unbekannte Adresse" });
+      if (request.method !== "POST") return h({ request, env });
+      // JSON-Inhalt für das Logbuch mitlesen (PDF-Upload: nur Name aus der Adresse)
+      let body = {};
+      if ((request.headers.get("content-type") || "").includes("json")) body = await request.clone().json().catch(() => ({}));
+      if (url.pathname.startsWith("/api/admin") && body.id && !body.name)
+        body._name = ((await one(env, "SELECT name FROM mitarbeiter WHERE id = ?", +body.id).catch(() => null)) || {}).name;
+      const me = url.pathname.startsWith("/api/login") ? null : await auth(env, request).catch(() => null);   // vor der Aktion (z. B. eigenes Passwort ändern)
+      const res = await h({ request, env });
+      if (ctx && ctx.waitUntil) ctx.waitUntil(protokolliere(env, me, url, body, res).catch(e => console.error("Logbuch:", e.message)));
+      return res;
     }
     return env.ASSETS.fetch(request);
   },
-  // Zeitgesteuert (siehe wrangler.jsonc „triggers“): Urlaubs-Postfach abrufen
+  // Zeitgesteuert (siehe wrangler.jsonc „triggers“): Urlaubs-Postfach abrufen, altes Logbuch löschen
   async scheduled(event, env, ctx) {
     ctx.waitUntil(users(env).then(p => urlaubSync(env, p)).catch(e => console.error("Urlaub-Sync:", e.message)));
+    ctx.waitUntil(aufraeumen(env).catch(e => console.error("Logbuch aufräumen:", e.message)));
   },
 };
