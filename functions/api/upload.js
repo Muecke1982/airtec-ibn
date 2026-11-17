@@ -1,3 +1,4 @@
+import { darf } from "../../lib/rechte.js";
 import { auth } from "../../lib/auth.js";
 import { cfg, upload, cleanName, json } from "../../lib/graph.js";
 const MAX = 60 * 1024 * 1024;
@@ -5,7 +6,9 @@ const MAX = 60 * 1024 * 1024;
 // PDF-Protokoll in SharePoint ablegen
 export async function onRequestPost({ request, env }) {
   try {
-    if (!(await auth(env, request))) return json(401, { error: "Nicht angemeldet" });
+    const me = await auth(env, request);
+    if (!me) return json(401, { error: "Nicht angemeldet" });
+    if (!darf(me, "protokolle")) return json(403, { error: "Kein Zugriff auf Protokolle" });
     const q = new URL(request.url).searchParams;
     let filename = cleanName(q.get("name"));
     if (!filename.toLowerCase().endsWith(".pdf")) filename += ".pdf";

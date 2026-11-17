@@ -12,7 +12,7 @@
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
   const short = s => String(s || "").replace(/^(\d{2}\.\d{2}\.)\d{4}/, "$1");
   const toast2 = t => { if (typeof toast === "function") toast(t); };
-  const office = () => !!(AT.user && AT.user.schreiben);
+  const office = () => AT.darf("hinweise");
 
   const root = document.getElementById("stView");
   root.innerHTML = `<section class="card sthello"><div class="hi" id="stHi"></div><div class="me" id="stMe"></div>
@@ -33,14 +33,14 @@
     try {
       const t = W.todayIso(), d = await W.week(t);
       const txt = W.sentence(d, t);
-      root.querySelector("#stMe").innerHTML = txt || (office() ? "Schönen Tag im Büro!" : "");
+      root.querySelector("#stMe").innerHTML = txt || (AT.user && AT.user.schreiben ? "Schönen Tag im Büro!" : "");
     } catch (e) { root.querySelector("#stMe").textContent = navigator.onLine ? "" : "Offline – Wochenplan nicht geladen."; }
   }
 
   let hin = ls.get("hi_cache"), ma = ls.get("ma_cache"), mu = ls.get("mu_cache"), muStep = 0, busy = false, formOpen = false, listOpen = false;
 
   async function load() {
-    const [h, m, lg, mm] = await Promise.allSettled([AT.api("hinweise"), AT.api("maschinen"), office() ? AT.api("lager") : Promise.reject(), AT.api("muell")]);
+    const [h, m, lg, mm] = await Promise.allSettled([AT.api("hinweise"), (AT.darf("maschinen") || AT.darf("maschinen_buero")) ? AT.api("maschinen") : Promise.reject(), AT.darf("lager_bestellen") ? AT.api("lager") : Promise.reject(), AT.api("muell")]);
     if (mm.status === "fulfilled") { mu = mm.value; ls.set("mu_cache", mu); }
     if (h.status === "fulfilled") { hin = h.value; ls.set("hi_cache", hin); }
     if (lg.status === "fulfilled") { ls.set("lg_cache", lg.value); }
@@ -73,7 +73,7 @@
           <div>Bei dir seit ${esc(short(a.seit))} (${a.tage} Tage).</div>
           <div class="maaskbtn"><button class="mabtn take" data-ma="bestaetigen" data-id="${esc(m.id)}">Ja, noch bei mir</button>
           <button class="mabtn back" data-ma="zurueck" data-id="${esc(m.id)}">Zurückgelegt</button></div></section>`);
-      if (office() && a.extern && a.erinnern)
+      if (AT.darf("maschinen_buero") && a.extern && a.erinnern)
         items.push(`<section class="card hicard hima"><div class="hihead">⏰ Verliehen – Rückgabe fällig</div><b>Wieder da? ${esc(m.name)}</b>
           <div>an ${esc(a.an)}${a.kontakt ? " (" + esc(a.kontakt) + ")" : ""}, Rückgabe war bis ${esc(String(a.frist).slice(0, 6))}</div>
           <div class="maaskbtn"><button class="mabtn take" data-ma="zurueck" data-id="${esc(m.id)}">Ja, ist zurück</button>
@@ -131,7 +131,7 @@
       </section>`;
     }
     // Büro: Lager – was muss bestellt werden?
-    if (office()) {
+    if (AT.darf("lager_bestellen")) {
       const lgd = ls.get("lg_cache");
       const open = [...((lgd && lgd.arts) || []).filter(a => a.offen), ...((lgd && lgd.frei) || [])];
       const byL = {};

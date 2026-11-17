@@ -27,6 +27,13 @@
       return r.json();
     },
     modules: {},                               // name → { title, show() }
+    // Rechte (siehe lib/rechte.js): Admin darf alles; ältere Anmeldungen ohne Rechte-Liste: Bereiche ja, Zusatzrechte = „Büro“
+    darf(recht) {
+      const u = this.user; if (!u) return false;
+      if (u.admin) return true;
+      if (Array.isArray(u.rechte)) return u.rechte.includes(recht);
+      return ["wochenplan", "protokolle", "maschinen", "lager"].includes(recht) || !!u.schreiben;
+    },
     logout(expired) {
       ls.del("at_session"); ls.del("kapp_code"); this.session = null;
       showLogin(expired ? "Anmeldung abgelaufen – bitte neu anmelden." : "");
@@ -109,13 +116,25 @@
     // Für das Protokoll-Modul: Token als Code, Monteur = angemeldete Person
     ls.set("kapp_code", AT.session.token);
     try { monteur = { name: u.name, mail: u.mail || "" }; ls.set("kapp_monteur", monteur); if (typeof showWho === "function") showWho(); } catch (e) {}
-    const who = q("#accName"); if (who) who.textContent = u.name + (u.schreiben ? " (Büro)" : "");
+    const who = q("#accName"); if (who) who.textContent = u.name + (u.admin ? " (Admin)" : u.schreiben ? " (Büro)" : "");
+    reiter();
     if (window.protoReady) window.protoReady();
     tab("start");   // App öffnet immer auf der Startseite
     if (AT.checkMaschinen && navigator.onLine) setTimeout(AT.checkMaschinen, 1200);
     // Anmeldung im Hintergrund prüfen (z. B. Passwort geändert oder Zugang entfernt)
-    if (navigator.onLine) AT.api("login").then(r => { AT.session.user = r.user; ls.set("at_session", AT.session); }).catch(e => { if (e.status === 401) AT.logout(true); });
+    if (navigator.onLine) AT.api("login").then(r => { AT.session.user = r.user; ls.set("at_session", AT.session); reiter(); }).catch(e => { if (e.status === 401) AT.logout(true); });
   }
+  // Reiter nur für freigegebene Bereiche zeigen (Zusatzrecht schließt den Bereich ein)
+  const BEREICH = { wochenplan: ["wochenplan", "plan_aendern"], protokolle: ["protokolle"], maschinen: ["maschinen", "maschinen_buero"], lager: ["lager", "lager_bestellen"] };
+  function reiter() {
+    document.querySelectorAll("#tabs button").forEach(b => {
+      const need = BEREICH[b.dataset.tab];
+      b.classList.toggle("hide", !!need && !need.some(r => AT.darf(r)));
+    });
+    const cur = ls.get("at_tab"), nb = BEREICH[cur];
+    if (nb && !nb.some(r => AT.darf(r))) tab("start");
+  }
+  AT.reiter = reiter;
   const lo = q("#accLogout"); if (lo) lo.onclick = () => { q("#mSettings").classList.remove("show"); AT.logout(); };
 
   AT.ready = () => { if (AT.session && AT.session.token) start(); else showLogin(); };

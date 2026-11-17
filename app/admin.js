@@ -7,7 +7,18 @@
   const AT = window.AT;
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const say = m => { if (typeof toast === "function") toast(m); };
-  const office = () => !!(AT && AT.user && AT.user.schreiben);
+  // Rechte – gleiche Schlüssel wie lib/rechte.js
+  const RECHTE = [
+    ["Bereiche", [["wochenplan", "Wochenplan"], ["protokolle", "Protokolle"], ["maschinen", "Maschinen"], ["lager", "Lager (Material melden)"]]],
+    ["Zusatzrechte", [["plan_aendern", "Wochenplan ändern (Tagesbrett, krank)"], ["hinweise", "Hinweise verwalten"], ["urlaub", "Urlaub verwalten"],
+      ["maschinen_buero", "Maschinen (Büro)"], ["lager_bestellen", "Lager bestellen"], ["stammdaten", "Stammdaten pflegen"], ["mitarbeiter", "Mitarbeiter verwalten"]]],
+  ];
+  const ALLE = RECHTE.flatMap(g => g[1].map(r => r[0])), MONTEUR = RECHTE[0][1].map(r => r[0]), ZUSATZ = RECHTE[1][1].map(r => r[0]);
+  const darf = r => !!(AT && AT.darf && AT.darf(r));
+  const ichAdmin = () => !!(AT.user && AT.user.admin);
+  const office = () => darf("mitarbeiter") || darf("stammdaten");
+  const TEILE = [["mitarbeiter", "Mitarbeiter", "mitarbeiter"], ["stamm", "Stammdaten", "stammdaten"], ["db", "Datenbank", "mitarbeiter"]];
+  const teile = () => TEILE.filter(x => darf(x[2]));
   const get = async teil => (await api("admin" + (teil ? "?teil=" + teil : ""))).json();
   const post = async body => (await api("admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
 
@@ -32,15 +43,20 @@
   #vwView .vwtab th{font-size:12px;color:var(--mut);text-align:left;font-weight:600;padding:2px 4px}
   #vwView .vwtab td{padding:2px} #vwView .vwtab input{padding:7px 8px;font-size:15px;min-width:70px}
   #vwView .vwtab td.x button{border:0;background:none;color:var(--bad);font-size:18px;padding:4px 6px}
+  #vwView .vwgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+  #vwView .vwr{display:flex;gap:7px;align-items:flex-start;margin:4px 0;color:var(--ink);font-size:14.5px} #vwView .vwr input{margin-top:3px}
+  #vwView .vwr.lock{color:var(--mut)}
+  @media (max-width:380px){#vwView .vwgrid{grid-template-columns:1fr}}
   #vwView .vwback{border:0;background:none;color:var(--blue);font:inherit;font-weight:600;padding:4px 0 10px}`;
   document.head.appendChild(style);
 
   let teil = "mitarbeiter", offen = null, ma = null, st = null, db = null, sub = "listen";
 
   function paint() {
-    if (!office()) { view.innerHTML = `<section class="card"><div class="warn">Nur für das Büro.</div></section>`; return; }
+    if (!office()) { view.innerHTML = `<section class="card"><div class="warn">Dafür fehlt das Recht.</div></section>`; return; }
+    if (!teile().some(x => x[0] === teil)) teil = teile()[0][0];
     view.innerHTML = `<button class="vwback" id="vwBack">‹ Zurück zur App</button>
-      <div class="seg" style="margin-bottom:12px">${[["mitarbeiter", "Mitarbeiter"], ["stamm", "Stammdaten"], ["db", "Datenbank"]]
+      <div class="seg" style="margin-bottom:12px">${teile()
         .map(([k, l]) => `<button data-teil="${k}" class="${teil === k ? "on" : ""}">${l}</button>`).join("")}</div>
       <div id="vwBody">${teil === "mitarbeiter" ? paintMa() : teil === "stamm" ? paintSt() : paintDb()}</div>`;
     view.querySelector("#vwBack").onclick = () => AT.tab("start");
@@ -49,26 +65,42 @@
   }
 
   // ---------- Mitarbeiter ----------
-  const maForm = (m = {}) => `
+  // Häkchen für die Rechte. Gesperrt: beim Admin alles; „Mitarbeiter verwalten“ darf nur der Admin ändern.
+  const rechteForm = m => {
+    const hat = m.id ? (m.rechte || []) : MONTEUR;
+    return RECHTE.map(([titel, list]) => `<label style="margin-top:12px">${titel}</label><div class="vwgrid">${list.map(([k, l]) => {
+      const lock = m.admin || (k === "mitarbeiter" && !ichAdmin());
+      return `<label class="vwr${lock ? " lock" : ""}"><input type="checkbox" data-recht="${k}" ${hat.includes(k) || m.admin ? "checked" : ""} ${lock ? "disabled" : ""}> ${l}</label>`;
+    }).join("")}</div>`).join("") +
+    (m.admin ? `<div class="hint">Admin – hat immer alle Rechte.</div>` : `<div class="vwbtns" style="margin-top:6px"><button class="secondary" data-preset="monteur">Monteur</button><button class="secondary" data-preset="buero">Büro (alles)</button></div>
+      ${ichAdmin() ? "" : `<div class="hint">„Mitarbeiter verwalten“ kann nur der Admin vergeben.</div>`}`);
+  };
+  const maForm = (m = {}) => {
+    const fremderAdmin = m.admin && !ichAdmin();
+    if (fremderAdmin) return `<div class="hint" style="margin:8px 0 2px">Der Admin kann nur von sich selbst geändert werden.</div>`;
+    return `
     <label>Name (so meldet sich die Person an)</label><input id="fName" value="${esc(m.name)}" autocomplete="off">
     <div class="row"><div><label>E-Mail</label><input id="fMail" type="email" value="${esc(m.mail)}"></div>
       <div><label>Geburtstag (TT.MM.)</label><input id="fGeb" value="${esc(m.geb)}" placeholder="24.03." inputmode="decimal"></div></div>
     <label>Name im Wochenplan (leer = wie oben)</label><input id="fPlan" value="${esc(m.plan)}">
     ${m.id ? "" : `<label>Passwort (mind. 6 Zeichen)</label><input id="fPw" type="text" autocomplete="off">`}
-    <div class="vwchk"><label><input type="checkbox" id="fBuero" ${m.schreiben ? "checked" : ""}> Büro (darf verwalten)</label>
-      <label><input type="checkbox" id="fAktiv" ${m.aktiv === false ? "" : "checked"}> Aktiv</label></div>
+    ${rechteForm(m)}
+    <div class="vwchk"><label><input type="checkbox" id="fAktiv" ${m.aktiv === false ? "" : "checked"} ${m.admin ? "disabled" : ""}> Aktiv (kann sich anmelden)</label></div>
     <div class="vwbtns"><button class="primary" id="fSave">${m.id ? "Speichern" : "Anlegen"}</button><button class="secondary" id="fCancel">Abbrechen</button></div>
     ${m.id ? `<label style="margin-top:16px">Neues Passwort setzen</label>
       <div style="display:flex;gap:8px"><input id="fNewPw" type="text" autocomplete="off" placeholder="mind. 6 Zeichen"><button class="secondary" id="fPwSave" style="border:0;border-radius:10px;padding:0 14px;font:inherit;font-weight:600">Setzen</button></div>
-      <div class="vwbtns"><button class="vwdel" id="fDel">Mitarbeiter löschen</button></div>` : ""}`;
+      ${m.admin ? "" : `<div class="vwbtns">${ichAdmin() && m.aktiv && m.hatPw ? `<button class="secondary" id="fAdmin">Zum Admin machen</button>` : ""}<button class="vwdel" id="fDel">Mitarbeiter löschen</button></div>`}` : ""}`;
+  };
+  const zusatzZahl = m => m.admin ? ZUSATZ.length : (m.rechte || []).filter(r => ZUSATZ.includes(r)).length;
+  const tags = m => (m.admin ? '<span class="vwtag b">Admin</span>' : zusatzZahl(m) ? `<span class="vwtag b">${zusatzZahl(m) === ZUSATZ.length ? "Büro" : zusatzZahl(m) + " Zusatzrechte"}</span>` : "")
+    + (m.aktiv ? "" : '<span class="vwtag">inaktiv</span>') + (m.hatPw ? "" : '<span class="vwtag w">kein Passwort</span>');
 
   function paintMa() {
     if (!ma) return `<section class="card">Lade …</section>`;
     if (!ma.length) return `<section class="card"><div class="warn">Noch keine Mitarbeiter in der Datenbank. Bitte zuerst unter „Datenbank“ die Mitarbeiter aus Excel importieren – bis dahin gilt die Excel-Zugangsliste.</div></section>`;
     return `<section class="card"><h2>Mitarbeiter (${ma.filter(m => m.aktiv).length} aktiv)</h2>
       ${offen === "neu" ? `<div class="vwrow">${maForm()}</div>` : `<button class="add" id="maNew" style="margin-top:0">+ Neuer Mitarbeiter</button>`}
-      ${ma.map(m => `<div class="vwrow ${m.aktiv ? "" : "off"}"><div class="vwhead" data-open="${m.id}"><b>${esc(m.name)}</b><span>
-        ${m.schreiben ? '<span class="vwtag b">Büro</span>' : ""}${m.aktiv ? "" : '<span class="vwtag">inaktiv</span>'}${m.hatPw ? "" : '<span class="vwtag w">kein Passwort</span>'}</span></div>
+      ${ma.map(m => `<div class="vwrow ${m.aktiv ? "" : "off"}"><div class="vwhead" data-open="${m.id}"><b>${esc(m.name)}</b><span>${tags(m)}</span></div>
         ${offen === m.id ? maForm(m) : ""}</div>`).join("")}
       <div class="hint">Passwörter werden verschlüsselt gespeichert und können nicht angezeigt, nur neu gesetzt werden. Nach einer Passwort-Änderung muss sich die Person neu anmelden.</div></section>`;
   }
@@ -116,7 +148,8 @@
         const imp = b.import ? `Importiert am ${esc(fmt(b.import.am))} von ${esc(b.import.von)}: ${esc(b.import.anzahl)}` : "Noch nicht importiert";
         return `<div class="vwrow"><b>${esc(b.titel)}</b> <span style="color:var(--mut)">· ${n} Einträge</span>
           <div class="hint" style="margin:2px 0 6px">${imp}</div>
-          <button class="add" data-imp="${esc(b.id)}" style="margin:0">${b.import ? "Erneut importieren" : "Aus Excel importieren"}</button></div>`;
+          ${b.id === "mitarbeiter" && !ichAdmin() ? `<div class="hint">Nur der Admin kann die Mitarbeiter neu importieren (überschreibt alle Rechte).</div>`
+            : `<button class="add" data-imp="${esc(b.id)}" style="margin:0">${b.import ? "Erneut importieren" : "Aus Excel importieren"}</button>`}</div>`;
       }).join("")}</section>`;
   }
 
@@ -146,10 +179,24 @@
       const m = offen === "neu" ? {} : ma.find(x => x.id === offen);
       const save = q("#fSave");
       if (save) save.onclick = () => busy(save, async () => {
+        const rechte = [...view.querySelectorAll("[data-recht]")].filter(c => c.checked).map(c => c.dataset.recht);
         const r = await post({ aktion: "ma_speichern", id: m && m.id, name: val("fName"), mail: val("fMail"), plan: val("fPlan"), geb: val("fGeb"),
-          schreiben: val("fBuero"), aktiv: val("fAktiv"), passwort: val("fPw") });
+          rechte, aktiv: val("fAktiv"), passwort: val("fPw") });
         ma = r.mitarbeiter; offen = null; paint(); say("Gespeichert");
       });
+      view.querySelectorAll("[data-preset]").forEach(p => p.onclick = () => {
+        const set = p.dataset.preset === "buero" ? ALLE : MONTEUR;
+        view.querySelectorAll("[data-recht]").forEach(c => { if (!c.disabled) c.checked = set.includes(c.dataset.recht); });
+      });
+      const adm = q("#fAdmin");
+      if (adm) adm.onclick = () => {
+        if (!sure(adm, `${m.name} wirklich zum Admin machen? Du verlierst den Admin.`)) return;
+        busy(adm, async () => {
+          ma = (await post({ aktion: "ma_admin", id: m.id })).mitarbeiter; offen = null; say(`${m.name} ist jetzt Admin`);
+          try { const r = await AT.api("login"); AT.session.user = r.user; localStorage.setItem("at_session", JSON.stringify(AT.session)); AT.reiter(); } catch (e) {}
+          paint();
+        });
+      };
       const pw = q("#fPwSave");
       if (pw) pw.onclick = () => busy(pw, async () => { ma = (await post({ aktion: "ma_passwort", id: m.id, passwort: val("fNewPw") })).mitarbeiter; paint(); say("Passwort gesetzt"); });
       const del = q("#fDel");

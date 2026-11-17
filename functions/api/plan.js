@@ -1,3 +1,4 @@
+import { darf } from "../../lib/rechte.js";
 import { auth } from "../../lib/auth.js";
 import { json } from "../../lib/graph.js";
 import { writePlan } from "../../lib/planwrite.js";
@@ -8,7 +9,7 @@ export async function onRequestPost({ request, env }) {
   try {
     const me = await auth(env, request);
     if (!me) return json(401, { error: "Nicht angemeldet" });
-    if (!me.schreiben) return json(403, { error: "Keine Schreibberechtigung" });
+    if (!darf(me, "plan_aendern")) return json(403, { error: "Keine Schreibberechtigung" });
     const b = await request.json().catch(() => ({}));
     const list = Array.isArray(b.aenderungen) ? b.aenderungen : [];
     if (!list.length || list.length > 60) return json(400, { error: "Keine oder zu viele Änderungen" });

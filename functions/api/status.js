@@ -45,7 +45,7 @@ export async function onRequestGet({ request, env }) {
   }
   try {
     const { list: lagerList, path: lagerPath } = await import("../../lib/lager.js");
-    const L = await lagerList(env, { name: "Status", schreiben: true }, true);
+    const L = await lagerList(env, { name: "Status", admin: true }, true);
     out.lager = `OK – ${L.kats.length} Kategorien, ${L.arts.length} Artikel, ${L.arts.filter(a => a.offen).length} offen gemeldet (${lagerPath(env)})`;
   } catch (e) { out.lager = "FEHLER: " + e.message; }
   if (new URL(request.url).searchParams.get("schreibtest") === "ja") {

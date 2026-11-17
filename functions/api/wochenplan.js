@@ -1,3 +1,4 @@
+import { darf } from "../../lib/rechte.js";
 import { auth, users } from "../../lib/auth.js";
 import { json } from "../../lib/graph.js";
 import { sheets, sheetValues } from "../../lib/google.js";
@@ -8,6 +9,7 @@ export async function onRequestGet({ request, env }) {
   try {
     const me = await auth(env, request);
     if (!me) return json(401, { error: "Nicht angemeldet" });
+    if (!darf(me, "wochenplan") && !darf(me, "plan_aendern") && !me.legacy) return json(403, { error: "Kein Zugriff auf den Wochenplan" });
     const q = new URL(request.url).searchParams;
     let year = +q.get("jahr"), week = +q.get("kw");
     if (!year || !week) {

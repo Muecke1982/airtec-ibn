@@ -10,7 +10,7 @@
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss");
   const toast2 = t => { if (typeof toast === "function") toast(t); };
-  const office = () => !!(AT.user && AT.user.schreiben);
+  const office = () => AT.darf("lager_bestellen");
   const short = s => String(s || "").replace(/^(\d{2}\.\d{2}\.)\d{4}/, "$1");
   const first = n => String(n || "").split(",")[0].trim().split(" ")[0];
 

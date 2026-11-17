@@ -1,3 +1,4 @@
+import { darf } from "../../lib/rechte.js";
 import { auth, users } from "../../lib/auth.js";
 import { json } from "../../lib/graph.js";
 import { list, toPlan } from "../../lib/urlaub.js";
@@ -20,7 +21,7 @@ export async function onRequestPost({ request, env }) {
   try {
     const me = await auth(env, request);
     if (!me || !me.name) return json(401, { error: "Nicht angemeldet" });
-    if (!me.schreiben) return json(403, { error: "Nur für das Büro" });
+    if (!darf(me, "urlaub")) return json(403, { error: "Nur für das Büro" });
     const b = await request.json().catch(() => ({}));
     const people = await users(env);
     let info = {};

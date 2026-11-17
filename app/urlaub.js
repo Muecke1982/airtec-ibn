@@ -9,7 +9,7 @@
   };
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const toast2 = t => { if (typeof toast === "function") toast(t); };
-  const office = () => !!(AT.user && AT.user.schreiben);
+  const office = () => AT.darf("urlaub");
   const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
   const d1 = iso => iso ? `${WT[new Date(iso + "T12:00:00Z").getUTCDay()]} ${iso.slice(8, 10)}.${iso.slice(5, 7)}.` : "?";
   const span = r => !r.von ? "Zeitraum unbekannt" : r.von === r.bis ? d1(r.von) : `${d1(r.von)} – ${d1(r.bis)}${r.bis.slice(0, 4) !== r.von.slice(0, 4) ? r.bis.slice(0, 4) : ""}`;

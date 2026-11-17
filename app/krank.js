@@ -232,7 +232,7 @@
   btnCard.querySelector("#krOpen").onclick = () => { st = null; open(W.cur); };
   const prev = AT.modules.wochenplan.show;
   AT.modules.wochenplan.show = function () {
-    btnCard.classList.toggle("hide", !(AT.user && AT.user.schreiben));
+    btnCard.classList.toggle("hide", !AT.darf("plan_aendern"));
     if (!view.classList.contains("hide")) return;
     return prev.apply(this, arguments);
   };

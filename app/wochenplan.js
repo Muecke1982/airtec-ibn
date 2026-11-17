@@ -129,7 +129,7 @@
 
   function sentence(data, s) {
     const col = myCol(data);
-    if (!col) return AT.user && AT.user.schreiben ? "" : "Dein Name wurde in der Tabelle nicht gefunden – bitte im Büro melden.";
+    if (!col) return AT.darf("plan_aendern") ? "" : "Dein Name wurde in der Tabelle nicht gefunden – bitte im Büro melden.";
     const p = partnerOf(data, s, col);
     const when = s === todayIso() ? "heute" : s === addDays(todayIso(), 1) ? "morgen" : "am " + WT[wd(s)] + ", " + dShort(s);
     const When = when[0].toUpperCase() + when.slice(1);

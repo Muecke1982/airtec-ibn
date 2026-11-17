@@ -7,6 +7,7 @@ import { importiere } from "../lib/import.js";
 import { users, login, auth, resetUsers } from "../lib/auth.js";
 import { stammAusDb } from "../lib/stamm.js";
 import * as V from "../lib/verwaltung.js";
+import { darf } from "../lib/rechte.js";
 
 const env = { DB: fakeD1(), CLIENT_SECRET: "test", SESSION_SECRET: "test-secret" };
 const req = token => new Request("https://x/api/login", { headers: { "x-app-code": token } });
@@ -21,47 +22,84 @@ let list = await users(env);
 assert.ok(list.length > 0 && list.every(u => u.pwHash !== undefined), "Mitarbeiter kommen aus der Datenbank");
 console.log("Mitarbeiter:", list.map(u => u.name + (u.write ? " (Büro)" : "")).join(", "));
 
-// Büro-Person mit bekanntem Passwort anlegen und anmelden
-const buero = list.find(u => u.write) || list[0];
+// ---------- Admin + Rechte ----------
 let ma = await V.mitarbeiterListe(env);
-await V.mitarbeiterSpeichern(env, { name: "Andere" }, { id: ma.find(m => m.name === buero.name).id, name: buero.name, schreiben: true, aktiv: true });
-await V.mitarbeiterPasswort(env, { id: ma.find(m => m.name === buero.name).id, passwort: "geheim123" });
-const s = await login(env, buero.name, "geheim123");
-assert.ok(s && s.token.startsWith("s1."), "Anmeldung mit neuem Passwort");
-assert.equal(await login(env, buero.name, "falsch"), null, "falsches Passwort abgelehnt");
-const me = await auth(env, req(s.token));
-assert.equal(me.name, buero.name); assert.equal(me.schreiben, true);
+const id = n => ma.find(m => m.name === n).id;
+const sebi = ma.find(m => m.name === "Sebastian");
+assert.ok(sebi && sebi.admin, "Sebastian ist nach dem Import Admin");
+assert.equal(ma.filter(m => m.admin).length, 1, "genau ein Admin");
+assert.deepEqual(ma.find(m => m.name === "Nick").rechte, ["wochenplan", "protokolle", "maschinen", "lager"], "ohne Schreibrecht = Monteur-Rechte");
+const stefan = ma.find(m => m.name === "Stefan Wermers");
+assert.ok(stefan.rechte.includes("mitarbeiter") && !stefan.admin, "Excel-Schreibrecht = alle Rechte, aber kein Admin");
+
+// Passwörter setzen (der Admin darf alles)
+const admin = { name: "Sebastian", admin: true, rechte: [] };
+await V.mitarbeiterPasswort(env, admin, { id: sebi.id, passwort: "admin-pw-1" });
+await V.mitarbeiterPasswort(env, admin, { id: stefan.id, passwort: "stefan-pw-1" });
+const sA = await login(env, "Sebastian", "admin-pw-1");
+const meA = await auth(env, req(sA.token));
+assert.equal(meA.admin, true); assert.equal(meA.rechte.length, 11, "Admin bekommt alle Rechte");
+const sS = await login(env, "Stefan Wermers", "stefan-pw-1");
+const meS = await auth(env, req(sS.token));
+assert.equal(meS.admin, false); assert.ok(darf(meS, "mitarbeiter"));
+assert.equal(await login(env, "Sebastian", "falsch"), null, "falsches Passwort abgelehnt");
 
 // Passwort ändern → alte Anmeldung ungültig
-await V.mitarbeiterPasswort(env, { id: ma.find(m => m.name === buero.name).id, passwort: "neues-pw-456" });
-assert.equal(await auth(env, req(s.token)), null, "alte Sitzung nach Passwortwechsel ungültig");
-const s2 = await login(env, buero.name, "neues-pw-456"); assert.ok(s2);
+await V.mitarbeiterPasswort(env, meA, { id: stefan.id, passwort: "stefan-pw-2" });
+assert.equal(await auth(env, req(sS.token)), null, "alte Sitzung nach Passwortwechsel ungültig");
+const meS2 = await auth(env, req((await login(env, "Stefan Wermers", "stefan-pw-2")).token));
 
-// neuen Mitarbeiter anlegen, Doppelname abgelehnt, Geburtstag geprüft
-ma = await V.mitarbeiterSpeichern(env, me, { name: "Testa Monteur", mail: "t@example.com", geb: "24.3", passwort: "abcdef" });
+// Admin schützen: Stefan (Mitarbeiter verwalten, kein Admin) darf den Admin nicht ändern/löschen/Passwort setzen
+await rejects(V.mitarbeiterSpeichern(env, meS2, { id: sebi.id, name: "Sebastian", rechte: [], aktiv: true }), /nur der Admin selbst/);
+await rejects(V.mitarbeiterPasswort(env, meS2, { id: sebi.id, passwort: "gekapert" }), /nur der Admin selbst/);
+await rejects(V.mitarbeiterLoeschen(env, meS2, { id: sebi.id }), /nicht gelöscht/);
+await rejects(V.mitarbeiterLoeschen(env, meA, { id: sebi.id }), /nicht gelöscht/);
+// Admin behält immer alle Rechte, auch wenn er sich selbst Häkchen wegnimmt
+ma = await V.mitarbeiterSpeichern(env, meA, { id: sebi.id, name: "Sebastian", rechte: ["protokolle"], aktiv: false });
+assert.ok(ma.find(m => m.id === sebi.id).aktiv && ma.find(m => m.id === sebi.id).rechte.length === 11, "Admin bleibt aktiv mit allen Rechten");
+
+// „Mitarbeiter verwalten“ vergibt/entzieht nur der Admin
+ma = await V.mitarbeiterSpeichern(env, meS2, { name: "Testa Monteur", mail: "t@example.com", geb: "24.3", passwort: "abcdef", rechte: ["protokolle", "hinweise"] });
 const neu = ma.find(m => m.name === "Testa Monteur");
-assert.equal(neu.geb, "24.03."); assert.equal(neu.hatPw, true); assert.equal(neu.schreiben, false);
-await rejects(V.mitarbeiterSpeichern(env, me, { name: "testa monteur" }), /gibt es schon/);
-await rejects(V.mitarbeiterSpeichern(env, me, { name: "X", geb: "99.99." }), /Geburtstag/);
-await rejects(V.mitarbeiterPasswort(env, { id: neu.id, passwort: "123" }), /mindestens 6/);
-assert.ok(await login(env, "Testa Monteur", "abcdef"));
+assert.deepEqual(neu.rechte, ["protokolle", "hinweise"]); assert.equal(neu.geb, "24.03."); assert.equal(neu.hatPw, true);
+await rejects(V.mitarbeiterSpeichern(env, meS2, { id: neu.id, name: "Testa Monteur", rechte: ["protokolle", "mitarbeiter"] }), /Nur der Admin/);
+await rejects(V.mitarbeiterSpeichern(env, meS2, { name: "Neu2", rechte: ["mitarbeiter"] }), /Nur der Admin/);
+await rejects(V.mitarbeiterSpeichern(env, meS2, { id: id("Marius Schöler"), name: "Marius Schöler", rechte: ["protokolle"], aktiv: true }), /Nur der Admin/);
+await rejects(V.mitarbeiterLoeschen(env, meS2, { id: id("Marius Schöler") }), /Nur der Admin/);
+ma = await V.mitarbeiterSpeichern(env, meA, { id: neu.id, name: "Testa Monteur", rechte: ["protokolle", "mitarbeiter"] });
+assert.ok(ma.find(m => m.id === neu.id).rechte.includes("mitarbeiter"), "Admin darf es vergeben");
+ma = await V.mitarbeiterSpeichern(env, meA, { id: neu.id, name: "Testa Monteur", rechte: ["protokolle", "lager"] });
 
-// inaktiv → keine Anmeldung mehr
-await V.mitarbeiterSpeichern(env, me, { id: neu.id, name: "Testa Monteur", aktiv: false });
+// Rechte wirken bei der Anmeldung
+const meT = await auth(env, req((await login(env, "Testa Monteur", "abcdef")).token));
+assert.deepEqual(meT.rechte, ["protokolle", "lager"]);
+assert.ok(darf(meT, "lager") && !darf(meT, "hinweise") && !darf(meT, "maschinen"));
+assert.equal(meT.schreiben, false, "ohne Zusatzrecht kein „Büro“");
+
+// sonstiges: Doppelname, Geburtstag, kurzes Passwort, inaktiv, sich selbst
+await rejects(V.mitarbeiterSpeichern(env, meA, { name: "testa monteur" }), /gibt es schon/);
+await rejects(V.mitarbeiterSpeichern(env, meA, { name: "X", geb: "99.99." }), /Geburtstag/);
+await rejects(V.mitarbeiterPasswort(env, meA, { id: neu.id, passwort: "123" }), /mindestens 6/);
+await rejects(V.mitarbeiterSpeichern(env, meS2, { id: stefan.id, name: "Stefan Wermers", rechte: stefan.rechte, aktiv: false }), /selbst nicht deaktivieren|Nur der Admin/);
+await rejects(V.mitarbeiterLoeschen(env, meS2, { id: stefan.id }), /selbst/);
+await V.mitarbeiterSpeichern(env, meA, { id: neu.id, name: "Testa Monteur", rechte: ["protokolle"], aktiv: false });
 resetUsers();
 assert.equal(await login(env, "Testa Monteur", "abcdef"), null, "inaktive Person kann sich nicht anmelden");
 
-// Aussperren verhindern: eigenes Büro-Recht / sich selbst löschen / letzte Büro-Person
-const self = ma.find(m => m.name === buero.name);
-await rejects(V.mitarbeiterSpeichern(env, me, { id: self.id, name: buero.name, schreiben: false, aktiv: true }), /eigene Büro-Recht/);
-await rejects(V.mitarbeiterLoeschen(env, me, { id: self.id }), /selbst/);
-const andereBueros = (await V.mitarbeiterListe(env)).filter(m => m.schreiben && m.aktiv && m.id !== self.id);
-for (const o of andereBueros) await V.mitarbeiterSpeichern(env, me, { id: o.id, name: o.name, schreiben: false, aktiv: true });
-await rejects(V.mitarbeiterLoeschen(env, { name: "jemand anderes" }, { id: self.id }), /niemanden mehr/);
-assert.ok((await V.mitarbeiterListe(env)).some(m => m.id === self.id), "letzte Büro-Person bleibt erhalten");
-await V.mitarbeiterLoeschen(env, me, { id: neu.id });
-assert.ok(!(await V.mitarbeiterListe(env)).some(m => m.id === neu.id), "löschen klappt");
-console.log("Mitarbeiter-Verwaltung und Anmeldung: OK");
+// Admin weitergeben: nur der Admin; danach ist der alte Admin normaler Mitarbeiter mit allen Rechten
+await rejects(V.adminUebergeben(env, meS2, { id: stefan.id }), /Nur der Admin/);
+await rejects(V.adminUebergeben(env, meA, { id: neu.id }), /aktiv sein/);
+ma = await V.adminUebergeben(env, meA, { id: stefan.id });
+assert.ok(ma.find(m => m.id === stefan.id).admin && !ma.find(m => m.id === sebi.id).admin);
+assert.equal(ma.filter(m => m.admin).length, 1);
+ma = await V.adminUebergeben(env, { ...meS2, admin: true }, { id: sebi.id });   // zurück an Sebastian
+
+// erneuter Mitarbeiter-Import: Admin bleibt erhalten
+await importiere(env, meA, { bereich: "mitarbeiter", datei: readFileSync(new URL("../vorlagen/Airtec_Zugaenge.xlsx", import.meta.url)).toString("base64") });
+ma = await V.mitarbeiterListe(env);
+assert.equal(ma.find(m => m.admin).name, "Sebastian", "Admin nach Re-Import erhalten");
+const me = meA;
+console.log("Rechte, Admin, Anmeldung und Mitarbeiter-Verwaltung: OK");
 
 // ---------- Stammdaten ----------
 await rejects(V.listeSpeichern(env, { name: "Test", werte: ["a"] }), /zuerst die Stammdaten/);
@@ -87,7 +125,7 @@ assert.equal(app.gwp.R32, 675);
 assert.equal(app.nach[0].f[6], "0,02");
 assert.equal(app.docs[0].url, "https://example.com/a.pdf");
 assert.equal(app.upload, "https://example.sharepoint.com/x");
-assert.ok(app.monteure.some(m => m.name === buero.name), "Monteur-Liste aus den Mitarbeitern");
+assert.ok(app.monteure.some(m => m.name === "Sebastian"), "Monteur-Liste aus den Mitarbeitern");
 await V.listeLoeschen(env, { name: "Hersteller Außengerät" });
 assert.ok(!(await stammAusDb(env)).lists["Hersteller Außengerät"]);
 console.log("Stammdaten-Verwaltung: OK");

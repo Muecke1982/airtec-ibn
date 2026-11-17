@@ -32,7 +32,7 @@
   const isMine = m => m.aus && !m.aus.extern && !m.aus.baustelle && norm(m.aus.wer) === norm(me());
   const isLender = m => m.aus && m.aus.extern && norm(m.aus.wer) === norm(me());
   const dd = s => String(s || "").slice(0, 6);
-  const office = () => !!(AT.user && AT.user.schreiben);
+  const office = () => AT.darf("maschinen_buero");
 
   async function load(force) {
     try {
