@@ -11,6 +11,7 @@ import * as hinweise from "../functions/api/hinweise.js";
 import * as lager from "../functions/api/lager.js";
 import * as muell from "../functions/api/muell.js";
 import * as urlaub from "../functions/api/urlaub.js";
+import * as admin from "../functions/api/admin.js";
 import { sync as urlaubSync } from "../lib/urlaub.js";
 import { users } from "../lib/auth.js";
 import { json } from "../lib/graph.js";
@@ -33,6 +34,8 @@ const routes = {
   "POST /api/urlaub": urlaub.onRequestPost,
   "GET /api/maschinen": maschinen.onRequestGet,
   "POST /api/maschinen": maschinen.onRequestPost,
+  "GET /api/admin": admin.onRequestGet,
+  "POST /api/admin": admin.onRequestPost,
 };
 
 export default {
