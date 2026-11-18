@@ -76,7 +76,7 @@
       return `<section class="card"><h3>🪪 Führerscheinprüfung</h3>
         <div>${f.letzte ? `Zuletzt gesichtet am <b>${de(f.letzte)}</b>${f.von ? ` von ${esc(f.von)}` : ""}` : "Noch nicht gesichtet."}</div>
         <div style="margin:6px 0 4px">${badge(f)}</div>
-        <div class="hint" style="margin:4px 0 0">Prüfung alle ${data.intervall} Monate.</div>
+        <div class="hint" style="margin:4px 0 0">Prüfung alle ${data.intervall} Monate. 14 Tage vorher bekommen Büro und Mitarbeiter eine Nachricht.</div>
         ${kann ? `<div class="row" style="margin-top:10px;align-items:end"><div><label>Datum der Sichtung</label><input type="date" id="peFsDatum" value="${heute()}" max="${heute()}"></div>
           <div><button class="bigbtn primary" id="peFs" style="margin:0">✓ Führerschein gesichtet</button></div></div>` : ""}
         ${f.historie.length > 1 || (kann && f.historie.length) ? `<div style="margin-top:10px"><small style="color:var(--mut)">Bisherige Prüfungen</small>${f.historie.map(h =>

@@ -18,6 +18,7 @@ import * as autos from "../functions/api/autos.js";
 import * as suche from "../functions/api/suche.js";
 import * as personal from "../functions/api/personal.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
+import { pruefen as fuehrerscheinPruefen } from "../lib/personal.js";
 import { taeglich as sicherungTaeglich } from "../lib/sicherung.js";
 import { auth } from "../lib/auth.js";
 import { schreibe, beschreibe, aufraeumen } from "../lib/logbuch.js";
@@ -93,6 +94,7 @@ export default {
     ctx.waitUntil(aufraeumen(env).catch(e => console.error("Logbuch aufräumen:", e.message)));
     ctx.waitUntil(austauschAufraeumen(env).catch(e => console.error("Austausch aufräumen:", e.message)));
     ctx.waitUntil(autosPruefen(env).catch(e => console.error("Autos prüfen:", e.message)));
+    ctx.waitUntil(fuehrerscheinPruefen(env).catch(e => console.error("Führerschein prüfen:", e.message)));
     // Datensicherung: einmal täglich (nachts um 1:30 UTC, sonst beim ersten Lauf des Tages)
     ctx.waitUntil(sicherungTaeglich(env).catch(e => console.error("Datensicherung:", e.message)));
   },

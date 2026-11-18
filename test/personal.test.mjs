@@ -2,8 +2,8 @@
 // Aufruf:  node test/personal.test.mjs
 import assert from "node:assert/strict";
 import { fakeD1 } from "./d1-fake.mjs";
-import { run, one, heute } from "../lib/db.js";
-import { liste, aktion, fsStatus, plusMonate } from "../lib/personal.js";
+import { run, one, all, heute } from "../lib/db.js";
+import { liste, aktion, fsStatus, plusMonate, pruefen } from "../lib/personal.js";
 
 // Google nicht erreichbar → Urlaub-Fehler, Seite funktioniert trotzdem
 const env = { DB: fakeD1() };
@@ -54,6 +54,22 @@ await rejects(aktion(env, peter, { aktion: "fuehrerschein", id: pid, datum: heut
 const h = (await liste(env, chef, people)).mitarbeiter.find(m => m.id === pid).fuehrerschein.historie;
 await aktion(env, chef, { aktion: "fs_loeschen", pid: h[0].id }, people);
 assert.equal((await one(env, "SELECT COUNT(*) n FROM fs_pruefungen")).n, 1);
+
+// Fälligkeit melden: Peter hatte die letzte Prüfung vor 7 Monaten → fällig
+await run(env, "DELETE FROM fs_pruefungen");
+await run(env, "DELETE FROM fs_meldungen");   // (das Löschen oben hat beim Neuladen schon gemeldet)
+await run(env, "DELETE FROM nachricht_an"); await run(env, "DELETE FROM nachrichten");
+await run(env, "INSERT INTO fs_pruefungen (mitarbeiter_id, datum, von, erstellt) VALUES (?, ?, 'Chef', '')", pid, plusMonate(heute(), -7));
+assert.equal(await pruefen(env), 1, "eine Meldung");
+assert.equal(await pruefen(env), 0, "nicht doppelt");
+const msgs = await all(env, "SELECT n.id, n.text, n.pin, n.bis, a.empfaenger FROM nachrichten n JOIN nachricht_an a ON a.nachricht_id = n.id ORDER BY n.id");
+assert.deepEqual(msgs.map(m => m.empfaenger), ["Peter Muster", "*buero"]);
+assert.match(msgs[1].text, /Führerscheinprüfung seit .* fällig: Peter Muster/);
+assert.equal(msgs[0].pin, 1);
+// Sichtung → beide Nachrichten ausgeblendet
+await aktion(env, chef, { aktion: "fuehrerschein", id: pid, datum: heute() }, people);
+for (const m of await all(env, "SELECT bis FROM nachrichten")) assert.ok(m.bis && m.bis < heute(), "abgelaufen");
+assert.equal(await pruefen(env), 0, "nach Sichtung keine neue Meldung");
 
 // Migration 8: wer „mitarbeiter“ hat, bekommt „personal“ – hier direkt prüfen, dass die Spalte/Tabelle existiert
 assert.ok(await one(env, "SELECT urlaub_anspruch, urlaub_vorjahr, notiz FROM mitarbeiter LIMIT 1"));
