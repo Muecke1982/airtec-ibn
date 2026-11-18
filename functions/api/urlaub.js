@@ -1,34 +1,17 @@
 import { darf } from "../../lib/rechte.js";
 import { auth, users } from "../../lib/auth.js";
 import { json } from "../../lib/graph.js";
-import { list, toPlan } from "../../lib/urlaub.js";
-import { writePlan } from "../../lib/planwrite.js";
+import { liste } from "../../lib/urlaubplan.js";
 
-// GET  → { meine:[…], alle?:[…] (Büro), postfach?, geprueft?, fehler? }
+// Urlaub aus dem Wochenplan (Google-Tabelle).
+// GET [?neu=1] → { heute, jahr, meine:[{von,bis,tage}], alle?:[{name,von,bis,tage}] (Büro), stand }
 export async function onRequestGet({ request, env }) {
   try {
     const me = await auth(env, request);
     if (!me || !me.name) return json(401, { error: "Nicht angemeldet" });
-    return json(200, await list(env, me, await users(env)));
-  } catch (e) {
-    console.error(e);
-    return json(e.status && e.status < 500 ? e.status : 500, { error: e.message });
-  }
-}
-
-// POST { aktion:"abrufen" } | { aktion:"wochenplan", id } – nur Büro
-export async function onRequestPost({ request, env }) {
-  try {
-    const me = await auth(env, request);
-    if (!me || !me.name) return json(401, { error: "Nicht angemeldet" });
-    if (!darf(me, "urlaub")) return json(403, { error: "Nur für das Büro" });
-    const b = await request.json().catch(() => ({}));
-    const people = await users(env);
-    let info = {};
-    if (b.aktion === "wochenplan") info = await toPlan(env, me, String(b.id || ""), writePlan, people);
-    else if (b.aktion !== "abrufen") return json(400, { error: "Unbekannte Aktion" });
-    const out = await list(env, me, people, { sync: b.aktion === "abrufen" });
-    return json(200, { ...out, ...info });
+    const buero = darf(me, "urlaub");
+    const neu = buero && new URL(request.url).searchParams.get("neu") === "1";
+    return json(200, await liste(env, me, await users(env), { neu, buero }));
   } catch (e) {
     console.error(e);
     return json(e.status && e.status < 500 ? e.status : 500, { error: e.message });

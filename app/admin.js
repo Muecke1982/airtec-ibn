@@ -10,7 +10,7 @@
   // Rechte – gleiche Schlüssel wie lib/rechte.js
   const RECHTE = [
     ["Bereiche", [["wochenplan", "Wochenplan"], ["protokolle", "Protokolle"], ["maschinen", "Maschinen"], ["lager", "Lager (Material melden)"], ["autos", "Autos"]]],
-    ["Zusatzrechte", [["hinweise", "Büro"], ["plan_aendern", "Wochenplan ändern (Tagesbrett, krank)"], ["urlaub", "Urlaub verwalten"],
+    ["Zusatzrechte", [["hinweise", "Büro"], ["plan_aendern", "Wochenplan ändern (Tagesbrett, krank)"], ["urlaub", "Urlaub im Team sehen"],
       ["maschinen_buero", "Maschinen (Büro)"], ["lager_bestellen", "Lager bestellen"], ["autos_verwalten", "Autos verwalten"], ["stammdaten", "Stammdaten pflegen"], ["mitarbeiter", "Mitarbeiter verwalten"]]],
   ];
   const ALLE = RECHTE.flatMap(g => g[1].map(r => r[0])), MONTEUR = RECHTE[0][1].map(r => r[0]), ZUSATZ = RECHTE[1][1].map(r => r[0]);

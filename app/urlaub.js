@@ -1,6 +1,7 @@
-/* Airtec App – Urlaub aus Label (Startseite)
-   • Monteur: neue Entscheidung (genehmigt / abgelehnt) als Karte zum Abhaken + „Mein Urlaub“ (kommende Tage)
-   • Büro: Liste der Mails aus dem Urlaubs-Postfach, „In Wochenplan eintragen“, nicht erkannte Mails */
+/* Airtec KApp – Urlaub (Startseite, ganz unten)
+   Quelle ist allein der Wochenplan (Google-Tabelle): jede Zelle „Urlaub“ zählt.
+   • alle: „Mein Urlaub <Jahr>“ – anstehende Zeiträume, Summe, schon genommen
+   • Büro (Recht „urlaub“): „Urlaub im Team“ – wer heute im Urlaub ist + alle anstehenden Zeiträume */
 (function () {
   const AT = window.AT;
   const ls = {
@@ -12,95 +13,61 @@
   const office = () => AT.darf("urlaub");
   const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
   const d1 = iso => iso ? `${WT[new Date(iso + "T12:00:00Z").getUTCDay()]} ${iso.slice(8, 10)}.${iso.slice(5, 7)}.` : "?";
-  const span = r => !r.von ? "Zeitraum unbekannt" : r.von === r.bis ? d1(r.von) : `${d1(r.von)} – ${d1(r.bis)}${r.bis.slice(0, 4) !== r.von.slice(0, 4) ? r.bis.slice(0, 4) : ""}`;
-  const days = r => r.tage ? ` · ${r.tage} Arbeitstag${r.tage === "1" ? "" : "e"}` : "";
-  const ST = { genehmigt: ["✅", "genehmigt", "urok"], abgelehnt: ["❌", "abgelehnt", "urno"], storniert: ["↩️", "storniert", "urno"], unklar: ["⚠️", "nicht erkannt", "urwarn"] };
+  const span = r => r.von === r.bis ? d1(r.von) : `${d1(r.von)} – ${d1(r.bis)}`;
+  const zahl = n => String(n).replace(".", ",");
+  const days = r => r.tage ? ` · ${zahl(r.tage)} Arbeitstag${r.tage === 1 ? "" : "e"}` : "";
 
   const root = document.getElementById("stView");
   const box = document.createElement("div");
   box.id = "urBox";
   root.appendChild(box);   // ganz unten auf der Startseite
 
-  let data = ls.get("ur_cache"), open = false, busy = false;
-  const seenKey = () => "ur_seen_" + ((AT.user && AT.user.name) || "");
+  const key = () => "ur2_cache_" + ((AT.user && AT.user.name) || "");
+  let data = null, wer = null, open = false, busy = false, fehler = "";
 
-  async function load() {
-    try { data = await AT.api("urlaub"); ls.set("ur_cache", data); } catch (e) { if (e.status === 404) data = null; }
+  async function load(neu) {
+    try { data = await AT.api("urlaub" + (neu ? "?neu=1" : "")); ls.set(key(), data); fehler = ""; }
+    catch (e) { fehler = e.message || "Urlaub konnte nicht geladen werden"; if (neu) toast2(fehler); }
     paint();
-  }
-  async function post(body) {
-    const r = await AT.api("urlaub", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    return r;
   }
 
   function paint() {
-    if (!data || !AT.user) { box.innerHTML = ""; return; }
+    if (!AT.user) { box.innerHTML = ""; return; }
+    if (wer !== AT.user.name) { wer = AT.user.name; data = ls.get(key()); open = false; fehler = ""; }
+    if (!data) { box.innerHTML = fehler && office() ? `<section class="card hicard"><div class="hihead">🌴 Urlaub</div><div class="urerr">⚠ ${esc(fehler)}</div></section>` : ""; return; }
     const out = [];
-    const seen = ls.get(seenKey()) || [];
     const today = data.heute || new Date().toISOString().slice(0, 10);
     const mine = data.meine || [];
-    // neue Entscheidungen
-    for (const r of mine.filter(r => !seen.includes(r.id) && (r.bis || "") >= today)) {
-      const [ic, word, cls] = ST[r.status] || ST.unklar;
-      out.push(`<section class="card hicard urnew ${cls}"><div class="hihead">🌴 Urlaubsantrag</div>
-        <b>${ic} Dein Urlaub wurde ${esc(word)}</b><div>${esc(span(r))}${esc(days(r))}${r.hinweis && r.hinweis.includes("halber") ? " · halber Tag" : ""}</div>
-        <button class="hidone" data-seen="${esc(r.id)}">OK</button></section>`);
-    }
-    // alle anstehenden genehmigten Urlaube im laufenden Jahr
-    const jahr = today.slice(0, 4);
-    const next = mine.filter(r => r.status === "genehmigt" && (r.bis || "") >= today && (r.von || "").slice(0, 4) <= jahr)
-      .sort((a, b) => (a.von || "").localeCompare(b.von || ""));
-    const summe = next.reduce((s, r) => s + (+r.tage || 0), 0);
-    out.push(`<section class="card hicard urmine"><div class="hihead">🌴 Mein Urlaub ${jahr}</div>${next.length ? next.map(r =>
+    const next = mine.filter(r => r.bis >= today);
+    const summe = z => z.reduce((s, r) => s + (+r.tage || 0), 0);
+    // schon genommen = abgeschlossene Zeiträume (ein laufender Urlaub zählt noch als anstehend)
+    const genommen = summe(mine.filter(r => r.bis < today));
+    out.push(`<section class="card hicard urmine"><div class="hihead">🌴 Mein Urlaub ${esc(data.jahr || today.slice(0, 4))}</div>${next.length ? next.map(r =>
       `<div class="urline"><b>${esc(span(r))}</b>${esc(days(r))}${r.von <= today ? ' <span class="urnow">läuft gerade</span>' : ""}</div>`).join("")
-      + (next.length > 1 && summe ? `<div class="hivon">zusammen ${summe} Arbeitstage</div>` : "")
-      : '<div class="hivon" style="margin-top:0">Kein genehmigter Urlaub mehr in diesem Jahr eingetragen.</div>'}</section>`);
+      + (next.length > 1 ? `<div class="hivon">zusammen ${zahl(summe(next))} Arbeitstage</div>` : "")
+      : '<div class="hivon" style="margin-top:0">Kein Urlaub mehr in diesem Jahr im Wochenplan eingetragen.</div>'}
+      ${genommen ? `<div class="hivon">Schon genommen: ${zahl(genommen)} Arbeitstage · im Jahr gesamt ${zahl(summe(mine))}</div>` : ""}</section>`);
     // Büro
     if (office() && data.alle) {
-      const all = data.alle, unklar = all.filter(r => r.status === "unklar"), offen = all.filter(r => r.status === "genehmigt" && !r.plan && (r.bis || "") >= today);
-      const show = open || unklar.length > 0;
-      out.push(`<section class="card hiofc urofc"><div class="hihead">🌴 Urlaub aus Label</div>
-        ${data.fehler ? `<div class="urerr">⚠ ${esc(data.fehler)}</div>` : ""}
-        <div class="hivon" style="margin-top:0">${offen.length ? `<b>${offen.length} genehmigt, noch nicht im Wochenplan</b> · ` : ""}${unklar.length ? `<b>${unklar.length} Mail${unklar.length > 1 ? "s" : ""} nicht erkannt</b> · ` : ""}Postfach ${esc(data.postfach || "")}${data.geprueft ? ", geprüft " + esc(data.geprueft.slice(11)) : ""}</div>
-        <div class="hirow"><button class="add" id="urToggle">${show ? "Liste zuklappen" : `Liste anzeigen (${all.length})`}</button><button class="add" id="urSync">${busy ? "Wird abgerufen …" : "Postfach abrufen"}</button></div>
-        <div class="${show ? "" : "hide"}">${all.length ? all.map(r => {
-          const [ic, word, cls] = ST[r.status] || ST.unklar;
-          const btn = r.status === "genehmigt" && (r.bis || "") >= today
-            ? (r.plan ? `<small>✓ im Wochenplan (${esc(r.plan)})</small>` : `<button class="urplan" data-plan="${esc(r.id)}">In Wochenplan eintragen</button>`) : "";
-          return `<div class="hisent ${cls}"><div><b>${esc(r.name || "Mitarbeiter?")}</b> <span class="urbadge">${ic} ${esc(word)}</span>
-            <div>${esc(span(r))}${esc(days(r))}</div>
-            ${r.status === "unklar" ? `<small>„${esc(r.betreff)}“ – ${esc(r.hinweis || "")}. Bitte in Airtec_Urlaub.xlsx ergänzen.</small>` : r.hinweis ? `<small>${esc(r.hinweis)}</small>` : ""}
-            <small>Mail vom ${esc(String(r.eingang || "").slice(0, 10))}</small></div>${btn}</div>`;
-        }).join("") : '<div class="hint">Noch keine Urlaubsmails eingegangen.</div>'}</div></section>`);
+      const all = data.alle;
+      const jetzt = all.filter(r => r.von <= today);
+      out.push(`<section class="card hiofc urofc"><div class="hihead">🌴 Urlaub im Team</div>
+        ${fehler ? `<div class="urerr">⚠ ${esc(fehler)}</div>` : ""}
+        <div class="hivon" style="margin-top:0">${jetzt.length ? `<b>Heute im Urlaub: ${jetzt.map(r => esc(r.name)).join(", ")}</b> · ` : "Heute niemand im Urlaub · "}aus dem Wochenplan${data.stand ? ", Stand " + esc(new Date(data.stand).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })) : ""}</div>
+        <div class="hirow"><button class="add" id="urToggle">${open ? "Liste zuklappen" : `Anstehender Urlaub (${all.length})`}</button><button class="add" id="urSync">${busy ? "Wird geladen …" : "Neu einlesen"}</button></div>
+        <div class="${open ? "" : "hide"}">${all.length ? all.map(r =>
+          `<div class="hisent urok"><div><b>${esc(r.name)}</b>${r.von <= today ? ' <span class="urnow">läuft gerade</span>' : ""}
+            <div>${esc(span(r))}${esc(days(r))}</div></div></div>`).join("") : '<div class="hint">Kein Urlaub mehr in diesem Jahr im Wochenplan.</div>'}</div></section>`);
     }
     box.innerHTML = out.join("");
-    bind();
-  }
-
-  function bind() {
-    box.querySelectorAll("[data-seen]").forEach(b => b.onclick = () => {
-      const s = ls.get(seenKey()) || []; s.push(b.dataset.seen); ls.set(seenKey(), s.slice(-200)); paint();
-    });
     const t = box.querySelector("#urToggle"); if (t) t.onclick = () => { open = !open; paint(); };
     const s = box.querySelector("#urSync");
     if (s) s.onclick = async () => {
       if (busy) return; busy = true; paint();
-      try { data = await post({ aktion: "abrufen" }); ls.set("ur_cache", data); toast2(data.fehler ? "Abruf fehlgeschlagen" : "Postfach abgerufen"); }
-      catch (e) { toast2(e.message); }
+      await load(true);
       busy = false; open = true; paint();
+      if (!fehler) toast2("Wochenplan neu eingelesen");
     };
-    box.querySelectorAll("[data-plan]").forEach(b => b.onclick = async () => {
-      if (!b.classList.contains("sure")) { b.classList.add("sure"); b.textContent = "Wirklich eintragen?"; setTimeout(() => { if (b.isConnected) { b.classList.remove("sure"); b.textContent = "In Wochenplan eintragen"; } }, 4000); return; }
-      b.disabled = true; b.textContent = "Wird eingetragen …";
-      const e0 = ((data && data.alle) || []).find(x => x.id === b.dataset.plan);
-      try {
-        const r = await post({ aktion: "wochenplan", id: b.dataset.plan });
-        data = r; ls.set("ur_cache", data);
-        toast2(`${r.geschrieben} Tag${r.geschrieben === 1 ? "" : "e"} als Urlaub eingetragen` + (r.fehler && r.fehler.length ? ` – nicht möglich: ${r.fehler.join("; ")}` : ""));
-        if (e0 && e0.von && AT.wp && AT.wp.forget) for (let d = e0.von; d <= e0.bis; d = AT.wp.addDays(d, 7)) AT.wp.forget(d), AT.wp.forget(e0.bis);
-      } catch (e) { toast2(e.message); }
-      paint();
-    });
   }
 
   const prev = AT.modules.start.show;

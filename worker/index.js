@@ -18,8 +18,7 @@ import * as autos from "../functions/api/autos.js";
 import * as suche from "../functions/api/suche.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
 import { taeglich as sicherungTaeglich } from "../lib/sicherung.js";
-import { sync as urlaubSync } from "../lib/urlaub.js";
-import { users, auth } from "../lib/auth.js";
+import { auth } from "../lib/auth.js";
 import { schreibe, beschreibe, aufraeumen } from "../lib/logbuch.js";
 import { one } from "../lib/db.js";
 import { json } from "../lib/graph.js";
@@ -39,7 +38,6 @@ const routes = {
   "POST /api/muell": muell.onRequestPost,
   "POST /api/hinweise": hinweise.onRequestPost,
   "GET /api/urlaub": urlaub.onRequestGet,
-  "POST /api/urlaub": urlaub.onRequestPost,
   "GET /api/maschinen": maschinen.onRequestGet,
   "POST /api/maschinen": maschinen.onRequestPost,
   "GET /api/admin": admin.onRequestGet,
@@ -87,9 +85,8 @@ export default {
     }
     return env.ASSETS.fetch(request);
   },
-  // Zeitgesteuert (siehe wrangler.jsonc „triggers“): Urlaubs-Postfach abrufen, altes Logbuch löschen
+  // Zeitgesteuert (siehe wrangler.jsonc „triggers“): altes Logbuch/Nachrichten löschen, TÜV prüfen, sichern
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(users(env).then(p => urlaubSync(env, p)).catch(e => console.error("Urlaub-Sync:", e.message)));
     ctx.waitUntil(aufraeumen(env).catch(e => console.error("Logbuch aufräumen:", e.message)));
     ctx.waitUntil(austauschAufraeumen(env).catch(e => console.error("Austausch aufräumen:", e.message)));
     ctx.waitUntil(autosPruefen(env).catch(e => console.error("Autos prüfen:", e.message)));

@@ -81,6 +81,10 @@ Die Datei liest nur der Server (über Microsoft Graph), sie wird nie aufs Handy 
 * Wochentage (Mo/Montag …) in einer der ersten drei Spalten, Monteurnamen als Überschriften darüber.
 * Gleicher Eintrag am gleichen Tag = ein Team. Urlaub, Schule, HBZ, krank werden als Abwesenheit erkannt.
 * Die Tabelle wird mit der E-Mail-Adresse des Dienstkontos geteilt (Betrachter reicht für das Lesen).
+* **Urlaub** kommt allein aus dem Wochenplan: jede Zelle mit „Urlaub“ zählt (halber Tag: „½“ oder „halb“ in der Zelle).
+  Aufeinanderfolgende Tage werden über Wochenende und „Feiertag“/„frei“ hinweg zu einem Zeitraum zusammengefasst
+  (`lib/urlaubplan.js`). Startseite: „Mein Urlaub“ für jeden, „Urlaub im Team“ für das Recht „urlaub“.
+  Alle Wochenblätter des Jahres werden mit einer Anfrage gelesen und 10 Minuten zwischengespeichert.
 
 ## Maschinen
 
