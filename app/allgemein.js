@@ -1,5 +1,6 @@
 /* Airtec KApp – Reiter „Allgemeines“ mit Unterreitern
    • Autos (app/autos.js) – mit Recht „Autos“
+   • Urlaub (app/urlaub.js, AT.urlaubTab) – Urlaub eintragen, eigener Urlaub, Büro: Urlaub im Team
    • Mitarbeiter – Führerscheinprüfung, Urlaubstage, Notizen.
      Recht „personal“: alle Mitarbeiter auswählen und pflegen; sonst nur die eigenen Angaben ansehen. */
 (function () {
@@ -21,8 +22,8 @@
   tabBtn.onclick = () => AT.tab("allgemein");
   const view = document.createElement("main");
   view.id = "agView"; view.dataset.mod = "allgemein"; view.className = "hide";
-  view.innerHTML = `<div class="seg" id="agSeg" style="margin-bottom:12px"><button data-sub="autos">🚐 Autos</button><button data-sub="personal">👤 Mitarbeiter</button></div>
-    <div id="autView"></div><div id="peView" class="hide"></div>`;
+  view.innerHTML = `<div class="seg" id="agSeg" style="margin-bottom:12px"><button data-sub="autos">🚐 Autos</button><button data-sub="personal">👤 Mitarbeiter</button><button data-sub="urlaub">🌴 Urlaub</button></div>
+    <div id="autView"></div><div id="peView" class="hide"></div><div id="urView" class="hide"></div>`;
   document.getElementById("app").before(view);
   const hdr = document.querySelector("#hdrType");
   if (hdr) { const s = document.createElement("small"); s.dataset.mod = "allgemein"; s.className = "hide"; s.textContent = "Allgemeines"; hdr.parentNode.appendChild(s); }
@@ -40,13 +41,17 @@
 
   let sub = ls.get("ag_sub") || "autos";
   const darfAutos = () => AT.darf("autos") || AT.darf("autos_verwalten");
+  const urv = view.querySelector("#urView");
   function zeige() {
-    if (!darfAutos()) sub = "personal";
-    view.querySelector("#agSeg").classList.toggle("hide", !darfAutos());
+    if (!darfAutos() && sub === "autos") sub = "personal";
+    view.querySelector('[data-sub="autos"]').classList.toggle("hide", !darfAutos());
     view.querySelectorAll("[data-sub]").forEach(b => b.classList.toggle("on", b.dataset.sub === sub));
     view.querySelector("#autView").classList.toggle("hide", sub !== "autos");
     pe.classList.toggle("hide", sub !== "personal");
-    if (sub === "autos") AT.modules.autos && AT.modules.autos.show(); else personal.show();
+    urv.classList.toggle("hide", sub !== "urlaub");
+    if (sub === "autos") AT.modules.autos && AT.modules.autos.show();
+    else if (sub === "urlaub") AT.urlaubTab && AT.urlaubTab.show(urv);
+    else personal.show();
   }
   view.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => { sub = b.dataset.sub; ls.set("ag_sub", sub); zeige(); });
   AT.modules.allgemein = { show: zeige };

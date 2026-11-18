@@ -16,9 +16,9 @@ const rejects = (p, rx) => assert.rejects(p, e => rx.test(e.message), "erwartet:
 
 assert.equal(plusMonate("2026-08-31", 6), "2027-02-28");
 assert.equal(fsStatus("", "2026-11-18").status, "leer");
-assert.deepEqual(fsStatus("2026-06-10", "2026-11-18"), { status: "ok", naechste: "2026-12-10" });
-assert.equal(fsStatus("2026-05-25", "2026-11-18").status, "bald");
-assert.equal(fsStatus("2026-05-18", "2026-11-18").status, "faellig");
+assert.deepEqual(fsStatus("2026-06-10", "2026-11-18"), { status: "ok", naechste: "2027-06-10" });
+assert.equal(fsStatus("2025-11-25", "2026-11-18").status, "bald");
+assert.equal(fsStatus("2025-11-18", "2026-11-18").status, "faellig");
 
 let l = await liste(env, chef, people);
 assert.ok(l.pflegen);
@@ -32,7 +32,7 @@ let p = l.mitarbeiter.find(m => m.id === pid);
 assert.equal(p.fuehrerschein.letzte, heute()); assert.equal(p.fuehrerschein.von, "Chef"); assert.equal(p.fuehrerschein.status, "ok");
 await rejects(aktion(env, chef, { aktion: "fuehrerschein", id: pid, datum: "2099-01-01" }, people), /Zukunft/);
 await rejects(aktion(env, chef, { aktion: "fuehrerschein", id: pid, datum: "quatsch" }, people), /gültiges Datum/);
-await aktion(env, chef, { aktion: "fuehrerschein", id: pid, datum: plusMonate(heute(), -7) }, people);
+await aktion(env, chef, { aktion: "fuehrerschein", id: pid, datum: plusMonate(heute(), -13) }, people);
 l = await liste(env, chef, people); p = l.mitarbeiter.find(m => m.id === pid);
 assert.equal(p.fuehrerschein.historie.length, 2); assert.equal(p.fuehrerschein.letzte, heute(), "neueste Prüfung zählt");
 
@@ -55,11 +55,11 @@ const h = (await liste(env, chef, people)).mitarbeiter.find(m => m.id === pid).f
 await aktion(env, chef, { aktion: "fs_loeschen", pid: h[0].id }, people);
 assert.equal((await one(env, "SELECT COUNT(*) n FROM fs_pruefungen")).n, 1);
 
-// Fälligkeit melden: Peter hatte die letzte Prüfung vor 7 Monaten → fällig
+// Fälligkeit melden: Peter hatte die letzte Prüfung vor 13 Monaten → fällig
 await run(env, "DELETE FROM fs_pruefungen");
 await run(env, "DELETE FROM fs_meldungen");   // (das Löschen oben hat beim Neuladen schon gemeldet)
 await run(env, "DELETE FROM nachricht_an"); await run(env, "DELETE FROM nachrichten");
-await run(env, "INSERT INTO fs_pruefungen (mitarbeiter_id, datum, von, erstellt) VALUES (?, ?, 'Chef', '')", pid, plusMonate(heute(), -7));
+await run(env, "INSERT INTO fs_pruefungen (mitarbeiter_id, datum, von, erstellt) VALUES (?, ?, 'Chef', '')", pid, plusMonate(heute(), -13));
 assert.equal(await pruefen(env), 1, "eine Meldung");
 assert.equal(await pruefen(env), 0, "nicht doppelt");
 const msgs = await all(env, "SELECT n.id, n.text, n.pin, n.bis, a.empfaenger FROM nachrichten n JOIN nachricht_an a ON a.nachricht_id = n.id ORDER BY n.id");

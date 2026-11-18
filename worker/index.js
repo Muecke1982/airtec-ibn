@@ -19,6 +19,8 @@ import * as suche from "../functions/api/suche.js";
 import * as personal from "../functions/api/personal.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
 import { pruefen as fuehrerscheinPruefen } from "../lib/personal.js";
+import { abgleich as urlaubInfo } from "../lib/urlaubinfo.js";
+import { users } from "../lib/auth.js";
 import { taeglich as sicherungTaeglich } from "../lib/sicherung.js";
 import { auth } from "../lib/auth.js";
 import { schreibe, beschreibe, aufraeumen } from "../lib/logbuch.js";
@@ -40,6 +42,7 @@ const routes = {
   "POST /api/muell": muell.onRequestPost,
   "POST /api/hinweise": hinweise.onRequestPost,
   "GET /api/urlaub": urlaub.onRequestGet,
+  "POST /api/urlaub": urlaub.onRequestPost,
   "GET /api/maschinen": maschinen.onRequestGet,
   "POST /api/maschinen": maschinen.onRequestPost,
   "GET /api/admin": admin.onRequestGet,
@@ -95,6 +98,8 @@ export default {
     ctx.waitUntil(austauschAufraeumen(env).catch(e => console.error("Austausch aufräumen:", e.message)));
     ctx.waitUntil(autosPruefen(env).catch(e => console.error("Autos prüfen:", e.message)));
     ctx.waitUntil(fuehrerscheinPruefen(env).catch(e => console.error("Führerschein prüfen:", e.message)));
+    // Urlaub-Infomail: neuen/gestrichenen Urlaub im Wochenplan ans Büro melden
+    ctx.waitUntil(users(env).then(p => urlaubInfo(env, p)).catch(e => console.error("Urlaub-Infomail:", e.message)));
     // Datensicherung: einmal täglich (nachts um 1:30 UTC, sonst beim ersten Lauf des Tages)
     ctx.waitUntil(sicherungTaeglich(env).catch(e => console.error("Datensicherung:", e.message)));
   },

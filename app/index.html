@@ -142,8 +142,9 @@ body.locked>*:not(#loginView):not(.toast){display:none!important}
 .login h1{font-size:20px;text-align:center;margin:4px 0 6px}
 .lerr{color:var(--bad);font-size:14px;margin-top:8px;min-height:1em}
 .tabs{position:sticky;top:calc(env(safe-area-inset-top) + 53px);z-index:4;display:flex;gap:6px;background:#fff;padding:6px 12px 8px;border-bottom:1px solid var(--line)}
-.tabs{gap:3px!important;padding:6px 6px 8px!important}
-.tabs button{position:relative;flex:1 1 auto;min-width:0;border:0;background:#eef1f4;border-radius:10px;padding:9px 1px;font:inherit;font-size:12px;letter-spacing:-.02em;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs{gap:5px!important;padding:6px 8px 8px!important;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{position:relative;flex:1 0 auto;border:0;background:#eef1f4;border-radius:10px;padding:9px 13px;font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap}
 .tabs button.dot::after{content:"";position:absolute;top:5px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--bad)}
 #maQ{width:100%;font:inherit;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;box-sizing:border-box}
 .machips{display:flex;gap:6px;margin-top:8px}

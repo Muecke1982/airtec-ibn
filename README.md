@@ -83,7 +83,13 @@ Die Datei liest nur der Server (über Microsoft Graph), sie wird nie aufs Handy 
 * Die Tabelle wird mit der E-Mail-Adresse des Dienstkontos geteilt (Betrachter reicht für das Lesen).
 * **Urlaub** kommt allein aus dem Wochenplan: jede Zelle mit „Urlaub“ zählt (halber Tag: „½“ oder „halb“ in der Zelle).
   Aufeinanderfolgende Tage werden über Wochenende und „Feiertag“/„frei“ hinweg zu einem Zeitraum zusammengefasst
-  (`lib/urlaubplan.js`). Startseite: „Mein Urlaub“ für jeden, „Urlaub im Team“ für das Recht „urlaub“.
+  (`lib/urlaubplan.js`). Blick: ab heute ein Jahr voraus, so weit der Wochenplan reicht (Blätter für das nächste Jahr
+  brauchen die Jahreszahl im Namen, z. B. „KW 2 2027“). Startseite: nur der eigene, anstehende Urlaub.
+  Reiter Allgemeines → Urlaub: Urlaub eintragen (eigener; Recht „urlaub“: für alle) → wird in den Wochenplan geschrieben;
+  „Urlaub im Team“ und Empfänger der Infomail für das Recht „urlaub“.
+* **Urlaub-Infomail** (`lib/urlaubinfo.js`): neuer oder gestrichener künftiger Urlaub im Wochenplan (aus der App oder direkt
+  in der Tabelle) → Mail „bitte in Label eintragen/prüfen“. Läuft alle 15 Min. tagsüber und direkt nach dem Eintragen.
+  Absender = `MAIL_FROM` (z. B. kapp@airtec-kaeltetechnik.de, Postfach mit App-Recht Mail.Send), Empfänger in der App einstellbar.
   Alle Wochenblätter des Jahres werden mit einer Anfrage gelesen und 10 Minuten zwischengespeichert.
 
 ## Maschinen

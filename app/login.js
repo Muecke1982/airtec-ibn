@@ -44,7 +44,11 @@
   function tab(name) {
     ls.set("at_tab", name);
     document.querySelectorAll("[data-mod]").forEach(el => el.classList.toggle("hide", el.dataset.mod !== name));
-    document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+    document.querySelectorAll("#tabs button").forEach(b => {
+      b.classList.toggle("on", b.dataset.tab === name);
+      // Reiterleiste ist seitlich verschiebbar: gewählten Reiter in die Mitte holen
+      if (b.dataset.tab === name && b.offsetWidth) { const n = b.parentNode; try { n.scrollTo({ left: b.offsetLeft - (n.clientWidth - b.offsetWidth) / 2, behavior: "smooth" }); } catch (e) {} }
+    });
     const m = AT.modules[name]; if (m && m.show) m.show();
     window.scrollTo(0, 0);
   }
