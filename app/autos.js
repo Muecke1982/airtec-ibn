@@ -1,4 +1,4 @@
-/* Airtec KApp – Reiter „Autos“: Autos und Anhänger mit nächstem TÜV, Leasing und Fahrer.
+/* Airtec KApp – Allgemeines → „Autos“:Autos und Anhänger mit nächstem TÜV, Leasing und Fahrer.
    Pflegen (anlegen, ändern, „TÜV erledigt“, löschen) mit dem Recht „Autos verwalten“. */
 (function () {
   const AT = window.AT;
@@ -6,15 +6,8 @@
   const say = t => { if (typeof toast === "function") toast(t); };
   const de = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : "";
 
-  const tabBtn = document.createElement("button");
-  tabBtn.dataset.tab = "autos"; tabBtn.textContent = "Autos";
-  document.getElementById("tabs").appendChild(tabBtn);
-  tabBtn.onclick = () => AT.tab("autos");
-  const view = document.createElement("main");
-  view.id = "autView"; view.dataset.mod = "autos"; view.className = "hide";
-  document.getElementById("app").before(view);
-  const hdr = document.querySelector("#hdrType");
-  if (hdr) { const s = document.createElement("small"); s.dataset.mod = "autos"; s.className = "hide"; s.textContent = "Autos & Anhänger"; hdr.parentNode.appendChild(s); }
+  // Unterreiter im Reiter „Allgemeines“ (app/allgemein.js legt den Platz an)
+  const view = document.getElementById("autView");
 
   const css = document.createElement("style");
   css.textContent = `

@@ -16,6 +16,7 @@ import * as austausch from "../functions/api/austausch.js";
 import { aufraeumen as austauschAufraeumen } from "../lib/austausch.js";
 import * as autos from "../functions/api/autos.js";
 import * as suche from "../functions/api/suche.js";
+import * as personal from "../functions/api/personal.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
 import { taeglich as sicherungTaeglich } from "../lib/sicherung.js";
 import { auth } from "../lib/auth.js";
@@ -47,6 +48,8 @@ const routes = {
   "GET /api/autos": autos.onRequestGet,
   "POST /api/autos": autos.onRequestPost,
   "GET /api/suche": suche.onRequestGet,
+  "GET /api/personal": personal.onRequestGet,
+  "POST /api/personal": personal.onRequestPost,
 };
 
 // Logbuch: Änderungen (POST) und Anmeldungen aufzeichnen – im Hintergrund, damit die Antwort nicht wartet
@@ -58,7 +61,7 @@ async function protokolliere(env, me, url, body, res) {
   }
   if (!res.ok) return;
   const b = { ...body };
-  if (pfad === "/api/admin" && b.id && !b.name)   // Mitarbeiter-Name statt interner Nummer
+  if ((pfad === "/api/admin" || pfad === "/api/personal") && b.id && !b.name)   // Mitarbeiter-Name statt interner Nummer
     b.name = body._name || "";
   const e = beschreibe(pfad, b, url.searchParams);
   if (e) await schreibe(env, (me && (me.name || (me.legacy ? "Firmen-Code" : ""))) || "?", e.bereich, e.aktion, e.details);
@@ -74,7 +77,7 @@ export default {
       // JSON-Inhalt für das Logbuch mitlesen (PDF-Upload: nur Name aus der Adresse)
       let body = {};
       if ((request.headers.get("content-type") || "").includes("json")) body = await request.clone().json().catch(() => ({}));
-      if (url.pathname.startsWith("/api/admin") && body.id && !body.name)
+      if ((url.pathname.startsWith("/api/admin") || url.pathname.startsWith("/api/personal")) && body.id && !body.name)
         body._name = ((await one(env, "SELECT name FROM mitarbeiter WHERE id = ?", +body.id).catch(() => null)) || {}).name;
       if (url.pathname.startsWith("/api/autos") && body.id && !body.kennzeichen)   // Kennzeichen fürs Logbuch
         body.kennzeichen = ((await one(env, "SELECT kennzeichen FROM autos WHERE id = ?", +body.id).catch(() => null)) || {}).kennzeichen;
