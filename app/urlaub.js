@@ -99,9 +99,32 @@
         <button class="bigbtn" id="urAnSave" style="margin-top:10px">Empfänger speichern</button>
         <div class="${i.von ? "hint" : "urerr"}" style="margin:8px 0 0">${i.von ? `Absender: ${esc(i.von)}` : "⚠ Absender fehlt noch – in Cloudflare die Variable MAIL_FROM eintragen (z. B. kapp@airtec-kaeltetechnik.de). Bis dahin werden keine Mails verschickt."}</div>
       </section>`);
+      out.push(jahrKasten());
     }
     tabEl.innerHTML = out.join("");
     bindTab();
+  }
+
+  // Büro: Wochenplan über den Jahreswechsel (Blätter vorab anlegen; Admin: neues Jahr beginnen)
+  let jahrMeldung = null;
+  function jahrKasten() {
+    const j = data.jahr || {};
+    if (j.fehler) return `<section class="card"><h3 style="margin:0 0 8px;font-size:15px">📅 Wochenplan Jahreswechsel</h3><div class="urerr">⚠ ${esc(j.fehler)}</div></section>`;
+    if (!j.planJahr) return "";
+    const n = j.naechstes, vorab = j.vorab || [];
+    const l = j.letzter;
+    return `<section class="card"><h3 style="margin:0 0 8px;font-size:15px">📅 Wochenplan Jahreswechsel</h3>
+      <div class="hint" style="margin:0 0 6px">Die Wochenblätter ohne Jahreszahl gelten für <b>${j.planJahr}</b>.
+        ${vorab.length ? `Schon angelegt für ${n}: ${vorab.map(esc).join(", ")}.` : `Für ${n} ist noch kein Blatt angelegt.`}
+        Ab November legt die App die Blätter bis KW 4/${n} automatisch an (Kopie der Blätter KW 1–4: Namen und Aufbau bleiben, Einträge leer, Datum und Feiertage für ${n}).</div>
+      ${vorab.length < 4 ? `<button class="bigbtn" id="urBlaetter" style="margin-top:6px">Blätter bis KW 4/${n} jetzt anlegen</button>` : ""}
+      ${data.admin ? `<div class="hint" style="margin:12px 0 6px"><b>Neues Jahr beginnen</b> (ab 1. Januar ${n}): Die App speichert zuerst den ganzen Wochenplan als Sicherung in SharePoint (Ordner „Datensicherung“).
+        Dann werden alle Wochenblätter auf ${n} umgeschrieben: Datum neu, Einträge leer, bundesweite Feiertage eingetragen. Für KW 1–4 werden die schon angelegten Blätter mit dem eingetragenen Urlaub übernommen.
+        Die Tabelle und ihr Link bleiben gleich.</div>
+        <button class="bigbtn ${j.erlaubt ? "primary" : ""}" id="urNeuesJahr" ${j.erlaubt ? "" : "disabled"}>${j.erlaubt ? (j.angefangen ? `Jahreswechsel ${n} fortsetzen` : `Neues Jahr ${n} beginnen`) : `Neues Jahr – ab 1. Januar ${n}`}</button>` : ""}
+      ${l ? `<div class="hivon">Letzter Jahreswechsel: ${l.von} → ${l.nach} am ${esc(dd(l.am))} von ${esc(l.wer)}${l.sicherung ? `, Sicherung „${esc(l.sicherung)}“` : ""}</div>` : ""}
+      ${jahrMeldung ? `<div class="${jahrMeldung.ok ? "hint" : "urerr"}" style="margin:10px 0 0;${jahrMeldung.ok ? "background:#eef7ee;color:#2c7a3f;border-radius:8px;padding:8px 10px" : ""}">${jahrMeldung.html}</div>` : ""}
+    </section>`;
   }
 
   function bindTab() {
@@ -132,6 +155,31 @@
     const t = q("#urToggle"); if (t) t.onclick = () => { open = !open; paintTab(); };
     const s = q("#urSync"); if (s) s.onclick = async () => { s.disabled = true; s.textContent = "Wird geladen …"; await load(true); open = true; paintTab(); if (!fehler) say("Wochenplan neu eingelesen"); };
     const a = q("#urAnSave"); if (a) a.onclick = async () => { if (await post({ aktion: "infomail", an: q("#urAn").value }, a)) say("Empfänger gespeichert ✓"); };
+    const bl = q("#urBlaetter"); if (bl) bl.onclick = async () => {
+      bl.textContent = "Wird angelegt …";
+      const r = await post({ aktion: "blaetter" }, bl);
+      if (!r) return;
+      const b = r.blaetter || {};
+      jahrMeldung = { ok: !(b.fehler && b.fehler.length), html: [
+        b.angelegt && b.angelegt.length ? `✓ Angelegt: ${b.angelegt.map(esc).join(", ")}` : "Alle Blätter waren schon da.",
+        b.feiertage && b.feiertage.length ? `Feiertage eingetragen: ${b.feiertage.map(f => `${esc(dd(f.datum))} ${esc(f.name)}`).join(", ")}` : "",
+        b.fehler && b.fehler.length ? `⚠ ${esc(b.fehler.join("; "))}` : ""].filter(Boolean).join("<br>") };
+      paintTab();
+    };
+    const nj = q("#urNeuesJahr"); if (nj) nj.onclick = async () => {
+      const j = data.jahr || {};
+      if (!confirm(`Neues Jahr ${j.naechstes} beginnen?\n\nZuerst wird der Wochenplan gesichert. Danach werden alle Wochenblätter auf ${j.naechstes} umgeschrieben und geleert.`)) return;
+      if (!confirm(`Wirklich? Die Einträge von ${j.planJahr} stehen danach nur noch in der Sicherung.`)) return;
+      nj.textContent = "Läuft – bitte warten (bis zu einer Minute) …";
+      const r = await post({ aktion: "neuesjahr" }, nj);
+      if (!r) return;
+      const e = r.neuesjahr || {};
+      jahrMeldung = { ok: true, html: [`✓ Wochenplan auf ${e.nach} umgestellt.`, `Sicherung: ${esc(e.sicherung)}${e.hinweis ? ` (als Datendatei, weil: ${esc(e.hinweis)})` : ""}`,
+        `${e.umgeschrieben} Blätter umgeschrieben${e.uebernommen && e.uebernommen.length ? `, übernommen: ${e.uebernommen.map(esc).join(", ")}` : ""}${e.angelegt && e.angelegt.length ? `, neu: ${e.angelegt.map(esc).join(", ")}` : ""}.`,
+        e.feiertage && e.feiertage.length ? `Feiertage: ${e.feiertage.map(f => `${esc(dd(f.datum))} ${esc(f.name)}`).join(", ")}` : ""].filter(Boolean).join("<br>") };
+      say("Neues Jahr begonnen ✓");
+      paintTab();
+    };
   }
 
   AT.urlaubTab = {

@@ -87,6 +87,13 @@ Die Datei liest nur der Server (über Microsoft Graph), sie wird nie aufs Handy 
   brauchen die Jahreszahl im Namen, z. B. „KW 2 2027“). Startseite: nur der eigene, anstehende Urlaub.
   Reiter Allgemeines → Urlaub: Urlaub eintragen (eigener; Recht „urlaub“: für alle) → wird in den Wochenplan geschrieben;
   „Urlaub im Team“ und Empfänger der Infomail für das Recht „urlaub“.
+* **Jahreswechsel** (`lib/jahreswechsel.js`, Reiter Allgemeines → Urlaub, Kasten „Wochenplan Jahreswechsel“):
+  Die Tabelle (und ihr Link) bleibt immer dieselbe. Einstellung `wochenplan_jahr` = Jahr, für das die Blätter ohne Jahreszahl gelten.
+  Ab November legt der Zeitplan „KW 1 2027“ … „KW 4 2027“ an (Kopie von „KW 1“ … mit leeren Einträgen, neuem Datum und
+  bundesweiten Feiertagen) und ergänzt eine fehlende „KW 53“. Ab 1. Januar (Admin) „Neues Jahr beginnen“: Sicherung der Tabelle
+  als Excel in den SharePoint-Ordner „Datensicherung“ (braucht die *Google Drive API* im Cloud-Projekt des Dienstkontos, sonst
+  Sicherung als JSON), dann alle Wochenblätter aufs neue Jahr umschreiben; „KW n 2027“ ersetzt „KW n“ (mit eingetragenem Urlaub).
+  Bricht der Lauf ab, setzt ein zweiter Tipp an derselben Stelle fort.
 * **Urlaub-Infomail** (`lib/urlaubinfo.js`): neuer oder gestrichener künftiger Urlaub im Wochenplan (aus der App oder direkt
   in der Tabelle) → Mail „bitte in Label eintragen/prüfen“. Läuft alle 15 Min. tagsüber und direkt nach dem Eintragen.
   Absender = `MAIL_FROM` (z. B. kapp@airtec-kaeltetechnik.de, Postfach mit App-Recht Mail.Send), Empfänger in der App einstellbar.

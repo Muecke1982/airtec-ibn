@@ -20,6 +20,7 @@ import * as personal from "../functions/api/personal.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
 import { pruefen as fuehrerscheinPruefen } from "../lib/personal.js";
 import { abgleich as urlaubInfo } from "../lib/urlaubinfo.js";
+import { taeglich as wochenplanVorbereiten } from "../lib/jahreswechsel.js";
 import { users } from "../lib/auth.js";
 import { taeglich as sicherungTaeglich } from "../lib/sicherung.js";
 import { auth } from "../lib/auth.js";
@@ -99,7 +100,9 @@ export default {
     ctx.waitUntil(autosPruefen(env).catch(e => console.error("Autos prüfen:", e.message)));
     ctx.waitUntil(fuehrerscheinPruefen(env).catch(e => console.error("Führerschein prüfen:", e.message)));
     // Urlaub-Infomail: neuen/gestrichenen Urlaub im Wochenplan ans Büro melden
-    ctx.waitUntil(users(env).then(p => urlaubInfo(env, p)).catch(e => console.error("Urlaub-Infomail:", e.message)));
+    // Wochenplan: ab November Blätter „KW 1 <nächstes Jahr>“ … „KW 4 …“ anlegen, danach Infomail
+    ctx.waitUntil(wochenplanVorbereiten(env).catch(e => console.error("Wochenplan nächstes Jahr:", e.message))
+      .then(() => users(env)).then(p => urlaubInfo(env, p)).catch(e => console.error("Urlaub-Infomail:", e.message)));
     // Datensicherung: einmal täglich (nachts um 1:30 UTC, sonst beim ersten Lauf des Tages)
     ctx.waitUntil(sicherungTaeglich(env).catch(e => console.error("Datensicherung:", e.message)));
   },

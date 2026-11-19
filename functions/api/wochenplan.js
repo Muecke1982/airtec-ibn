@@ -3,6 +3,7 @@ import { auth, users } from "../../lib/auth.js";
 import { json } from "../../lib/graph.js";
 import { sheets, sheetValues } from "../../lib/google.js";
 import { isoWeek, mondayOf, isoDate, findSheet, parseWeek, matchName } from "../../lib/wochenplan.js";
+import { planJahr } from "../../lib/jahreswechsel.js";
 
 // Wochenplan einer Kalenderwoche: /api/wochenplan?datum=2026-11-09  oder  ?jahr=2026&kw=46
 export async function onRequestGet({ request, env }) {
@@ -19,7 +20,7 @@ export async function onRequestGet({ request, env }) {
     }
     const monday = mondayOf(year, week);
     const list = await sheets(env);
-    const sh = findSheet(list, year, week);
+    const sh = findSheet(list, year, week, await planJahr(env));
     if (!sh) return json(200, { jahr: year, kw: week, montag: isoDate(monday), fehlt: true, spalten: [], tage: [] });
     const all = await users(env);
     const plan = parseWeek(await sheetValues(env, sh), all.map(u => u.plan), monday);
