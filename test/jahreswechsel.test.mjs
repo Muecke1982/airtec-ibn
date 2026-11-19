@@ -127,6 +127,8 @@ const v = await taeglich(env, { heute: "2026-11-19" });
 assert.deepEqual(v.angelegt, ["KW 53", "KW 1 2027", "KW 2 2027", "KW 3 2027", "KW 4 2027"]);
 assert.equal((await one(env, "SELECT wert FROM einstellungen WHERE schluessel = 'wochenplan_jahr'")).wert, "2026");
 assert.equal(byTitle("KW 53").index, byTitle("KW 52").index + 1, "KW 53 hinter KW 52");
+assert.deepEqual([...sheets].sort((a, b) => a.index - b.index).slice(-6).map(s => s.title), ["KW 53", "KW 1 2027", "KW 2 2027", "KW 3 2027", "KW 4 2027", "Info"],
+  "neue Blätter direkt hinter KW 53, andere Blätter bleiben hinten");
 // KW 53/2026: 28.12.2026–01.01.2027, Neujahr (Fr) = Feiertag, Einträge leer, Datum neu
 assert.equal(wert("KW 53", 0, 1), "Woche vom 28.12.2026");
 assert.equal(wert("KW 53", 2, 1), "28.12.2026");
