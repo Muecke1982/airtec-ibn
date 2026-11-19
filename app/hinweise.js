@@ -119,6 +119,7 @@
     // ---------- Austausch: angepinnt, dringend, Zähler ----------
     if (A) {
       // angepinnte Mitteilungen als Chat (antworten, bestätigen, schließen – wie im Reiter „Nachrichten“)
+      for (const m of AT.austausch.hinweise()) items.push(AT.austausch.karte(m));   // 📢 Hinweise: nur der Text
       for (const m of AT.austausch.pins()) items.push(AT.austausch.karte(m));
       const neuN = A.ungelesen || 0, wichtigN = A.wichtigOffen || 0;
       items.push(`<section class="card hicard"><div class="hihead">✉️ Nachrichten</div>

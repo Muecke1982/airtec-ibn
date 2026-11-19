@@ -158,6 +158,33 @@ await aufraeumen(env);
 assert.ok(!(await one(env, "SELECT id FROM nachrichten WHERE id = ?", idx)), "Papierkorb nach 30 Tagen geleert");
 assert.ok(await one(env, "SELECT id FROM nachricht_bilder"), "Fotos anderer Nachrichten bleiben");
 
+// mehrere auf einmal in den Papierkorb (Verlauf aufräumen)
+await aktion(env, seb, { aktion: "senden", an: ["Nick Pauls"], text: "Alt 1" });
+await aktion(env, seb, { aktion: "senden", an: ["Nick Pauls"], text: "Alt 2" });
+let lS2 = await liste(env, seb);
+await aktion(env, seb, { aktion: "loeschen", ids: [finde(lS2, "Alt 1").id, finde(lS2, "Alt 2").id] });
+lS2 = await liste(env, seb);
+assert.ok(finde(lS2, "Alt 1").ordner === "geloescht" && finde(lS2, "Alt 2").ordner === "geloescht");
+await rejects(aktion(env, nick, { aktion: "loeschen", ids: [finde(lS2, "Info an alle").id] }), /Absender oder das Büro/);
+
+// Abstimmung anpinnen
+await aktion(env, chr, { aktion: "umfrage", an: ["*alle"], text: "Grillen?", optionen: ["ja", "nein"], prio: "pin", bis: morgen });
+assert.ok(finde(await liste(env, nick), "Grillen?").pin, "Abstimmung angepinnt");
+
+// Hinweis: für alle angepinnt, kein Chat, nur Verfasser oder Admin nimmt ihn zurück
+await rejects(aktion(env, nick, { aktion: "hinweis", text: "x" }), /nur das Büro/);
+await aktion(env, chr, { aktion: "hinweis", text: "Werkstatt am Freitag geschlossen" });
+let hw = offen(await liste(env, nick), "Werkstatt am Freitag geschlossen");
+assert.ok(hw && hw.typ === "hinweis" && hw.pin && !hw.brauchtOk && !hw.neu && !hw.darfLoeschen);
+assert.ok(!(await liste(env, nick)).erinnern.includes(hw.id));
+await rejects(aktion(env, nick, { aktion: "antworten", id: hw.id, text: "ok" }), /nicht antworten/);
+await rejects(aktion(env, nick, { aktion: "schliessen", id: hw.id }), /Verfasser/);
+await run(env, "INSERT INTO mitarbeiter (name, rechte) VALUES ('Bea Buero', 'hinweise')"); resetUsers();
+await rejects(aktion(env, { name: "Bea Buero", rechte: ["hinweise"], admin: false }, { aktion: "loeschen", id: hw.id }), /Verfasser oder der Admin/);
+assert.ok(finde(await liste(env, seb), "Werkstatt am Freitag geschlossen").darfLoeschen, "Admin darf zurücknehmen");
+await aktion(env, chr, { aktion: "loeschen", id: hw.id });
+assert.ok(!finde(await liste(env, nick), "Werkstatt am Freitag geschlossen"), "zurückgenommen");
+
 // Geburtstag (nur Mo–Fr): Nick hat heute Geburtstag
 if (istWerktag) {
   const lS = await liste(env, seb);

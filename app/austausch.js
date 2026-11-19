@@ -71,8 +71,20 @@
   .aub.me{align-self:flex-end;background:#dff1fa;border-radius:14px 4px 14px 14px}
   .aub.erst{max-width:100%;align-self:stretch;background:none;padding:2px 0 0;border-radius:0}
   .aub .wer{font-size:12px;font-weight:700;color:var(--mut);margin-bottom:1px}
-  .aub .txt{white-space:pre-wrap;word-break:break-word;font-size:15.5px;line-height:1.38}
-  .aub.erst .txt{font-size:16px}
+  .aub .txt{white-space:pre-wrap;word-break:break-word;font-size:17px;font-weight:500;line-height:1.4;color:#111}
+  .aub.erst .txt{font-size:18.5px;font-weight:650;line-height:1.38}
+  .auhw{padding:14px 15px 10px;border:2px solid #f0b400;background:#fffbea;border-left-width:6px}
+  .auhw .hwtxt{white-space:pre-wrap;word-break:break-word;font-size:19px;font-weight:700;line-height:1.38;color:#111}
+  .auhw .hwfuss{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:#7a6a2a}
+  .auhw .hwfuss button{margin-left:auto;border:1px solid #e3cf7a;background:#fff;border-radius:8px;padding:5px 10px;font:inherit;font-size:13px;color:var(--bad)}
+  .auhw .hwfuss button.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+  .auhw.zu{opacity:.85}
+  .ausel{display:flex;align-items:center;gap:8px;margin:-2px 0 8px;font-size:14px;font-weight:600;color:var(--ink)}
+  .ausel input{width:22px;height:22px}
+  .ausel-bar{position:sticky;bottom:calc(env(safe-area-inset-bottom) + 8px);z-index:3;display:flex;gap:8px;align-items:center;background:var(--ink);color:#fff;border-radius:14px;padding:9px 10px 9px 14px;margin-top:6px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+  .ausel-bar b{flex:1;font-size:14.5px} .ausel-bar button{border:0;border-radius:10px;padding:9px 12px;font:inherit;font-size:14px;font-weight:700}
+  .ausel-bar .weg{background:var(--bad);color:#fff} .ausel-bar .ab{background:#ffffff26;color:#fff}
+  .auc.gewaehlt{box-shadow:0 0 0 3px var(--blue)}
   .aub .zeit{font-size:11px;color:var(--mut);text-align:right;margin-top:2px}
   .aufotos{display:flex;flex-wrap:wrap;gap:6px;margin:5px 0 2px}
   .aufotos img,.aufotos .ph{width:92px;height:92px;object-fit:cover;border-radius:10px;background:#e6eaee;display:block;cursor:zoom-in}
@@ -115,7 +127,7 @@
   document.head.appendChild(css);
 
   const cacheKey = () => "au_cache_" + ((AT.user && AT.user.name) || "");
-  let data = null, ordner = "offen", person = "", form = null, prio = "normal", offenStatus = null, busy = false;
+  let data = null, ordner = "offen", person = "", form = null, prio = "normal", offenStatus = null, busy = false, auswahl = null;   // auswahl: Set der markierten IDs (Mehrfach-Löschen)
   const aufgeklappt = new Set(), entwurf = {}, fotos = {};   // fotos: Ziel ("neu" oder Nachricht-ID) → [{klein, gross}]
 
   async function post(body) {
@@ -200,7 +212,19 @@
     return `<div class="aub ${erst ? "erst" : meins ? "me" : ""}">${!erst && !meins ? `<div class="wer">${esc(first(von))}</div>` : ""}
       ${text ? `<div class="txt">${esc(text)}</div>` : ""}${fotoReihe(bilder, erst)}${erst ? "" : `<div class="zeit">${esc(wann(zeit))}</div>`}</div>`;
   }
+  // Hinweis: nur der Text (für alle angepinnt), kein Chat; zurücknehmen nur Verfasser/Admin
+  function hinweisKarte(m) {
+    const offenOrd = m.ordner === "offen";
+    const sel = auswahl && m.darfLoeschen && !offenOrd && m.ordner !== "geloescht";
+    return `<section class="card auhw ${offenOrd ? "" : "zu"} ${sel && auswahl.has(m.id) ? "gewaehlt" : ""}" data-m="${m.id}">
+      ${sel ? `<label class="ausel"><input type="checkbox" data-wahl="${m.id}" ${auswahl.has(m.id) ? "checked" : ""}> auswählen</label>` : ""}
+      ${m.text ? `<div class="hwtxt">📢 ${esc(m.text)}</div>` : ""}${fotoReihe(m.bilder, true)}
+      <div class="hwfuss"><span>${esc(m.eigene ? "Du" : first(m.von))} · ${esc(dd(m.erstellt.slice(0, 10)))}${m.bis ? " · bis " + dd(m.bis) : ""}</span>
+        ${offenOrd && m.darfLoeschen ? `<button data-del="${m.id}" data-dellabel="Zurücknehmen">Zurücknehmen</button>` : ""}
+        ${!offenOrd && m.darfLoeschen ? `<button data-wieder="${m.id}" style="color:#2f7d43">↩︎ Wieder anpinnen</button>` : ""}</div></section>`;
+  }
   function karte(m) {
+    if (m.typ === "hinweis") return hinweisKarte(m);
     const offenOrd = m.ordner === "offen";
     const anTxt = m.eigene ? "an " + m.an.join(", ") : m.an.includes("Alle") ? "an alle" : m.an.includes("Büro") ? "ans Büro" : "an dich";
     const badges = [
@@ -253,11 +277,23 @@
       unten = `<div class="auinfo">🗑 Gelöscht von ${esc(m.geloescht.von || "?")} ${esc(wann(m.geloescht.am))} – wird nach 30 Tagen endgültig entfernt</div>
         <div class="auacts"><button class="back" data-wieder="${m.id}">↩︎ Wiederherstellen</button></div>`;
     }
-    const kl = ["card", "auc", m.prio, m.pin ? "pin" : "", m.neu ? "neu" : "", offenOrd ? "" : "zu"].join(" ");
-    return `<section class="${kl}" data-m="${m.id}">${top}${chat}${stat}${unten}</section>`;
+    const sel = auswahl && m.darfLoeschen && m.ordner === "verlauf";
+    if (sel) unten = "";
+    const kl = ["card", "auc", m.prio, m.pin ? "pin" : "", m.neu ? "neu" : "", offenOrd ? "" : "zu", sel && auswahl.has(m.id) ? "gewaehlt" : ""].join(" ");
+    return `<section class="${kl}" data-m="${m.id}">${sel ? `<label class="ausel"><input type="checkbox" data-wahl="${m.id}" ${auswahl.has(m.id) ? "checked" : ""}> auswählen</label>` : ""}${top}${chat}${stat}${unten}</section>`;
   }
 
+  function hinweisFormular() {
+    return `<section class="card auform"><h2>📢 Neuer Hinweis</h2>
+      <div class="hint" style="margin-top:0">Steht für alle auf der Startseite – ohne Chat, ohne Bestätigen. Zurücknehmen können nur Sie oder der Admin.</div>
+      <label>Hinweis</label><textarea id="auText" class="auin" rows="3" placeholder="z. B. Werkstatt ist am Freitag geschlossen">${esc(entwurf.neu || "")}</textarea>
+      <button class="aufotobtn" data-foto="neu">📷 Foto anhängen</button><div id="auNeuPrev">${vorschau("neu")}</div>
+      <div class="row"><div><label>Gilt bis (optional)</label><input type="date" id="auBis"></div><div><label>Sichtbar ab (optional)</label><input type="date" id="auAb"></div></div>
+      <div class="vwbtns" style="display:flex;gap:8px;margin-top:14px"><button class="bigbtn primary" id="auSend" style="flex:2">📢 Hinweis anpinnen</button>
+        <button class="bigbtn secondary" id="auCancel" style="flex:1">Abbrechen</button></div></section>`;
+  }
   function formular() {
+    if (form === "hinweis") return hinweisFormular();
     const P = (data && data.personen) || [];
     const isU = form === "umfrage";
     const pick = `<label>An</label><div class="aupick">
@@ -270,7 +306,8 @@
       <label>${isU ? "Frage" : "Nachricht"}</label><textarea id="auText" class="auin" rows="3" placeholder="${isU ? "z. B. Welcher Termin passt für die Weihnachtsfeier?" : "Nachricht …"}">${esc(entwurf.neu || "")}</textarea>
       ${isU ? `<label>Antwortmöglichkeiten</label><div id="auOpts">${[1, 2, 3].map(i => `<input class="auopt" placeholder="Antwort ${i}" style="margin-bottom:6px">`).join("")}</div>
         <button class="add" id="auOptAdd" style="margin-top:0">+ weitere Antwort</button>
-        <label class="hichk" style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="auMehr"> mehrere Antworten erlaubt</label>`
+        <label class="hichk" style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="auMehr"> mehrere Antworten erlaubt</label>
+        <label class="hichk" style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="auUPin"> 📌 Anpinnen – steht auf der Startseite (braucht „Abstimmen bis“)</label>`
         : `<button class="aufotobtn" data-foto="neu">📷 Foto anhängen</button><div id="auNeuPrev">${vorschau("neu")}</div>
         <label>Priorität</label><div class="auprio">
           <button data-prio="normal" class="${prio === "normal" ? "on" : ""}">Normal</button>
@@ -329,20 +366,27 @@
     const pins = alle.filter(m => m.ordner === "offen" && m.pin).length;
     let list = N[ordner] || [];
     if (ordner !== "offen" && person) list = list.filter(m => (m.beteiligt || []).some(n => lc(n) === lc(person)));
+    if (ordner !== "verlauf") auswahl = null;
+    const waehlbar = ordner === "verlauf" ? list.filter(m => m.darfLoeschen).map(m => m.id) : [];
+    if (auswahl) for (const id of [...auswahl]) if (!waehlbar.includes(id)) auswahl.delete(id);
     const autos = data.meineAutos || [];
     const leute = [...new Set([...N.verlauf, ...N.geloescht].flatMap(m => m.beteiligt || []))].filter(n => lc(n) !== lc(ich())).sort((a, b) => a.localeCompare(b, "de"));
     const zeigPapierkorb = buero() || N.geloescht.length;
     const leer = { offen: ["💬", "Keine offenen Nachrichten."], verlauf: ["🗂", person ? "Keine geschlossenen Chats mit " + first(person) + "." : "Noch keine geschlossenen Chats."],
       geloescht: ["🗑", person ? "Keine gelöschten Nachrichten mit " + first(person) + "." : "Der Papierkorb ist leer."] }[ordner];
     view.innerHTML = `${form === "auto" ? autoFormular(autos) : form ? formular() : `<div class="autop">
-        <button class="add" id="auNew">✉️ Neue Nachricht</button>${buero() ? `<button class="add" id="auPoll">📊 Abstimmung</button>` : ""}
+        <button class="add" id="auNew">✉️ Nachricht</button>${buero() ? `<button class="add" id="auPoll">📊 Abstimmung</button><button class="add" id="auHw">📢 Hinweis</button>` : ""}
         ${autos.length ? `<button class="add" id="auAuto" style="flex:1 1 100%">🚐 Autoinfo an Büro</button>` : ""}</div>`}
       <div class="auord"><button data-o="offen" class="${ordner === "offen" ? "on" : ""}">💬 Offen<i>${N.offen.length}</i></button>
         <button data-o="verlauf" class="${ordner === "verlauf" ? "on" : ""}">🗂 Verlauf<i>${N.verlauf.length}</i></button>
         ${zeigPapierkorb ? `<button data-o="geloescht" class="${ordner === "geloescht" ? "on" : ""}">🗑 Papierkorb<i>${N.geloescht.length}</i></button>` : ""}</div>
-      ${ordner !== "offen" ? `<select class="auperson" id="auPerson"><option value="">👥 Alle Personen</option>${leute.map(n => `<option ${lc(n) === lc(person) ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>` : ""}
+      ${ordner !== "offen" ? `<div style="display:flex;gap:8px;align-items:flex-start"><select class="auperson" id="auPerson" style="flex:1">
+          <option value="">👥 Alle Personen</option>${leute.map(n => `<option ${lc(n) === lc(person) ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
+          ${ordner === "verlauf" && waehlbar.length && !auswahl ? `<button class="add" id="auWahl" style="margin:0;flex:0 0 auto;padding:10px 12px">☑️ Auswählen</button>` : ""}</div>` : ""}
       ${ordner === "offen" && pins ? `<button class="aupinhint" id="auZurStart">📌 ${pins} angepinnte Mitteilung${pins > 1 ? "en" : ""} auf der Startseite →</button>` : ""}
-      ${list.length ? list.map(karte).join("") : `<section class="card auleer"><b>${leer[0]}</b>${esc(leer[1])}</section>`}`;
+      ${list.length ? list.map(karte).join("") : `<section class="card auleer"><b>${leer[0]}</b>${esc(leer[1])}</section>`}
+      ${auswahl ? `<div class="ausel-bar"><b>${auswahl.size} ausgewählt</b><button class="ab" id="auWahlAlle">${auswahl.size === waehlbar.length ? "Keine" : "Alle"}</button>
+        <button class="weg" id="auWahlWeg" ${auswahl.size ? "" : "disabled"}>🗑 In den Papierkorb</button><button class="ab" id="auWahlEnde" aria-label="Auswahl beenden">✕</button></div>` : ""}`;
     binden(view);
     bindForm();
   }
@@ -354,6 +398,19 @@
     const np = q("#auPoll"); if (np) np.onclick = () => { form = "umfrage"; paint(); };
     const na = q("#auAuto"); if (na) na.onclick = () => { form = "auto"; paint(); };
     const zs = q("#auZurStart"); if (zs) zs.onclick = () => AT.tab("start");
+    const hw = q("#auHw"); if (hw) hw.onclick = () => { form = "hinweis"; paint(); const t = q("#auText"); if (t) t.focus(); };
+    // Verlauf: mehrere auswählen und zusammen in den Papierkorb legen
+    const wa = q("#auWahl"); if (wa) wa.onclick = () => { auswahl = new Set(); paint(); };
+    view.querySelectorAll("[data-wahl]").forEach(c => c.onchange = () => { const id = +c.dataset.wahl; c.checked ? auswahl.add(id) : auswahl.delete(id); paint(); });
+    const we = q("#auWahlEnde"); if (we) we.onclick = () => { auswahl = null; paint(); };
+    const wl = q("#auWahlAlle"); if (wl) wl.onclick = () => {
+      const alle = [...view.querySelectorAll("[data-wahl]")].map(c => +c.dataset.wahl);
+      auswahl = new Set(auswahl.size === alle.length ? [] : alle); paint(); };
+    const ww = q("#auWahlWeg"); if (ww) ww.onclick = () => {
+      if (!ww.classList.contains("sure")) { ww.classList.add("sure"); ww.textContent = `${auswahl.size} wirklich löschen?`; return; }
+      const ids = [...auswahl];
+      act(ww, { aktion: "loeschen", ids }, `${ids.length} in den Papierkorb gelegt`, () => { auswahl = null; }, () => paint());
+    };
     view.querySelectorAll("[data-o]").forEach(b => b.onclick = () => { ordner = b.dataset.o; paint(); gelesenMelden(); });
     const pe = q("#auPerson"); if (pe) pe.onchange = () => { person = pe.value; paint(); };
     if (form === "auto") return bindAuto();
@@ -364,13 +421,25 @@
     // „Alle“ schließt einzelne Häkchen aus
     view.querySelectorAll("[data-an]").forEach(c => c.onchange = () => { if (c.dataset.an === "*alle" && c.checked) view.querySelectorAll("[data-an]").forEach(x => { if (x !== c) x.checked = false; });
       else if (c.checked) { const a = q('[data-an="*alle"]'); if (a) a.checked = false; } });
+    if (form === "hinweis") {
+      q("#auSend").onclick = async () => {
+        const text = q("#auText").value.trim();
+        if (!text && !(fotos.neu || []).length) { q("#auText").focus(); return; }
+        q("#auSend").disabled = true;
+        try { await post({ aktion: "hinweis", text, bilder: fotos.neu || [], bis: q("#auBis").value, ab: q("#auAb").value });
+          form = null; delete entwurf.neu; delete fotos.neu; say("📢 Hinweis steht auf der Startseite ✓"); }
+        catch (e) { say(e.message); q("#auSend").disabled = false; return; }
+        paint();
+      };
+      return;
+    }
     q("#auSend").onclick = async () => {
       const an = [...view.querySelectorAll("[data-an]:checked")].map(c => c.dataset.an);
       const text = q("#auText").value.trim();
       if (!an.length) return say("Bitte Empfänger wählen");
       if (!text && !(fotos.neu || []).length) { q("#auText").focus(); return; }
       const b = { aktion: form === "umfrage" ? "umfrage" : "senden", an, text, bis: q("#auBis").value };
-      if (form === "umfrage") { b.optionen = [...view.querySelectorAll(".auopt")].map(i => i.value.trim()).filter(Boolean); b.mehrfach = q("#auMehr").checked; }
+      if (form === "umfrage") { b.optionen = [...view.querySelectorAll(".auopt")].map(i => i.value.trim()).filter(Boolean); b.mehrfach = q("#auMehr").checked; if (q("#auUPin").checked) b.prio = "pin"; }
       else { b.prio = prio; b.bilder = fotos.neu || []; if (q("#auAb")) b.ab = q("#auAb").value; if (prio === "pin") b.erinnerung = +q("#auErin").value; }
       q("#auSend").disabled = true; q("#auSend").textContent = "Sende …";
       try { await post(b); form = null; delete entwurf.neu; delete fotos.neu; ordner = "offen";
@@ -436,8 +505,9 @@
     root.querySelectorAll("[data-stat]").forEach(b => b.onclick = () => { offenStatus = offenStatus === +b.dataset.stat ? null : +b.dataset.stat; neu(); });
     root.querySelectorAll("[data-alle]").forEach(b => b.onclick = () => { aufgeklappt.add(+b.dataset.alle); neu(); });
     root.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
-      if (!b.classList.contains("sure")) { b.classList.add("sure"); b.textContent = "Wirklich löschen?"; setTimeout(() => { if (b.isConnected) { b.classList.remove("sure"); b.textContent = "Löschen"; } }, 4000); return; }
-      act(b, { aktion: "loeschen", id: +b.dataset.del }, "In den Papierkorb gelegt", null, neu);
+      const label = b.dataset.dellabel || "Löschen";
+      if (!b.classList.contains("sure")) { b.classList.add("sure"); b.textContent = `Wirklich ${label.toLowerCase()}?`; setTimeout(() => { if (b.isConnected) { b.classList.remove("sure"); b.textContent = label; } }, 4000); return; }
+      act(b, { aktion: "loeschen", id: +b.dataset.del }, b.dataset.dellabel ? "Hinweis zurückgenommen" : "In den Papierkorb gelegt", null, neu);
     });
     bilderEinsetzen(root);
   }
@@ -496,7 +566,8 @@
     load, post,
     onChange(f) { horcher.push(f); },
     // angepinnte, offene Chats (für die Startseite)
-    pins() { return ((data && data.nachrichten) || []).filter(m => m.pin && m.ordner === "offen" && m.typ !== "gruss"); },
+    pins() { return ((data && data.nachrichten) || []).filter(m => m.pin && m.ordner === "offen" && m.typ !== "gruss" && m.typ !== "hinweis"); },
+    hinweise() { return ((data && data.nachrichten) || []).filter(m => m.typ === "hinweis" && m.ordner === "offen"); },
     karte, binden,
     gelesen(ids) { if (ids && ids.length) gelesenMelden(ids); },
     oeffnen(id) {
