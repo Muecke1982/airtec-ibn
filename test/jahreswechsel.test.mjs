@@ -51,6 +51,15 @@ function kwBlatt(title, year, week, id) {
   return { id, title, index: nextIndex++, merges: [{ startRowIndex: 2, endRowIndex: 3, startColumnIndex: 2, endColumnIndex: 4 }], rows };
 }
 for (let w = 1; w <= 52; w++) sheets.push(kwBlatt(`KW ${w}`, 2026, w, 1000 + w));
+// Füllfarben wie im Büro: Feiertage gelb (ganze Zeile), ein Urlaubstag grün
+const GELB = { red: 1, green: 1, blue: 0 }, GRUEN = { red: 0, green: 1, blue: 0 };
+const faerben = (z, c) => { z.userEnteredFormat = { ...(z.userEnteredFormat || {}), backgroundColor: c }; };
+const zeileGelb = (t, r) => { const row = byTitle0(t).rows[r]; for (let c = 0; c < 4; c++) faerben(row[c] = row[c] || {}, GELB); };
+const byTitle0 = t => sheets.find(s => s.title === t);
+zeileGelb("KW 1", 5);    // Do 01.01.2026 Neujahr
+zeileGelb("KW 52", 6);   // Fr 25.12.2026
+faerben(byTitle0("KW 10").rows[3][2], GRUEN);
+const bgKey = (t, r, c) => { const f = ((byTitle0(t).rows[r] || [])[c] || {}).userEnteredFormat || {}; const b = f.backgroundColor; return b ? [b.red, b.green, b.blue].join(",") : ""; };
 sheets.push({ id: 5, title: "Info", index: nextIndex++, merges: [], rows: [[str("Telefonliste 2026")]] });
 const shown = z => {
   const u = z.userEnteredValue || {};
@@ -92,8 +101,13 @@ globalThis.fetch = async (url, opt = {}) => {
         u.rows.forEach((r, ri) => r.values.forEach((v, ci) => {
           const row = s.rows[u.range.startRowIndex + ri] = s.rows[u.range.startRowIndex + ri] || [];
           const alt = row[u.range.startColumnIndex + ci] || {};
-          const neu = { ...alt };
-          for (const f of u.fields.split(",")) { if (v[f] === undefined) delete neu[f]; else neu[f] = v[f]; }
+          const neu = clone(alt);
+          for (const f of u.fields.split(",")) {
+            const [a, b] = f.split(".");
+            if (!b) { if (v[a] === undefined) delete neu[a]; else neu[a] = v[a]; continue; }
+            neu[a] = neu[a] || {};
+            if (!v[a] || v[a][b] === undefined) delete neu[a][b]; else neu[a][b] = v[a][b];
+          }
           row[u.range.startColumnIndex + ci] = neu;
         }));
       } else throw new Error("unbekannt: " + Object.keys(rq));
@@ -141,7 +155,17 @@ assert.equal(v.feiertage.find(x => x.datum === "2027-01-01").name, "Neujahr");
 // KW 1 2027: 04.01.2027
 assert.equal(wert("KW 1 2027", 0, 0), "KW 1"); assert.equal(wert("KW 1 2027", 2, 1), "04.01.2027");
 assert.equal(wert("KW 1", 2, 2), "Baustelle 1", "altes Blatt unverändert");
+// Farben: Neujahrs-Gelb aus KW 1/2026 nicht in KW 1/2027 (Do 07.01.), aber Neujahr 2027 (Fr) in KW 53 gelb
+assert.equal(bgKey("KW 1", 5, 2), "1,1,0", "Vorlage unverändert");
+for (let c = 0; c < 4; c++) assert.equal(bgKey("KW 1 2027", 5, c), "", "07.01.2027 nicht gelb");
+for (let c = 0; c < 4; c++) assert.equal(bgKey("KW 53", 6, c), "1,1,0", "01.01.2027 gelb");
+assert.equal(bgKey("KW 53", 5, 2), "");
 assert.equal((await vorbereiten(env, { heute: "2026-11-20" })).angelegt.length, 0, "nicht doppelt");
+// einmalige Farbkorrektur für Blätter, die eine ältere Version angelegt hat
+faerben(byTitle("KW 2 2027").rows[5][2], GELB);
+await run(env, "DELETE FROM einstellungen WHERE schluessel = 'wochenplan_farben_2027'");
+assert.equal((await vorbereiten(env, { heute: "2026-11-20" })).farbenKorrigiert, 1);
+assert.equal(bgKey("KW 2 2027", 5, 2), "");
 const st = await status(env, { heute: "2026-11-19" });
 assert.equal(st.erlaubt, false); assert.deepEqual(st.vorab, ["KW 1 2027", "KW 2 2027", "KW 3 2027", "KW 4 2027"]);
 
@@ -184,6 +208,10 @@ assert.equal(byTitle("KW 1").index, 0); assert.equal(byTitle("KW 2").index, 1);
 assert.equal(wert("KW 13", 2, 1), "29.03.2027"); assert.equal(wert("KW 13", 2, 2), "Feiertag");
 assert.equal(wert("KW 12", 6, 2), "Feiertag", "Karfreitag in KW 12");
 assert.equal(wert("KW 12", 4, 2), "", "Einträge geleert");
+assert.equal(bgKey("KW 12", 6, 2), "1,1,0", "Karfreitag gelb (Farbe aus den anderen Feiertagen)");
+assert.equal(bgKey("KW 12", 6, 0), "", "Beschriftung ohne Muster bleibt");
+assert.equal(bgKey("KW 10", 3, 2), "", "Urlaubsfarbe entfernt");
+assert.equal(bgKey("KW 1", 5, 2), "", "KW 1: Do 07.01.2027 nicht mehr gelb");
 assert.equal(wert("KW 46", 0, 1), "Woche vom 15.11.2027");
 // KW 53 gibt es 2027 nicht → bleibt als „KW 53 2026“ lesbar
 assert.ok(byTitle("KW 53 2026")); assert.ok(!byTitle("KW 53"));
