@@ -178,7 +178,8 @@
     if (!AT.user) { view.innerHTML = ""; return; }
     if (!data) { view.innerHTML = `<section class="card">Lade …</section>`; return; }
     const alle = (data.nachrichten || []).filter(m => m.typ !== "gruss");
-    const mir = alle.filter(m => m.anMich && !m.eigene), ges = alle.filter(m => m.eigene);
+    // „Für mich“ enthält auch eigene Nachrichten an alle / ans Büro, die einen selbst mit einschließen
+    const mir = alle.filter(m => m.anMich), ges = alle.filter(m => m.eigene);
     const list = filter === "mir" ? mir : ges;
     const autos = data.meineAutos || [];
     view.innerHTML = `${form === "auto" ? autoFormular(autos) : form ? formular() : `<div class="hirow" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -252,7 +253,7 @@
     clearTimeout(readTimer);
     readTimer = setTimeout(async () => {
       if (view.classList.contains("hide") || !data) return;
-      const ids = data.nachrichten.filter(m => m.neu && (filter === "mir" ? m.anMich && !m.eigene : m.eigene) && !(m.pin && m.erinnerung > 0 && !m.erledigt)).map(m => m.id);
+      const ids = data.nachrichten.filter(m => m.neu && (filter === "mir" ? m.anMich : m.eigene) && !(m.pin && m.erinnerung > 0 && !m.erledigt)).map(m => m.id);
       if (!ids.length) return;
       try { const d = await AT.api("austausch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: "gelesen", ids }) });
         // Markierung „neu“ bleibt in der aktuellen Ansicht sichtbar, nur der Zähler geht zurück

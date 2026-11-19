@@ -119,11 +119,11 @@
     // ---------- Austausch: angepinnt, dringend, Zähler ----------
     if (A) {
       const N = (A.nachrichten || []).filter(m => m.typ !== "gruss");
-      const pins = N.filter(m => m.pin && m.anMich && !m.eigene);
+      const pins = N.filter(m => m.pin && m.anMich);   // eigene angepinnte Mitteilungen an alle sieht der Absender auch
       const dringend = N.filter(m => !m.pin && m.neu && m.prio === "dringend" && m.anMich && !m.eigene);
-      for (const m of pins) items.push(`<section class="card hicard hipin au ${m.prio}"><div class="hihead">📌 ${esc(m.von.split(" ")[0])}${m.bis && m.typ !== "auto" ? " · bis " + esc(dd(m.bis)) : ""}${m.prio !== "normal" ? (m.prio === "dringend" ? " · 🔴 dringend" : " · 🟠 wichtig") : ""}</div>
+      for (const m of pins) items.push(`<section class="card hicard hipin au ${m.prio}"><div class="hihead">📌 ${esc(m.eigene ? "Du" : m.von.split(" ")[0])}${m.bis && m.typ !== "auto" ? " · bis " + esc(dd(m.bis)) : ""}${m.prio !== "normal" ? (m.prio === "dringend" ? " · 🔴 dringend" : " · 🟠 wichtig") : ""}</div>
         <div class="hitext">${esc(m.text)}</div>
-        ${m.erledigt ? `<div class="hiwish" style="margin-top:6px">✓ zur Kenntnis genommen</div>` : `<button class="hidone" data-ok="${m.id}">Zur Kenntnis genommen ✓</button>`}</section>`);
+        ${m.eigene ? `<div class="hiwish" style="margin-top:6px">von dir gesendet</div>` : m.erledigt ? `<div class="hiwish" style="margin-top:6px">✓ zur Kenntnis genommen</div>` : `<button class="hidone" data-ok="${m.id}">Zur Kenntnis genommen ✓</button>`}</section>`);
       for (const m of dringend) items.push(`<section class="card hicard au dringend" style="border-left-width:5px"><div class="hihead">🔴 Dringend · ${esc(m.von)}</div>
         <div class="hitext">${esc(m.text.length > 220 ? m.text.slice(0, 220) + "…" : m.text)}</div>
         <button class="hidone" data-open="${m.id}" style="background:var(--bad)">Öffnen</button></section>`);
