@@ -118,18 +118,12 @@
 
     // ---------- Austausch: angepinnt, dringend, Zähler ----------
     if (A) {
-      const N = (A.nachrichten || []).filter(m => m.typ !== "gruss");
-      const pins = N.filter(m => m.pin && m.anMich);   // eigene angepinnte Mitteilungen an alle sieht der Absender auch
-      const dringend = N.filter(m => !m.pin && m.neu && m.prio === "dringend" && m.anMich && !m.eigene);
-      for (const m of pins) items.push(`<section class="card hicard hipin au ${m.prio}"><div class="hihead">📌 ${esc(m.eigene ? "Du" : m.von.split(" ")[0])}${m.bis && m.typ !== "auto" ? " · bis " + esc(dd(m.bis)) : ""}${m.prio !== "normal" ? (m.prio === "dringend" ? " · 🔴 dringend" : " · 🟠 wichtig") : ""}</div>
-        <div class="hitext">${esc(m.text)}</div>
-        ${m.eigene ? `<div class="hiwish" style="margin-top:6px">von dir gesendet</div>` : m.erledigt ? `<div class="hiwish" style="margin-top:6px">✓ zur Kenntnis genommen</div>` : `<button class="hidone" data-ok="${m.id}">Zur Kenntnis genommen ✓</button>`}</section>`);
-      for (const m of dringend) items.push(`<section class="card hicard au dringend" style="border-left-width:5px"><div class="hihead">🔴 Dringend · ${esc(m.von)}</div>
-        <div class="hitext">${esc(m.text.length > 220 ? m.text.slice(0, 220) + "…" : m.text)}</div>
-        <button class="hidone" data-open="${m.id}" style="background:var(--bad)">Öffnen</button></section>`);
-      const rest = A.ungelesen - dringend.length - pins.filter(m => m.neu).length;
+      // angepinnte Mitteilungen als Chat (antworten, bestätigen, schließen – wie im Reiter „Nachrichten“)
+      for (const m of AT.austausch.pins()) items.push(AT.austausch.karte(m));
+      const neuN = A.ungelesen || 0, wichtigN = A.wichtigOffen || 0;
       items.push(`<section class="card hicard"><div class="hihead">✉️ Nachrichten</div>
-        <b>${rest > 0 ? `${rest} neue Nachricht${rest > 1 ? "en" : ""}` : "Keine weiteren neuen Nachrichten"}</b>
+        <b>${neuN > 0 ? `${neuN} neue Nachricht${neuN > 1 ? "en" : ""}` : "Keine neuen Nachrichten"}</b>
+        ${wichtigN ? `<div style="color:var(--bad);font-weight:700;margin-top:2px">❗ ${wichtigN} wichtige Nachricht${wichtigN > 1 ? "en" : ""} noch nicht bestätigt</div>` : ""}
         <div class="maaskbtn"><button class="mabtn take" data-open="">Nachrichten öffnen</button><button class="mabtn back" id="stWrite">${AT.darf("hinweise") ? "✉️ Nachricht schreiben" : "✉️ Nachricht ans Büro"}</button></div></section>`);
     }
 
@@ -236,11 +230,10 @@
       } catch (e) { toast2(e.message); }
       busy = false; paint();
     });
-    box.querySelectorAll("[data-ok]").forEach(b => b.onclick = async () => {
-      if (busy) return; busy = true; b.disabled = true; b.textContent = "…";
-      try { await AT.austausch.post({ aktion: "erledigt", id: +b.dataset.ok }); toast2("Zur Kenntnis genommen ✓"); } catch (e) { toast2(e.message); }
-      busy = false; paint();
-    });
+    if (AT.austausch) {
+      AT.austausch.binden(box);   // Chat-Karten der angepinnten Mitteilungen
+      AT.austausch.gelesen(AT.austausch.pins().filter(m => m.neu).map(m => m.id));
+    }
     box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => AT.austausch.oeffnen(+b.dataset.open || null));
     const w = box.querySelector("#stWrite"); if (w) w.onclick = () => AT.austausch.schreiben(AT.darf("hinweise") ? "" : "*buero");
     root.querySelector("#stToPlan").onclick = () => AT.tab("wochenplan");

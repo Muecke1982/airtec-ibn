@@ -31,7 +31,8 @@ console.log(rows.map(r => `${r.name}: ${r.admin ? "Admin" : r.rechte}`).join("\n
 const na = await all(env, "SELECT n.id, n.text, n.pin, a.empfaenger FROM nachrichten n JOIN nachricht_an a ON a.nachricht_id = n.id ORDER BY n.id");
 assert.deepEqual(na.map(x => x.empfaenger), ["*alle", "*buero", "Nick"]);
 assert.equal(na[0].pin, 1);
-assert.equal((await all(env, "SELECT * FROM nachricht_status WHERE erledigt <> ''")).length, 1);
+// Migration 11: bei angepinnten wird „zur Kenntnis genommen“ zu „bestätigt“ (Chat bleibt offen)
+assert.equal((await all(env, "SELECT * FROM nachricht_status WHERE bestaetigt <> '' AND erledigt = ''")).length, 1);
 // alter Hinweis „An: Nick“ (nur Vorname) erreicht Nick Pauls
 const { liste } = await import("../lib/austausch.js");
 const l = await liste(env, { name: "Nick Pauls", plan: "", rechte: ["protokolle"] });

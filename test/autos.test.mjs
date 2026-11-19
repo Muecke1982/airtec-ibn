@@ -53,9 +53,9 @@ assert.ok(bN.some(t => t.startsWith("📄 Leasing") && t.includes("BOR-AT 200"))
 assert.ok((await nachrichten(env, seb)).nachrichten.some(m => m.typ === "auto"), "Admin gehört zum Büro");
 // erneute Prüfung: keine doppelten Hinweise
 assert.equal(await pruefen(env), 0);
-// Nick hakt ab → verschwindet (angepinnter Auto-Hinweis nur bis zum Abhaken)
-await aktion(env, nick, { aktion: "erledigt", id: tuevNick[0].id });
-assert.ok(!(await nachrichten(env, nick)).nachrichten.some(m => m.typ === "auto"));
+// Nick schließt den Chat → nicht mehr offen, nur noch im Verlauf
+await aktion(env, nick, { aktion: "schliessen", id: tuevNick[0].id });
+assert.ok(!(await nachrichten(env, nick)).nachrichten.some(m => m.typ === "auto" && m.ordner === "offen"));
 
 // TÜV erledigt → +2 Jahre; neuer Fälligkeitszeitpunkt würde später wieder gemeldet
 l = await tuevErledigt(env, chr, { id: A("BOR-AT 200").id });
