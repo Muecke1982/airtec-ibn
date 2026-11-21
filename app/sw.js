@@ -1,5 +1,5 @@
 // Offline-Fähigkeit: App-Dateien werden auf dem Handy zwischengespeichert.
-const CACHE = "airtec-kapp-v19";
+const CACHE = "airtec-kapp-v20";
 const FILES = ["/", "/index.html", "/manifest.webmanifest", "/apple-touch-icon.png", "/login.js", "/wochenplan.js", "/austausch.js", "/allgemein.js", "/autos.js", "/hinweise.js", "/urlaub.js", "/krank.js", "/maschinen.js", "/lager.js", "/admin.js", "/icon-192.png",
   "/qr.js", "/logbuch.js", "/typenschild.js",
   "/vendor/jspdf.umd.min.js", "/vendor/jspdf.plugin.autotable.min.js", "/vendor/xlsx.full.min.js", "/vendor/jsQR.js"];

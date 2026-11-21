@@ -52,11 +52,16 @@ await rejects(aktion(env, bea, { aktion: "zuordnen", code: "S-1", art: "sonstige
 await aktion(env, bea, { aktion: "zuordnen", code: "S-1", art: "sonstiges", ziel: "egal", bezeichnung: "Regal 3" });
 assert.equal((await suchen(env, "S-1")).zuordnung.ziel, "", "Sonstiges ohne Ziel");
 await rejects(aktion(env, bea, { aktion: "zuordnen", code: "X", art: "auto", ziel: "1" }), /Unbekannte Art/);
-assert.equal((await liste(env, bea)).codes.length, 3);
+// Lagerartikel (Ziel = Art.-Nr.), ebenfalls nur ein Aufkleber je Artikel
+await aktion(env, bea, { aktion: "zuordnen", code: "L-1", art: "artikel", ziel: "KM-012", bezeichnung: "Kupferrohr – 1/4\"" });
+await aktion(env, bea, { aktion: "zuordnen", code: "L-2", art: "artikel", ziel: "KM-012", bezeichnung: "Kupferrohr – 1/4\"" });
+assert.equal((await suchen(env, "L-1")).zuordnung, null);
+assert.equal((await suchen(env, "L-2")).zuordnung.art, "artikel");
+assert.equal((await liste(env, bea)).codes.length, 4);
 
 // lösen
 l = await aktion(env, bea, { aktion: "loesen", code: "A-1" });
-assert.equal(l.codes.length, 2);
+assert.equal(l.codes.length, 3);
 assert.equal((await suchen(env, "A-1")).zuordnung, null);
 
 // Logbuch-Eintrag

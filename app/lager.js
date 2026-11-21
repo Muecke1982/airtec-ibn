@@ -1,5 +1,6 @@
 /* Airtec App – Modul „Lager“.
-   Monteure: Hauptkategorien unten (wischen), Unterkategorien oben, Artikel mit „Fast leer“ / „Leer“. Häufig gemeldete oben.
+   Monteure: Hauptkategorien unten (wischen), Unterkategorien oben, Artikel mit „Aktuelle Menge“ (Rest in VE oder Einheit) / „Leer“.
+   Häufig gemeldete oben. Oben „📷 QR“: Aufkleber am Artikel scannen (Zuordnung mit Recht „qr“).
    Büro: Bestellliste nach Lieferant – abhaken oder „Bei … bestellen“ mit Mail-Vorschau. Daten: /api/lager (Airtec_Lager.xlsx). */
 (function () {
   const AT = window.AT;
@@ -17,9 +18,11 @@
   const root = document.getElementById("laView");
   root.innerHTML = `
     <div class="lgtop">
-      <input id="lgQ" type="search" placeholder="Artikel suchen (Name, Größe, Bestellnr.) …" autocomplete="off">
+      <button class="lgqr" id="lgQr" title="QR-Code am Artikel scannen">📷 QR</button>
+      <input id="lgQ" type="search" placeholder="Suchen …" autocomplete="off">
       <button class="lgorders hide" id="lgOrd">📋 Bestellliste <b id="lgOrdN"></b></button>
     </div>
+    <div id="lgScan"></div>
     <div class="lgsubs" id="lgSubs"></div>
     <div id="lgList"><div class="hint">Wird geladen …</div></div>
     <div id="lgOrder" class="hide"></div>
@@ -41,7 +44,16 @@
   const freiList = () => (data && data.frei) || [];
   const openList = () => [...((data && data.arts) || []).filter(a => a.offen), ...freiList()];
   const findArt = nr => (data.arts || []).find(x => x.nr === nr) || freiList().find(x => x.nr === nr);
-  const stLabel = st => st === "Leer" ? "⛔ leer" : st === "Benötigt" ? "🆕 benötigt" : "⚠ fast leer";
+  const stLabel = (st, rest) => st === "Leer" ? "⛔ leer" : st === "Benötigt" ? "🆕 benötigt" : rest ? "📉 noch " + rest : "⚠ fast leer";
+  // „Aktuelle Menge“: Eingabe in VE (vorgegeben) oder – per Antippen – in der Einheit des Artikels
+  const isNum = s => /^\d+([.,]\d+)?$/.test(String(s || "").trim());
+  function einheiten(a) {
+    const e = a.einh || "Stk", out = [];
+    if (a.ve) out.push(isNum(a.ve) ? { l: `VE à ${a.ve} ${e}`, txt: n => `${n} VE à ${a.ve} ${e}` } : { l: `VE: ${a.ve}`, txt: n => `${n} × ${a.ve}` });
+    out.push({ l: e, txt: n => `${n} ${e}` });
+    return out;
+  }
+  let mo = null;   // offene Mengen-Eingabe { nr, u (Index der Einheit), n }
   const EINH = ["Stk", "m", "Rolle", "Ring", "Karton", "Paket", "Flasche", "Dose", "Kartusche", "Satz", "kg", "l"];
   const post = body => AT.api("lager", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   // Sortierung: häufig gemeldet zuerst, dann „Häufig (x)“, dann Reihenfolge der Excel
@@ -53,6 +65,7 @@
     const n = openList().length;
     $("#lgOrdN").textContent = n ? n : "";
     $("#lgOrd").classList.toggle("on", mode === "order");
+    paintScan();
     if (mode === "order") return paintOrder();
     $("#lgOrder").classList.add("hide"); $("#lgList").classList.remove("hide"); $("#lgSubs").classList.remove("hide"); $("#lgKats").classList.remove("hide");
     // Hauptkategorien unten
@@ -112,30 +125,96 @@
   }
 
   function row(a) {
-    const o = a.offen, st = o && o.status;
+    const o = a.offen, st = o && o.status, rest = o && st !== "Leer" ? o.rest || "" : "";
     const sub = [a.gr, a.ve && "VE " + a.ve, a.ort].filter(Boolean).map(esc).join(" · ");
     return `<li class="${st === "Leer" ? "leer" : st ? "wenig" : ""}" data-nr="${esc(a.nr)}">
       <div class="lginfo"><b>${esc(a.bez)}</b>${sub ? `<small>${sub}</small>` : ""}
-        ${o ? `<span class="lgst">${st === "Leer" ? "⛔ leer" : "⚠ fast leer"} · ${esc(first(o.von))} ${esc(short(o.am).slice(0, 6))} <button class="lgback" data-a="zurueck">wieder da</button></span>` : ""}</div>
-      <div class="lgbtns"><button class="lgw${st === "Fast leer" ? " on" : ""}" data-a="Fast leer">Fast leer</button><button class="lgl${st === "Leer" ? " on" : ""}" data-a="Leer">Leer</button></div></li>`;
+        ${o ? `<span class="lgst">${esc(stLabel(st, rest))} · ${esc(first(o.von))} ${esc(short(o.am).slice(0, 6))} <button class="lgback" data-a="zurueck">wieder da</button></span>` : ""}</div>
+      <div class="lgbtns"><button class="lgw${st === "Fast leer" || (mo && mo.nr === a.nr) ? " on" : ""}" data-a="menge">Aktuelle<br>Menge</button><button class="lgl${st === "Leer" ? " on" : ""}" data-a="Leer">Leer</button></div>
+      ${mo && mo.nr === a.nr ? mengeFeld(a) : ""}</li>`;
   }
 
-  async function melden(nr, a) {
+  function mengeFeld(a) {
+    const U = einheiten(a), u = U[mo.u % U.length];
+    return `<div class="lgmenge"><div class="lgmrow">
+        <input class="lgmn" type="number" min="0" step="any" inputmode="decimal" placeholder="0" value="${esc(mo.n)}" aria-label="Anzahl">
+        <button class="lgeinh" data-einh>${esc(u.l)}<small>${U.length > 1 ? "↻ antippen: " + esc(U[(mo.u + 1) % U.length].l) : "Einheit"}</small></button></div>
+      <div class="lgmok"><button data-mx>Abbrechen</button><button class="go" data-mgo>Melden</button></div></div>`;
+  }
+  function mengeAuf(nr) {
+    mo = mo && mo.nr === nr ? null : { nr, u: 0, n: "" };
+    paint();
+    if (mo) { const i = root.querySelector(`li[data-nr="${CSS.escape(nr)}"] .lgmn`); if (i) i.focus(); }
+  }
+  function mengeMelden(li) {
+    const a = findArt(li.dataset.nr); if (!a || !mo) return;
+    const raw = li.querySelector(".lgmn").value.trim().replace(",", ".");
+    if (raw === "" || isNaN(+raw) || +raw < 0) { li.querySelector(".lgmn").focus(); toast2("Bitte die Anzahl eintragen"); return; }
+    const n = +raw, U = einheiten(a), txt = U[mo.u % U.length].txt(String(n).replace(".", ","));
+    mo = null;
+    if (n === 0) melden(a.nr, "Leer"); else melden(a.nr, "Fast leer", txt);
+  }
+
+  async function melden(nr, a, rest) {
     if (busy) return;
     if (!navigator.onLine) { toast2("Keine Internetverbindung"); return; }
     const art = data.arts.find(x => x.nr === nr); if (!art) return;
-    if (a !== "zurueck" && art.offen && art.offen.status === a) { toast2("Ist schon als „" + a + "“ gemeldet"); return; }
-    busy = true;
+    if (a === "Leer" && art.offen && art.offen.status === "Leer") { toast2("Ist schon als „Leer“ gemeldet"); return; }
+    busy = true; mo = null;
     // sofort anzeigen, dann speichern
     const prev = art.offen;
-    art.offen = a === "zurueck" ? null : { status: a === "Leer" || (prev && prev.status === "Leer") ? "Leer" : "Fast leer", von: AT.user.name, am: new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) };
+    art.offen = a === "zurueck" ? null : { status: a === "Leer" || (!rest && prev && prev.status === "Leer") ? "Leer" : "Fast leer", rest: rest || (prev && prev.rest) || "",
+      von: AT.user.name, am: new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) };
     paint();
     try {
       data = await AT.api("lager", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(a === "zurueck" ? { aktion: "zurueck", nr } : { aktion: "melden", nr, status: a }) });
+        body: JSON.stringify(a === "zurueck" ? { aktion: "zurueck", nr } : { aktion: "melden", nr, status: a, rest }) });
       ls.set("lg_cache", data);
-      toast2(a === "zurueck" ? "Zurückgenommen" : `${art.bez}: „${a}“ gemeldet ✓`);
+      toast2(a === "zurueck" ? "Zurückgenommen" : rest ? `${art.bez}: noch ${rest} gemeldet ✓` : `${art.bez}: „${a}“ gemeldet ✓`);
     } catch (e) { art.offen = prev; toast2(e.message); }
+    busy = false; paint();
+  }
+
+  /* ---------- QR-Code am Artikel ---------- */
+  let scan = null;   // { code, z (Zuordnung), q (Suche zum Zuordnen) }
+  async function scanStart() {
+    if (!AT.qr) return;
+    const code = await AT.qr.scan("QR-Code am Artikel scannen");
+    if (!code) return;
+    if (!navigator.onLine) { toast2("Keine Internetverbindung"); return; }
+    try { zeigeScan(code, await AT.qr.suchen(code)); } catch (e) { toast2(e.message); }
+  }
+  function zeigeScan(code, r) { scan = { code, z: r.zuordnung, q: "" }; mo = null; mode = "list"; paint(); window.scrollTo(0, 0); }
+  function treffer() {
+    const q = norm(scan.q.trim()); if (!q || !data) return "";
+    const words = q.split(/\s+/);
+    const L = data.arts.filter(a => { const t = norm([a.bez, a.gr, a.herst, a.best, a.such, a.nr].join(" ")); return words.every(w => t.includes(w)); }).slice(0, 30);
+    return L.map(a => `<li data-zu="${esc(a.nr)}"><b>${esc(a.bez)}</b>${a.gr ? ` <small>${esc(a.gr)}</small>` : ""}</li>`).join("") || `<li><small>Nichts gefunden</small></li>`;
+  }
+  function paintScan() {
+    const box = $("#lgScan");
+    if (!scan || mode === "order" || !data) { box.innerHTML = ""; return; }
+    const z = scan.z, a = z && z.art === "artikel" && data.arts.find(x => x.nr === z.ziel);
+    const zuordnen = AT.darf("qr") ? `<label>Artikel suchen und diesem Aufkleber zuordnen</label>
+        <input id="lgScQ" type="search" placeholder="Name, Größe, Bestellnr. …" value="${esc(scan.q)}" autocomplete="off"><ul class="lgscanl">${treffer()}</ul>`
+      : `<div class="hint">Die Zuordnung der Lager-Aufkleber folgt noch.</div>`;
+    let h;
+    if (a) h = `<div class="hint" style="margin:0 0 6px">📷 Gescannt:</div><ul class="lglist">${row(a)}</ul>`;
+    else if (z && z.art === "artikel") h = `<div class="warn">„${esc(z.bezeichnung || z.ziel)}“ steht nicht mehr in der Lager-Liste.</div>${zuordnen}`;
+    else if (z) h = `<b>Dieser Code gehört nicht zum Lager.</b><div class="hint" style="margin:6px 0 0">${esc((AT.qr.ART || {})[z.art] || "")}: ${esc(z.bezeichnung || z.ziel)}</div>
+        <button class="bigbtn primary" data-scanopen style="margin-top:10px">Öffnen</button>`;
+    else h = `<b>Dieser QR-Code ist noch keinem Artikel zugeordnet.</b> <span class="qrcode">${esc(scan.code)}</span>${zuordnen}`;
+    box.innerHTML = `<section class="card">${h}<button class="add" data-scanx>Schließen</button></section>`;
+  }
+  async function scanZuordnen(nr) {
+    const a = findArt(nr); if (!a || busy) return;
+    busy = true;
+    try {
+      await AT.api("qr", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aktion: "zuordnen", code: scan.code, art: "artikel", ziel: a.nr, bezeichnung: [a.bez, a.gr].filter(Boolean).join(" – "), ersetzen: !!scan.z }) });
+      scan.z = (await AT.qr.suchen(scan.code)).zuordnung; scan.q = "";
+      toast2("QR-Code zugeordnet ✓");
+    } catch (e) { toast2(e.message); }
     busy = false; paint();
   }
 
@@ -174,7 +253,7 @@
             <label class="lgochk"><input type="checkbox" data-sel${sel.has(a.nr) ? " checked" : ""}></label>
             <div class="lginfo"><b>${esc(a.bez)}</b><small>${[a.gr, a.best && "Best.-Nr. " + a.best, groupBy !== "lief" && a.lief].filter(Boolean).map(esc).join(" · ")}</small>
               ${a.ve ? `<small class="lgove">📦 VE: ${esc(a.ve)}</small>` : ""}
-              <span class="lgst">${a.frei ? "🆕 nicht in der Liste" : stLabel(a.offen.status)} · ${esc(a.offen.von)} · ${esc(short(a.offen.am).slice(0, 6))}</span></div>
+              <span class="lgst">${a.frei ? "🆕 nicht in der Liste" : esc(stLabel(a.offen.status, a.offen.rest))} · ${esc(a.offen.von)} · ${esc(short(a.offen.am).slice(0, 6))}</span></div>
             <div class="lgoqty"><input type="number" min="1" inputmode="numeric" placeholder="Anz." value="${esc(qty[a.nr] ?? (parseInt(a.menge) || ""))}"><small>${esc(a.einh || "Menge")}</small></div>
             <button class="lgdone" data-done="${esc(a.nr)}" title="ohne Bestellung abhaken">✓</button></li>`).join("")}</ul>
           <div class="lgobar">${canBuy ? `<button class="bigbtn primary lgobuy" data-buy="${esc(g)}">✉️ <span class="n">0</span> ausgewählte bei ${esc(g)} bestellen</button>` : ""}
@@ -395,7 +474,16 @@
     const sb = t.closest("#lgSubs button");
     if (sb) { sub = sb.dataset.s; paint(); return; }
     const ab = t.closest(".lglist [data-a]");
-    if (ab) { melden(ab.closest("li").dataset.nr, ab.dataset.a); return; }
+    if (ab) { const nr = ab.closest("li").dataset.nr; if (ab.dataset.a === "menge") mengeAuf(nr); else melden(nr, ab.dataset.a); return; }
+    if (t.closest("[data-einh]")) { const li = t.closest("li"); mo.n = li.querySelector(".lgmn").value; mo.u++; paint();
+      const i = root.querySelector(`li[data-nr="${CSS.escape(li.dataset.nr)}"] .lgmn`); if (i) i.focus(); return; }
+    if (t.closest("[data-mx]")) { mo = null; paint(); return; }
+    if (t.closest("[data-mgo]")) { mengeMelden(t.closest("li")); return; }
+    if (t.closest("#lgQr")) { scanStart(); return; }
+    if (t.closest("[data-scanx]")) { scan = null; paint(); return; }
+    if (t.closest("[data-scanopen]")) { const c = scan.code; scan = null; paint(); AT.qr.oeffnen(c); return; }
+    const zu = t.closest("[data-zu]");
+    if (zu) { scanZuordnen(zu.dataset.zu); return; }
     const gb = t.closest("[data-g]");
     if (gb && gb.tagName === "BUTTON") { groupBy = gb.dataset.g; paint(); return; }
     const dn = t.closest("[data-done]");
@@ -442,8 +530,15 @@
     }
   });
   $("#lgQ").oninput = paint;
+  root.addEventListener("input", e => {
+    if (e.target.classList.contains("lgmn") && mo) mo.n = e.target.value;
+    if (e.target.id === "lgScQ" && scan) { scan.q = e.target.value; $("#lgScan .lgscanl").innerHTML = treffer(); }
+  });
+  root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList.contains("lgmn")) mengeMelden(e.target.closest("li")); });
   $("#lgOrd").onclick = () => { mode = mode === "order" ? "list" : "order"; paint(); window.scrollTo(0, 0); };
 
   AT.modules.lager = { show() { if (mode !== "order") mode = "list"; paint(); load(); } };
   AT.lagerOrders = () => { mode = "order"; AT.tab("lager"); };
+  // QR-Code eines Lagerartikels (z. B. Link aus der Handy-Kamera)
+  AT.lagerScan = (code, r) => { scan = { code, z: r.zuordnung, q: "" }; mo = null; mode = "list"; AT.tab("lager"); };
 })();

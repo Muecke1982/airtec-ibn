@@ -40,12 +40,16 @@
     } else if (z.art === "maschine") {
       inhalt = `<div class="hint" style="margin:0 0 4px">Maschine</div><b style="font-size:17px">${esc(z.bezeichnung || z.ziel)}</b>
         ${AT.darf("maschinen") || AT.darf("maschinen_buero") ? `<button class="bigbtn primary" id="lbMa" style="margin-top:12px">Zur Maschine (ausleihen / zurückgeben)</button>` : ""}`;
+    } else if (z.art === "artikel") {
+      inhalt = `<div class="hint" style="margin:0 0 4px">Lagerartikel</div><b style="font-size:17px">${esc(z.bezeichnung || z.ziel)}</b>
+        <button class="bigbtn primary" id="lbLa" style="margin-top:12px">Zum Artikel im Lager</button>`;
     } else {
       inhalt = `<div class="hint" style="margin:0 0 4px">Sonstiges</div><b style="font-size:17px">${esc(z.bezeichnung)}</b>`;
     }
     erg.innerHTML = `<section class="card">${inhalt}<button class="add" id="lbNochmal" style="margin-top:10px">📷 Nächsten Code scannen</button></section>`;
     const q = s => erg.querySelector(s);
     if (q("#lbZu")) q("#lbZu").onclick = () => { AT.qrTab.zuordnen(code, "anlage"); AT.allgemeinZeigen("qr"); };
+    if (q("#lbLa")) q("#lbLa").onclick = () => AT.lagerScan(code, r);
     if (q("#lbMa")) q("#lbMa").onclick = () => { AT.tab("maschinen"); AT.maschineScan(code, r); };
     q("#lbNochmal").onclick = scannen;
   }

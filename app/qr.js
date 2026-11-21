@@ -155,13 +155,14 @@
 
   async function suchen(code) { return AT.api("qr?code=" + encodeURIComponent(code)); }
 
-  const ART = { maschine: "Maschine", anlage: "Anlage", sonstiges: "Sonstiges" };
+  const ART = { maschine: "Maschine", anlage: "Anlage", sonstiges: "Sonstiges", artikel: "Lagerartikel" };
   // nach dem Scannen (Logbuch, Link aus der Handy-Kamera): passend weiterleiten
   async function oeffnen(code) {
     let r;
     try { r = await suchen(code); } catch (e) { say(e.message); return; }
     const z = r.zuordnung;
     if (z && z.art === "maschine" && AT.maschineScan && (AT.darf("maschinen") || AT.darf("maschinen_buero"))) { AT.tab("maschinen"); AT.maschineScan(code, r); return; }
+    if (z && z.art === "artikel" && AT.lagerScan) { AT.lagerScan(code, r); return; }
     AT.tab("logbuch");
     if (AT.logbuch) AT.logbuch.ergebnis(r);
   }
@@ -224,7 +225,7 @@
            <label>Bezeichnung</label><input id="qnB" value="${esc(n.bezeichnung)}" placeholder="z. B. Kunde Müller, Bochum – VRF Dach" autocomplete="off">`
         : `<label>Bezeichnung</label><input id="qnB" value="${esc(n.bezeichnung)}" placeholder="z. B. Lagerregal 3, Werkzeugkiste Auto 4" autocomplete="off">`;
       return `<div class="qrneu"><b>Aufkleber <span class="qrcode">${esc(n.code)}</span> zuordnen</b>
-        <div class="seg" style="margin:10px 0 2px">${Object.entries(ART).map(([k, l]) => `<button data-na="${k}" class="${n.art === k ? "on" : ""}">${l}</button>`).join("")}</div>
+        <div class="seg" style="margin:10px 0 2px">${Object.entries(ART).filter(([k]) => k !== "artikel").map(([k, l]) => `<button data-na="${k}" class="${n.art === k ? "on" : ""}">${l}</button>`).join("")}</div>
         ${zielFeld}
         ${n.konflikt ? `<div class="warn" style="margin-top:10px">${esc(n.konflikt)}. Trotzdem hierher umhängen?</div>` : ""}
         <button class="bigbtn primary" id="qnGo" style="margin-top:12px">${n.konflikt ? "Ja, umhängen" : "Zuordnen"}</button>
