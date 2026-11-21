@@ -13,6 +13,8 @@
 
   const root = document.getElementById("maView");
   root.innerHTML = `
+    <button class="bigbtn primary qrbtn" id="maScanBtn" style="margin:0 0 12px">📷 QR-Code scannen – ausleihen / zurückgeben</button>
+    <div id="maScan"></div>
     <div id="maRem"></div>
     <div id="maAsk"></div>
     <section class="card hide" id="maMineCard"><h2>Bei dir</h2><ul class="malist" id="maMine"></ul></section>
@@ -346,6 +348,99 @@
     filter = b.dataset.f; root.querySelectorAll(".machips button").forEach(x => x.classList.toggle("on", x === b)); paint();
   });
   $("#maReload").onclick = () => load(true).then(() => !offline && toast2("Aktualisiert"));
+
+  /* ---------- QR-Code scannen: passende Frage je nach Status ---------- */
+  const scanBox = $("#maScan");
+  const vorname = n => String(n || "").split(" ")[0];
+  const deIso = s => { const m = String(s || "").match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/); return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : ""; };
+  const isoHeute = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  const isoPlus = n => { const d = new Date(isoHeute() + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  function scanZu() { scanBox.innerHTML = ""; }
+
+  async function scanStart() {
+    const code = await AT.qr.scan("QR-Code der Maschine scannen");
+    if (!code) return;
+    scanBox.innerHTML = `<section class="card maask"><div class="hint" style="margin:0">Wird gesucht …</div></section>`;
+    let r;
+    try { r = await AT.qr.suchen(code); } catch (e) { scanBox.innerHTML = `<section class="card maask"><div class="warn">${esc(navigator.onLine ? e.message : "Keine Internetverbindung")}</div></section>`; return; }
+    zeigeScan(code, r);
+  }
+
+  // code + Ergebnis von /api/qr?code=… (r) → Frage anzeigen
+  async function zeigeScan(code, r) {
+    if (!data || !data.maschinen) await load(true);
+    const z = r && r.zuordnung;
+    const m = z && z.art === "maschine" && data && (data.maschinen || []).find(x => x.id === z.ziel);
+    const kopf = t => `<section class="card maask" id="maScanCard"><button class="add" id="msZu" style="float:right;width:auto;margin:0;padding:4px 10px">✕</button>${t}</section>`;
+    if (!m) {
+      const frei = !z;
+      scanBox.innerHTML = kopf(frei
+        ? `<b>Dieser QR-Code ist keiner Maschine zugeordnet.</b><div class="hint" style="margin:6px 0 0">Gelesen: <span class="qrcode">${esc(code)}</span></div>
+          ${AT.darf("qr") && data ? `<label>Maschine zuordnen</label><select id="msZiel"><option value="">– Maschine wählen –</option>${(data.maschinen || []).map(x =>
+            `<option value="${esc(x.id)}">${esc(x.name)}${x.nr ? " (" + esc(x.nr) + ")" : ""}</option>`).join("")}</select>
+          <button class="bigbtn primary" id="msZuord" style="margin-top:10px">Zuordnen</button>` : `<div class="hint">Zuordnen kann das Büro unter Allgemeines → QR-Codes.</div>`}`
+        : z.art === "maschine"
+        ? `<b>Die Maschine zu diesem Code ist nicht mehr in der Liste.</b><div class="hint" style="margin:6px 0 0">${esc(z.bezeichnung || z.ziel)}</div>`
+        : `<b>Dieser Code gehört nicht zu einer Maschine.</b><div class="hint" style="margin:6px 0 0">${esc(AT.qr.ART[z.art] || "")}: ${esc(z.bezeichnung || z.ziel)}</div>`);
+      bindScan(code, null);
+      return;
+    }
+    // Status + Reservierungen der nächsten 7 Tage
+    const a = m.aus, mine = isMine(m);
+    const status = !a ? "steht im Lager" : a.baustelle ? `steht auf Baustelle <b>${esc(a.baustelle)}</b>` : a.extern
+      ? `ist verliehen an <b>${esc(a.an)}</b>${a.kontakt ? " (" + esc(a.kontakt) + ")" : ""}` : mine ? "ist bei <b>dir</b>" : `ist bei <b>${esc(a.wer)}</b>`;
+    const bis = isoPlus(7);
+    const res = (m.res || []).filter(x => { const v = deIso(x.von); return v && v <= bis; });
+    const forMe = x => norm(x.fuer) === norm(me());
+    const fremd = res.find(x => !forMe(x));
+    const warnt = fremd && (!a || a.baustelle || !mine);   // dann steht die fremde Reservierung in der Warnung unten
+    const resText = res.filter(x => forMe(x) || !warnt).map(x => `<div class="${forMe(x) ? "" : "mawarn"}" style="margin-top:6px">📅 ${x.jetzt ? "Heute" : "Ab " + esc(String(x.von).slice(0, 6))} reserviert für <b>${forMe(x) ? "dich" : esc(x.fuer)}</b>${x.bis && x.bis !== x.von ? " bis " + esc(String(x.bis).slice(0, 6)) : ""}${x.notiz ? " · " + esc(x.notiz) : ""}</div>`).join("");
+    let frage, knoepfe;
+    const k = (akt, text, cls) => `<button class="mabtn ${cls}" data-sa="${akt}">${text}</button>`;
+    if (!a) { frage = "Ausleihen?"; knoepfe = k("nehmen", "Ja, ausleihen", "take") + k("", "Nein", "back"); }
+    else if (a.baustelle) { frage = "Mitnehmen oder zurück ins Lager?"; knoepfe = k("nehmen", "Mitnehmen", "take") + k("zurueck", "Ins Lager zurück", "back"); }
+    else if (a.extern) { frage = `Rückgabe von ${esc(a.an)}?`; knoepfe = k("zurueck", "Ja, ist zurück im Lager", "take") + k("", "Nein", "back"); }
+    else if (mine) { frage = "Zurückgeben?"; knoepfe = k("zurueck", "Ja, zurückgeben", "take") + k("", "Nein, behalte sie", "back"); }
+    else { frage = `${esc(vorname(a.wer))} hat sie – was möchtest du tun?`; knoepfe = k("zurueck", `Rückgabe für ${esc(vorname(a.wer))}`, "back") + k("uebernehmen", "Übernehmen (ich nehme sie)", "over"); }
+    // wer ausleiht, obwohl jemand anderes in den nächsten Tagen reserviert hat: deutlich warnen
+    const warnAus = warnt ? `<div class="warn" style="margin-top:8px">Achtung: ${fremd.jetzt ? "heute" : "ab " + esc(String(fremd.von).slice(0, 6))} für ${esc(fremd.fuer)} reserviert – bitte vorher absprechen.</div>` : "";
+    scanBox.innerHTML = kopf(`<b style="font-size:17px">${esc(m.name)}</b>${m.nr ? `<small style="display:block;color:var(--mut)">Nr. ${esc(m.nr)}${m.typ ? " · " + esc(m.typ) : ""}</small>` : ""}
+      <div style="margin-top:6px">Die Maschine ${status}.</div>${resText}${warnAus}
+      <div style="margin-top:10px;font-weight:700">${frage}</div>
+      <div class="maaskbtn">${knoepfe}</div>`);
+    bindScan(code, m);
+    root.scrollIntoView({ block: "start" }); window.scrollTo(0, 0);
+  }
+
+  function bindScan(code, m) {
+    const x = scanBox.querySelector("#msZu"); if (x) x.onclick = scanZu;
+    const zo = scanBox.querySelector("#msZuord");
+    if (zo) zo.onclick = async () => {
+      const id = scanBox.querySelector("#msZiel").value, mm = (data.maschinen || []).find(y => y.id === id);
+      if (!mm) { toast2("Bitte Maschine wählen"); return; }
+      zo.disabled = true;
+      try {
+        await AT.api("qr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: "zuordnen", code, art: "maschine", ziel: id, bezeichnung: mm.name + (mm.nr ? ` (${mm.nr})` : "") }) });
+        toast2("QR-Code zugeordnet ✓");
+        zeigeScan(code, await AT.qr.suchen(code));
+      } catch (e) { toast2(e.message); zo.disabled = false; }
+    };
+    scanBox.querySelectorAll("[data-sa]").forEach(b => b.onclick = async e => {
+      e.stopPropagation();   // nicht zusätzlich die normale Liste-Aktion (doAct) auslösen
+      const a = b.dataset.sa;
+      if (!a) { scanZu(); return; }
+      if (!navigator.onLine) { toast2("Keine Internetverbindung – bitte später nochmal"); return; }
+      scanBox.querySelectorAll("[data-sa]").forEach(y => { y.disabled = true; }); b.textContent = "…";
+      try {
+        const d = await AT.api("maschinen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: a, id: m.id, scan: true }) });
+        d.geladen = Date.now(); data = d; ls.set("ma_cache", d);
+        toast2({ nehmen: m.name + " ausgeliehen ✓", zurueck: m.name + " zurückgegeben ✓", uebernehmen: m.name + " übernommen ✓" }[a] || "Gespeichert");
+        scanZu(); paint();
+      } catch (e) { toast2(e.message); await load(true); zeigeScan(code, { code, zuordnung: { art: "maschine", ziel: m.id } }); }
+    });
+  }
+  $("#maScanBtn").onclick = scanStart;
+  AT.maschineScan = (code, r) => zeigeScan(code, r);
 
   AT.modules.maschinen = { show() { paint(); load(); } };
   // Beim Start im Hintergrund prüfen, ob eine Nachfrage fällig ist – dann Hinweis auf dem Reiter

@@ -1,0 +1,9 @@
+{
+  "name": "airtec-kapp",
+  "private": true,
+  "type": "module",
+  "description": "Airtec KApp – Cloudflare Worker (worker/index.js) und App-Dateien (app/)",
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.12.0"
+  }
+}

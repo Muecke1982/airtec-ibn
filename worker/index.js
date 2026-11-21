@@ -17,6 +17,8 @@ import { aufraeumen as austauschAufraeumen } from "../lib/austausch.js";
 import * as autos from "../functions/api/autos.js";
 import * as suche from "../functions/api/suche.js";
 import * as personal from "../functions/api/personal.js";
+import * as qr from "../functions/api/qr.js";
+import * as typenschild from "../functions/api/typenschild.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
 import { pruefen as fuehrerscheinPruefen } from "../lib/personal.js";
 import { abgleich as urlaubInfo } from "../lib/urlaubinfo.js";
@@ -55,6 +57,9 @@ const routes = {
   "GET /api/suche": suche.onRequestGet,
   "GET /api/personal": personal.onRequestGet,
   "POST /api/personal": personal.onRequestPost,
+  "GET /api/qr": qr.onRequestGet,
+  "POST /api/qr": qr.onRequestPost,
+  "POST /api/typenschild": typenschild.onRequestPost,
 };
 
 // Logbuch: Änderungen (POST) und Anmeldungen aufzeichnen – im Hintergrund, damit die Antwort nicht wartet

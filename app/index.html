@@ -796,6 +796,7 @@ function renderList(key){
     const full=C.fields.filter(f=>f[3]),half=C.fields.filter(f=>!f[3]);let h="";
     for(let j=0;j<half.length;j+=2)h+=`<div class="row"><div>${inp(half[j],i,a)}</div>${half[j+1]?`<div>${inp(half[j+1],i,a)}</div>`:"<div></div>"}</div>`;
     return `<div class="sub"><div class="hd">${C.title(i)}${L.length>1?`<button class="del" data-i="${i}">Entfernen</button>`:""}</div>
+    ${window.tsKnoepfe?window.tsKnoepfe(key,i):""}
     ${i>0?`<button class="copy" data-i="${i}">⤵︎ Vorherige Daten übernehmen</button>`:""}
     ${full.map(f=>inp(f,i,a)).join("")}${h}</div>`}).join("");
   $$(C.box+" input").forEach(el=>el.oninput=()=>{L[el.dataset.i][el.dataset.f]=el.value;if(key==="sig"&&el.dataset.f==="h")syncSplitH();if(key==="dx"){if(el.dataset.f==="agTyp"){const h=$$("#dxKm .dxk .hd")[el.dataset.i];if(h)h.textContent=agLabel(+el.dataset.i)+(el.value?" – "+el.value:"")}if(el.dataset.f==="kitTyp")renderDocs()}save()});
@@ -980,6 +981,7 @@ function renderKws(){
     <div class="row">${kInp("tel","Telefon",""," inputmode=\"tel\"")}${kInp("mail","E-Mail",""," inputmode=\"email\"")}</div>
   </section>
   <section class="card"><h2>Maschinendaten</h2>
+    ${window.tsKnoepfe?window.tsKnoepfe("kws",0):""}
     <label>Bezeichnung / Typ</label><input data-kk="bez" data-list="Kaltwassersatz Typ" value="${esc(kGet("bez"))}">
     <div class="row">${kInp("sn","Seriennummer")}${kInp("oel","Öltyp","",' data-list="Öltyp"')}</div>
     <div class="row"><div><label>Ende Gewährleistung</label><input type="date" data-kk="gwl" value="${esc(kGet("gwl"))}"></div><div></div></div>
@@ -1621,9 +1623,12 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch
 <script src="/hinweise.js"></script>
 <script src="/urlaub.js"></script>
 <script src="/krank.js"></script>
+<script src="/qr.js"></script>
 <script src="/maschinen.js"></script>
 <script src="/lager.js"></script>
+<script src="/logbuch.js"></script>
 <script src="/allgemein.js"></script>
+<script src="/typenschild.js"></script>
 <script src="/autos.js"></script>
 <script src="/admin.js"></script>
 <script>AT.ready()</script>

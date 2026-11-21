@@ -9,7 +9,10 @@ Module (getrennt gebaut, nur über Anmeldung und Monteurliste verbunden):
 | Protokolle | `app/index.html`, `functions/api/upload.js`, `stamm.js` | Inbetriebnahme- und Abnahmeprotokolle |
 | Krankmeldung (Büro) | `app/krank.js`, `functions/api/plan.js` | Tagesbrett: krank melden, Teams per Antippen neu einteilen, Baustellen streichen |
 | Start (Begrüßung + Hinweise, Hinweis ans Büro) | `app/hinweise.js`, `lib/hinweise.js`, `functions/api/hinweise.js` | Begrüßung, Maschinen-Hinweise, Büro-Hinweise zum Abhaken (Airtec_Hinweise.xlsx) |
-| Maschinen | `app/maschinen.js`, `lib/maschinen.js`, `lib/xlsx.js`, `functions/api/maschinen.js` | Ausleihe mit einem Tipp, Protokoll in der Excel |
+| Typenschild (Protokolle) | `app/typenschild.js`, `lib/typenschild.js`, `functions/api/typenschild.js` | Foto des Typenschilds je Innen-/Außengerät → KI (Claude, Secret `ANTHROPIC_API_KEY`) liest Hersteller, Typ, Seriennummer, beim Außengerät Kältemittel, Füllmenge, Stromaufnahme; übernommen wird nur, was das Protokoll abfragt (vorher Prüf-Ansicht) |
+| Maschinen | `app/maschinen.js`, `lib/maschinen.js`, `lib/xlsx.js`, `functions/api/maschinen.js` | Ausleihe mit einem Tipp, Protokoll in der Excel; QR-Scan fragt je nach Status Ausleihen / Zurückgeben / Rückgabe für … / Übernehmen und warnt bei Reservierungen in den nächsten 7 Tagen |
+| QR-Codes | `app/qr.js`, `lib/qr.js`, `functions/api/qr.js`, `app/vendor/jsQR.js` | Scanner (Kamera, Foto oder Eintippen), Allgemeines → QR-Codes: Aufkleber Maschinen, Anlagen oder Sonstigem zuordnen (Recht „qr“). Links `…/q/CODE` öffnen die App direkt |
+| Logbuch (Anlagen) | `app/logbuch.js` | Reiter hinter Lager: QR-Code an der Anlage scannen; Suche = Platzhalter, bis die Anlagendatenbank des Service angebunden ist |
 | Lager | `app/lager.js`, `lib/lager.js`, `functions/api/lager.js` | Artikel aus Airtec_Lager.xlsx, Fast leer/Leer melden, Material außerhalb der Liste melden (Büro: in Excel aufnehmen oder einmalig bestellen), Artikel-Import aus Excel (Lager-Format oder Lieferanten-Export), Bestellliste + Bestell-Mail (MAIL_FROM = Absender-Postfach, braucht Mail.Send) |
 | Restmüll | `app/hinweise.js` (Startseite), `lib/muell.js`, `functions/api/muell.js` | „Restmüll leeren“ mit zwei Rückfragen, Mail an den Entsorger über Microsoft 365 (Mail.Send). Einstellungen + Protokoll in Airtec_Hinweise.xlsx (Blätter „Müll Einstellungen“, „Müll“) |
 
@@ -57,6 +60,7 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 | `GSHEET_ID` | `1AbC…xyz` | ID der Google-Tabelle Wochenplan (der Teil zwischen `/d/` und `/edit` im Link) |
 | `GOOGLE_SA_JSON` | *(geheim)* | Kompletter Inhalt der JSON-Schlüsseldatei des Google-Dienstkontos |
 | `SESSION_SECRET` | *(geheim, optional)* | Schlüssel für die Anmeldungen. Ändern = alle Handys müssen sich neu anmelden |
+| `ANTHROPIC_API_KEY` | *(geheim)* | Schlüssel von console.anthropic.com für die Typenschild-Erkennung. Ohne Schlüssel meldet die App „noch nicht eingerichtet“ |
 | `SP_STAMM_PATH` | `Inbetriebnahmeprotokolle/Stammdaten/Airtec_Stammdaten.xlsx` | Pfad der Stammdaten-Excel in der Bibliothek |
 
 ## Einrichtung prüfen
