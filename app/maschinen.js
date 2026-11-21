@@ -109,8 +109,11 @@
       <div>Verliehen an <b>${esc(m.aus.an)}</b>${m.aus.kontakt ? " (" + esc(m.aus.kontakt) + ")" : ""} durch ${esc(m.aus.wer)} am ${esc(short(m.aus.seit))} – Rückgabe war bis <b>${esc(dd(m.aus.frist))}</b></div>
       <div class="maaskbtn"><button class="mabtn take" data-a="zurueck" data-id="${esc(m.id)}">Ja, ist zurück</button>
       <button class="mabtn back" data-a="erinnern" data-id="${esc(m.id)}">In ${data.erinnerung_tage || 3} Tagen erinnern</button></div></section>`).join("") +
-      (office() && data.erledigt && data.erledigt.length ? `<section class="card madone">${data.erledigt.map(e =>
-        `<div>✓ <b>${esc(e.name)}</b> von ${esc(e.an)} zurück – eingetragen von ${esc(e.von)}, ${esc(short(e.bis))}</div>`).join("")}</section>` : "");
+      (() => {   // „… zurück“: 3 Tage als Info fürs Büro, mit ✕ für sich selbst ausblendbar
+        const weg = ls.get("ma_done_x") || [], L = office() ? (data.erledigt || []).filter(e => !weg.includes(e.name + "|" + e.bis)) : [];
+        return L.length ? `<section class="card madone">${L.map(e =>
+          `<div class="madonel"><span>✓ <b>${esc(e.name)}</b> von ${esc(e.an)} zurück – eingetragen von ${esc(e.von)}, ${esc(short(e.bis))}</span><button class="madonex" data-dx="${esc(e.name + "|" + e.bis)}" title="Ausblenden">✕</button></div>`).join("")}</section>` : "";
+      })();
     if ($("#maLend").innerHTML && !$("#maLend").classList.contains("hide") && $("#mlM")) fillLend();
     // Liste
     const q = norm($("#maQ").value.trim());
@@ -325,6 +328,8 @@
   $("#maLendBtn").onclick = () => { if (data) openLend(); else toast2("Liste wird noch geladen"); };
 
   root.addEventListener("click", async e => {
+    const dx = e.target.closest("[data-dx]");
+    if (dx) { e.stopPropagation(); const w = (ls.get("ma_done_x") || []).slice(-30); w.push(dx.dataset.dx); ls.set("ma_done_x", w); paint(); return; }
     const st = e.target.closest(".mastorno");
     if (st) {
       e.stopPropagation();

@@ -389,6 +389,8 @@ li.leer .lgst{color:var(--bad)}
 .mlchips button,.mldays button{flex:0 0 auto;padding:7px 11px}
 .mlbis{padding:12px 0;font-weight:600;font-size:15px}
 .madone{background:#eaf7e6;font-size:14px;line-height:1.5}
+.madonel{display:flex;align-items:flex-start;gap:8px}.madonel span{flex:1}
+.madonex{flex:0 0 auto;border:1px solid #b9d8b0;background:#fff;border-radius:8px;width:34px;height:30px;font:inherit;font-size:14px;color:var(--mut)}
 .mahist{width:100%;font-size:13px;line-height:1.5;background:#fff;border-radius:8px;padding:8px 10px}
 .mahist small{color:var(--mut)}
 .maask{border:2px solid var(--bad)}
@@ -1647,6 +1649,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch
 <script src="/typenschild.js"></script>
 <script src="/autos.js"></script>
 <script src="/admin.js"></script>
+<script src="/push.js"></script>
 <script>AT.ready()</script>
 <script>
 (function(){const el=document.getElementById("hdrNow");if(!el)return;

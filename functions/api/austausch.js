@@ -24,9 +24,9 @@ export async function onRequestGet({ request, env }) {
 }
 
 // POST { aktion: senden | umfrage | antworten | gelesen | bestaetigen | schliessen | wiederherstellen | erinnert | reaktion | abstimmen | loeschen | gratulieren, … }
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   try {
     const me = await wer(env, request);
-    return json(200, await aktion(env, me, await request.json().catch(() => ({}))));
+    return json(200, await aktion(env, me, await request.json().catch(() => ({})), waitUntil || undefined));
   } catch (e) { return fehler(e); }
 }

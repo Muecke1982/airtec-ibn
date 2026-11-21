@@ -79,6 +79,12 @@
     (m.admin ? `<div class="hint">Admin – hat immer alle Rechte.</div>` : `<div class="vwbtns" style="margin-top:6px"><button class="secondary" data-preset="monteur">Monteur</button><button class="secondary" data-preset="buero">Büro (alles)</button></div>
       ${ichAdmin() ? "" : `<div class="hint">„Mitarbeiter verwalten“ kann nur der Admin vergeben.</div>`}`);
   };
+  // Handy-Mitteilungen – gleiche Schlüssel wie lib/push.js (Häkchen = bekommt diese Art)
+  const MITTEILUNGEN = [["direkt", "Direkte Nachrichten und Antworten"], ["hinweis", "Neue Hinweise und angepinnte Nachrichten (Startseite)"],
+    ["alle", "Nachrichten an alle und Abstimmungen"], ["buero", "Nachrichten ans Büro (nur mit Recht „Büro“)"]];
+  const mitteilungenForm = m => `<label style="margin-top:14px">🔔 Handy-Mitteilungen</label><div class="vwgrid">${MITTEILUNGEN.map(([k, l]) =>
+      `<label class="vwr"><input type="checkbox" data-mitt="${k}" ${(m.mitteilungenAus || []).includes(k) ? "" : "checked"}> ${l}</label>`).join("")}</div>
+    <div class="hint">${m.id ? (m.handys ? `📱 ${m.handys === 1 ? "1 Gerät" : m.handys + " Geräte"} angemeldet.` : "Noch kein Handy angemeldet – die Person muss in der App einmal „Mitteilungen erlauben“ tippen.") : "Die Person muss in der App einmal „Mitteilungen erlauben“ tippen."}</div>`;
   const maForm = (m = {}) => {
     const fremderAdmin = m.admin && !ichAdmin();
     if (fremderAdmin) return `<div class="hint" style="margin:8px 0 2px">Der Admin kann nur von sich selbst geändert werden.</div>`;
@@ -93,6 +99,7 @@
       <div><label>Alarmanlagen-Schlüssel</label><input id="fAlarm" value="${esc(m.alarm)}" autocomplete="off"></div></div>
     ${m.id ? "" : `<label>Passwort (mind. 6 Zeichen)</label><input id="fPw" type="text" autocomplete="off">`}
     ${rechteForm(m)}
+    ${mitteilungenForm(m)}
     <div class="vwchk"><label><input type="checkbox" id="fAktiv" ${m.aktiv === false ? "" : "checked"} ${m.admin ? "disabled" : ""}> Aktiv (kann sich anmelden)</label></div>
     <div class="vwbtns"><button class="primary" id="fSave">${m.id ? "Speichern" : "Anlegen"}</button><button class="secondary" id="fCancel">Abbrechen</button></div>
     ${m.id ? `<label style="margin-top:16px">Neues Passwort setzen</label>
@@ -239,8 +246,9 @@
       const save = q("#fSave");
       if (save) save.onclick = () => busy(save, async () => {
         const rechte = [...view.querySelectorAll("[data-recht]")].filter(c => c.checked).map(c => c.dataset.recht);
+        const mitteilungenAus = [...view.querySelectorAll("[data-mitt]")].filter(c => !c.checked).map(c => c.dataset.mitt);
         const r = await post({ aktion: "ma_speichern", id: m && m.id, name: val("fName"), mail: val("fMail"), plan: val("fPlan"), geb: val("fGeb"),
-          rechte, aktiv: val("fAktiv"), passwort: val("fPw"), telefon: val("fTel"), adresse: val("fAdr"), schluessel: val("fSchl"), alarm: val("fAlarm") });
+          rechte, mitteilungenAus, aktiv: val("fAktiv"), passwort: val("fPw"), telefon: val("fTel"), adresse: val("fAdr"), schluessel: val("fSchl"), alarm: val("fAlarm") });
         ma = r.mitarbeiter; offen = null; paint(); say("Gespeichert");
       });
       view.querySelectorAll("[data-preset]").forEach(p => p.onclick = () => {

@@ -19,6 +19,7 @@ import * as suche from "../functions/api/suche.js";
 import * as personal from "../functions/api/personal.js";
 import * as qr from "../functions/api/qr.js";
 import * as typenschild from "../functions/api/typenschild.js";
+import * as push from "../functions/api/push.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
 import { pruefen as fuehrerscheinPruefen } from "../lib/personal.js";
 import { abgleich as urlaubInfo } from "../lib/urlaubinfo.js";
@@ -60,6 +61,8 @@ const routes = {
   "GET /api/qr": qr.onRequestGet,
   "POST /api/qr": qr.onRequestPost,
   "POST /api/typenschild": typenschild.onRequestPost,
+  "GET /api/push": push.onRequestGet,
+  "POST /api/push": push.onRequestPost,
 };
 
 // Logbuch: Änderungen (POST) und Anmeldungen aufzeichnen – im Hintergrund, damit die Antwort nicht wartet
@@ -92,7 +95,7 @@ export default {
       if (url.pathname.startsWith("/api/autos") && body.id && !body.kennzeichen)   // Kennzeichen fürs Logbuch
         body.kennzeichen = ((await one(env, "SELECT kennzeichen FROM autos WHERE id = ?", +body.id).catch(() => null)) || {}).kennzeichen;
       const me = url.pathname.startsWith("/api/login") ? null : await auth(env, request).catch(() => null);   // vor der Aktion (z. B. eigenes Passwort ändern)
-      const res = await h({ request, env });
+      const res = await h({ request, env, waitUntil: ctx && ctx.waitUntil ? p => ctx.waitUntil(p) : null });   // waitUntil: z. B. Handy-Mitteilungen nach der Antwort senden
       if (ctx && ctx.waitUntil) ctx.waitUntil(protokolliere(env, me, url, body, res).catch(e => console.error("Logbuch:", e.message)));
       return res;
     }
