@@ -20,7 +20,9 @@ import * as personal from "../functions/api/personal.js";
 import * as qr from "../functions/api/qr.js";
 import * as typenschild from "../functions/api/typenschild.js";
 import * as push from "../functions/api/push.js";
+import * as leitern from "../functions/api/leitern.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
+import { pruefen as leiternPruefen } from "../lib/leitern.js";
 import { pruefen as fuehrerscheinPruefen } from "../lib/personal.js";
 import { abgleich as urlaubInfo } from "../lib/urlaubinfo.js";
 import { taeglich as wochenplanVorbereiten } from "../lib/jahreswechsel.js";
@@ -63,6 +65,8 @@ const routes = {
   "POST /api/typenschild": typenschild.onRequestPost,
   "GET /api/push": push.onRequestGet,
   "POST /api/push": push.onRequestPost,
+  "GET /api/leitern": leitern.onRequestGet,
+  "POST /api/leitern": leitern.onRequestPost,
 };
 
 // Logbuch: Änderungen (POST) und Anmeldungen aufzeichnen – im Hintergrund, damit die Antwort nicht wartet
@@ -106,6 +110,7 @@ export default {
     ctx.waitUntil(aufraeumen(env).catch(e => console.error("Logbuch aufräumen:", e.message)));
     ctx.waitUntil(austauschAufraeumen(env).catch(e => console.error("Austausch aufräumen:", e.message)));
     ctx.waitUntil(autosPruefen(env).catch(e => console.error("Autos prüfen:", e.message)));
+    ctx.waitUntil(leiternPruefen(env).catch(e => console.error("Leitern prüfen:", e.message)));
     ctx.waitUntil(fuehrerscheinPruefen(env).catch(e => console.error("Führerschein prüfen:", e.message)));
     // Urlaub-Infomail: neuen/gestrichenen Urlaub im Wochenplan ans Büro melden
     // Wochenplan: ab November Blätter „KW 1 <nächstes Jahr>“ … „KW 4 …“ anlegen, danach Infomail

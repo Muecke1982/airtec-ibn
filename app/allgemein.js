@@ -2,7 +2,8 @@
    • Autos (app/autos.js) – mit Recht „Autos“
    • Urlaub (app/urlaub.js, AT.urlaubTab) – Urlaub eintragen, eigener Urlaub, Büro: Urlaub im Team
    • Mitarbeiter – Führerscheinprüfung, Urlaubstage, Notizen.
-     Recht „personal“: alle Mitarbeiter auswählen und pflegen; sonst nur die eigenen Angaben ansehen. */
+     Recht „personal“: alle Mitarbeiter auswählen und pflegen; sonst nur die eigenen Angaben ansehen.
+   • Leitern (app/leitern.js, AT.leiternTab) – Leiter-Prüfbuch */
 (function () {
   const AT = window.AT;
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -22,8 +23,8 @@
   tabBtn.onclick = () => AT.tab("allgemein");
   const view = document.createElement("main");
   view.id = "agView"; view.dataset.mod = "allgemein"; view.className = "hide";
-  view.innerHTML = `<div class="seg" id="agSeg" style="margin-bottom:12px"><button data-sub="autos">🚐 Autos</button><button data-sub="personal">👤 Mitarbeiter</button><button data-sub="urlaub">🌴 Urlaub</button><button data-sub="qr">🔳 QR-Codes</button></div>
-    <div id="autView"></div><div id="peView" class="hide"></div><div id="urView" class="hide"></div><div id="qrTabView" class="hide"></div>`;
+  view.innerHTML = `<div class="seg" id="agSeg" style="margin-bottom:12px"><button data-sub="autos">🚐 Autos</button><button data-sub="personal">👤 Mitarbeiter</button><button data-sub="urlaub">🌴 Urlaub</button><button data-sub="leitern">🪜 Leitern</button><button data-sub="qr">🔳 QR-Codes</button></div>
+    <div id="autView"></div><div id="peView" class="hide"></div><div id="urView" class="hide"></div><div id="leView" class="hide"></div><div id="qrTabView" class="hide"></div>`;
   document.getElementById("app").before(view);
   const hdr = document.querySelector("#hdrType");
   if (hdr) { const s = document.createElement("small"); s.dataset.mod = "allgemein"; s.className = "hide"; s.textContent = "Allgemeines"; hdr.parentNode.appendChild(s); }
@@ -43,6 +44,7 @@
   const darfAutos = () => AT.darf("autos") || AT.darf("autos_verwalten");
   const urv = view.querySelector("#urView");
   const qrv = view.querySelector("#qrTabView");
+  const lev = view.querySelector("#leView");
   function zeige() {
     if (!darfAutos() && sub === "autos") sub = "personal";
     if (!AT.darf("qr") && sub === "qr") sub = "personal";
@@ -53,7 +55,9 @@
     pe.classList.toggle("hide", sub !== "personal");
     urv.classList.toggle("hide", sub !== "urlaub");
     qrv.classList.toggle("hide", sub !== "qr");
+    lev.classList.toggle("hide", sub !== "leitern");
     if (sub === "autos") AT.modules.autos && AT.modules.autos.show();
+    else if (sub === "leitern") AT.leiternTab && AT.leiternTab.show(lev);
     else if (sub === "urlaub") AT.urlaubTab && AT.urlaubTab.show(urv);
     else if (sub === "qr") AT.qrTab && AT.qrTab.show(qrv);
     else personal.show();

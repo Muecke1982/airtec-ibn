@@ -1,10 +1,10 @@
 // Offline-Fähigkeit: App-Dateien werden auf dem Handy zwischengespeichert.
-const CACHE = "airtec-kapp-v21";
+const CACHE = "airtec-kapp-v22";
 const FILES = ["/", "/index.html", "/manifest.webmanifest", "/apple-touch-icon.png", "/login.js", "/wochenplan.js", "/austausch.js", "/allgemein.js", "/autos.js", "/hinweise.js", "/urlaub.js", "/krank.js", "/maschinen.js", "/lager.js", "/admin.js", "/icon-192.png",
-  "/qr.js", "/logbuch.js", "/typenschild.js", "/push.js",
+  "/qr.js", "/logbuch.js", "/typenschild.js", "/push.js", "/leitern.js",
   "/vendor/jspdf.umd.min.js", "/vendor/jspdf.plugin.autotable.min.js", "/vendor/xlsx.full.min.js", "/vendor/jsQR.js"];
 const APP = ["/", "/index.html", "/login.js", "/wochenplan.js", "/krank.js", "/hinweise.js", "/maschinen.js", "/lager.js", "/admin.js", "/austausch.js", "/urlaub.js", "/autos.js", "/allgemein.js",
-  "/qr.js", "/logbuch.js", "/typenschild.js", "/push.js"];
+  "/qr.js", "/logbuch.js", "/typenschild.js", "/push.js", "/leitern.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(n => n !== CACHE).map(n => caches.delete(n))))); self.clients.claim(); });
 // Handy-Mitteilungen (lib/push.js): anzeigen, Punkt am App-Symbol, Tipp öffnet die App am richtigen Reiter

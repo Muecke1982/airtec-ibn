@@ -11,7 +11,7 @@
   const RECHTE = [
     ["Bereiche", [["wochenplan", "Wochenplan"], ["protokolle", "Protokolle"], ["maschinen", "Maschinen"], ["lager", "Lager (Material melden)"], ["autos", "Autos"]]],
     ["Zusatzrechte", [["hinweise", "Büro"], ["plan_aendern", "Wochenplan ändern (Tagesbrett, krank)"], ["urlaub", "Urlaub im Team sehen"],
-      ["maschinen_buero", "Maschinen (Büro)"], ["lager_bestellen", "Lager bestellen"], ["autos_verwalten", "Autos verwalten"], ["personal", "Mitarbeiter-Infos (Führerschein, Urlaubstage)"], ["qr", "QR-Codes zuordnen"], ["stammdaten", "Stammdaten pflegen"], ["mitarbeiter", "Mitarbeiter verwalten"]]],
+      ["maschinen_buero", "Maschinen (Büro)"], ["lager_bestellen", "Lager bestellen"], ["autos_verwalten", "Autos verwalten"], ["leitern", "Leitern prüfen (befähigte Person)"],["personal", "Mitarbeiter-Infos (Führerschein, Urlaubstage)"], ["qr", "QR-Codes zuordnen"], ["stammdaten", "Stammdaten pflegen"], ["mitarbeiter", "Mitarbeiter verwalten"]]],
   ];
   const ALLE = RECHTE.flatMap(g => g[1].map(r => r[0])), MONTEUR = RECHTE[0][1].map(r => r[0]), ZUSATZ = RECHTE[1][1].map(r => r[0]);
   const darf = r => !!(AT && AT.darf && AT.darf(r));
