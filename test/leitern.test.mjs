@@ -5,6 +5,7 @@ import { fakeD1 } from "./d1-fake.mjs";
 import { run, all, heute } from "../lib/db.js";
 import { liste, aktion, pruefen, status } from "../lib/leitern.js";
 import { beschreibe } from "../lib/logbuch.js";
+import { aktion as qrAktion, suchen } from "../lib/qr.js";
 
 const env = { DB: fakeD1(), CLIENT_SECRET: "x" };
 await run(env, "INSERT INTO mitarbeiter (name, rechte) VALUES ('Nick', 'wochenplan'), ('Christina', 'hinweise,autos')");
@@ -65,8 +66,26 @@ await rejects(aktion(env, chr, { aktion: "pruefung", id: id1, datum: h, ergebnis
 d = await aktion(env, chr, { aktion: "pruefung_loeschen", pid: l1.pruefungen[0].id });
 assert.equal(d.leitern.find(l => l.id === id1).status, "ok");
 
-// löschen
+// QR-Aufkleber: Prüfer (Recht „leitern“, ohne „qr“) darf nur Leiter-Aufkleber zuordnen
+await qrAktion(env, { name: "Büro", rechte: ["qr"] }, { aktion: "zuordnen", code: "M-77", art: "maschine", ziel: "77", bezeichnung: "Bohrhammer" });
+await rejects(qrAktion(env, chr, { aktion: "zuordnen", code: "X1", art: "maschine", ziel: "77" }), /nur Leiter-Aufkleber/);
+await rejects(qrAktion(env, chr, { aktion: "zuordnen", code: "M-77", art: "leiter", ziel: String(id1), ersetzen: true }), /nur Leiter-Aufkleber/);
+await rejects(qrAktion(env, chr, { aktion: "loesen", code: "M-77" }), /nur Leiter-Aufkleber/);
+await rejects(qrAktion(env, nick, { aktion: "zuordnen", code: "L1", art: "leiter", ziel: String(id1) }), /Recht/);
+await rejects(qrAktion(env, chr, { aktion: "zuordnen", code: "L1", art: "leiter", ziel: "999" }), /nicht gefunden/);
+await qrAktion(env, chr, { aktion: "zuordnen", code: "https://x.de/q/L1", art: "leiter", ziel: String(id1), bezeichnung: "Leiter L-01" });
+await qrAktion(env, chr, { aktion: "zuordnen", code: "L1b", art: "leiter", ziel: String(id1), bezeichnung: "Leiter L-01" });   // ersetzt L1
+d = await liste(env, nick);
+assert.equal(d.leitern.find(l => l.id === id1).qr, "L1b"); assert.equal(d.leitern.find(l => l.id === id2).qr, "");
+assert.equal((await suchen(env, "L1")).zuordnung, null, "alter Aufkleber gelöst");
+await aktion(env, chr, { aktion: "speichern", id: id1, nr: "L-01a", art: "steh" });
+assert.equal((await suchen(env, "L1b")).zuordnung.bezeichnung, "Leiter L-01a", "Bezeichnung folgt der Nr.");
+await qrAktion(env, chr, { aktion: "loesen", code: "L1b" });
+await qrAktion(env, chr, { aktion: "zuordnen", code: "L1c", art: "leiter", ziel: String(id1), bezeichnung: "Leiter L-01a" });
+
+// löschen (Aufkleber wird mit gelöst)
 d = await aktion(env, chr, { aktion: "loeschen", id: id1 });
+assert.equal((await suchen(env, "L1c")).zuordnung, null);
 assert.equal(d.leitern.length, 1);
 assert.equal((await all(env, "SELECT COUNT(*) AS n FROM leiter_pruefungen WHERE leiter_id = ?", id1))[0].n, 0);
 

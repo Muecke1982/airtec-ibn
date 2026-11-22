@@ -43,6 +43,9 @@
     } else if (z.art === "artikel") {
       inhalt = `<div class="hint" style="margin:0 0 4px">Lagerartikel</div><b style="font-size:17px">${esc(z.bezeichnung || z.ziel)}</b>
         <button class="bigbtn primary" id="lbLa" style="margin-top:12px">Zum Artikel im Lager</button>`;
+    } else if (z.art === "leiter") {
+      inhalt = `<div class="hint" style="margin:0 0 4px">Leiter</div><b style="font-size:17px">${esc(z.bezeichnung || z.ziel)}</b>
+        <button class="bigbtn primary" id="lbLe" style="margin-top:12px">Zum Leiter-Prüfbuch</button>`;
     } else {
       inhalt = `<div class="hint" style="margin:0 0 4px">Sonstiges</div><b style="font-size:17px">${esc(z.bezeichnung)}</b>`;
     }
@@ -50,6 +53,7 @@
     const q = s => erg.querySelector(s);
     if (q("#lbZu")) q("#lbZu").onclick = () => { AT.qrTab.zuordnen(code, "anlage"); AT.allgemeinZeigen("qr"); };
     if (q("#lbLa")) q("#lbLa").onclick = () => AT.lagerScan(code, r);
+    if (q("#lbLe")) q("#lbLe").onclick = () => AT.leiterScan(code, r);
     if (q("#lbMa")) q("#lbMa").onclick = () => { AT.tab("maschinen"); AT.maschineScan(code, r); };
     q("#lbNochmal").onclick = scannen;
   }
