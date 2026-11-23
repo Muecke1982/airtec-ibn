@@ -1,6 +1,6 @@
 {
-  "name": "Airtec Kältetechnik",
-  "short_name": "Airtec",
+  "name": "Airtec KApp",
+  "short_name": "Airtec KApp",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

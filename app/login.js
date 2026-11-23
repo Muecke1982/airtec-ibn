@@ -59,7 +59,7 @@
   const box = document.createElement("div");
   box.id = "loginView"; box.className = "login hide";
   box.innerHTML = `<div class="lbox">
-    <img src="${typeof LOGO !== "undefined" ? LOGO : ""}" alt="Airtec">
+    <img src="/logo-kapp.png" alt="Airtec KApp">
     <h1>Anmelden</h1>
     <label>Name</label><select id="lName"><option value="">– Namen wählen –</option></select>
     <input id="lNameFree" class="hide" placeholder="Name" autocomplete="username">
@@ -123,7 +123,7 @@
   function pwZeigen(pflicht, altBekannt) {
     pwPflicht = !!pflicht; pwAlt = altBekannt || "";
     pwBox.innerHTML = `<div class="lbox">
-      <img src="${typeof LOGO !== "undefined" ? LOGO : ""}" alt="Airtec">
+      <img src="/logo-kapp.png" alt="Airtec KApp">
       <h1>${pwPflicht ? "Eigenes Passwort wählen" : "Passwort ändern"}</h1>
       ${pwPflicht ? `<div class="hint" style="text-align:center;margin-bottom:6px">Hallo ${esc(AT.user ? AT.user.name.split(" ")[0] : "")}! Sie haben ein Startpasswort vom Büro bekommen. Bitte wählen Sie jetzt ein eigenes – das kennen dann nur noch Sie.</div>` : ""}
       ${pwAlt ? "" : `<label>Bisheriges Passwort</label><input id="pAlt" type="password" autocomplete="current-password">`}
