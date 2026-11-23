@@ -97,18 +97,20 @@
     <label>Adresse</label><textarea id="fAdr" rows="2" style="min-height:58px" placeholder="Straße Nr., PLZ Ort">${esc(m.adresse)}</textarea>
     <div class="row"><div><label>Schlüssel-Nr.</label><input id="fSchl" value="${esc(m.schluessel)}" autocomplete="off"></div>
       <div><label>Alarmanlagen-Schlüssel</label><input id="fAlarm" value="${esc(m.alarm)}" autocomplete="off"></div></div>
-    ${m.id ? "" : `<label>Passwort (mind. 6 Zeichen)</label><input id="fPw" type="text" autocomplete="off">`}
+    ${m.id ? "" : `<label>Startpasswort (mind. 6 Zeichen – die Person wählt beim ersten Anmelden ein eigenes)</label><input id="fPw" type="text" autocomplete="off">`}
     ${rechteForm(m)}
     ${mitteilungenForm(m)}
     <div class="vwchk"><label><input type="checkbox" id="fAktiv" ${m.aktiv === false ? "" : "checked"} ${m.admin ? "disabled" : ""}> Aktiv (kann sich anmelden)</label></div>
     <div class="vwbtns"><button class="primary" id="fSave">${m.id ? "Speichern" : "Anlegen"}</button><button class="secondary" id="fCancel">Abbrechen</button></div>
-    ${m.id ? `<label style="margin-top:16px">Neues Passwort setzen</label>
+    ${m.id ? `${m.gesperrt ? `<div class="warn" style="margin-top:16px">Anmeldung gerade gesperrt (zu viele falsche Passwörter). Ein neues Passwort hebt die Sperre sofort auf – sonst endet sie nach 15 Minuten von selbst.</div>` : ""}
+      <label style="margin-top:16px">Neues Passwort setzen${m.name === (AT.user && AT.user.name) ? "" : " (Startpasswort – die Person wählt danach ein eigenes)"}</label>
       <div style="display:flex;gap:8px"><input id="fNewPw" type="text" autocomplete="off" placeholder="mind. 6 Zeichen"><button class="secondary" id="fPwSave" style="border:0;border-radius:10px;padding:0 14px;font:inherit;font-weight:600">Setzen</button></div>
       ${m.admin ? "" : `<div class="vwbtns">${ichAdmin() && m.aktiv && m.hatPw ? `<button class="secondary" id="fAdmin">Zum Admin machen</button>` : ""}<button class="vwdel" id="fDel">Mitarbeiter löschen</button></div>`}` : ""}`;
   };
   const zusatzZahl = m => m.admin ? ZUSATZ.length : (m.rechte || []).filter(r => ZUSATZ.includes(r)).length;
   const tags = m => (m.admin ? '<span class="vwtag b">Admin</span>' : zusatzZahl(m) ? `<span class="vwtag b">${zusatzZahl(m) === ZUSATZ.length ? "Büro" : zusatzZahl(m) + " Zusatzrechte"}</span>` : "")
-    + (m.aktiv ? "" : '<span class="vwtag">inaktiv</span>') + (m.hatPw ? "" : '<span class="vwtag w">kein Passwort</span>');
+    + (m.aktiv ? "" : '<span class="vwtag">inaktiv</span>') + (m.hatPw ? "" : '<span class="vwtag w">kein Passwort</span>')
+    + (m.gesperrt ? '<span class="vwtag w">gesperrt</span>' : m.pwNeu ? '<span class="vwtag">Startpasswort</span>' : "");
 
   function paintMa() {
     if (!ma) return `<section class="card">Lade …</section>`;
@@ -117,7 +119,7 @@
       ${offen === "neu" ? `<div class="vwrow">${maForm()}</div>` : `<button class="add" id="maNew" style="margin-top:0">+ Neuer Mitarbeiter</button>`}
       ${ma.map(m => `<div class="vwrow ${m.aktiv ? "" : "off"}"><div class="vwhead" data-open="${m.id}"><b>${esc(m.name)}</b><span>${tags(m)}</span></div>
         ${offen === m.id ? maForm(m) : ""}</div>`).join("")}
-      <div class="hint">Passwörter werden verschlüsselt gespeichert und können nicht angezeigt, nur neu gesetzt werden. Nach einer Passwort-Änderung muss sich die Person neu anmelden.</div></section>`;
+      <div class="hint">Passwörter werden verschlüsselt gespeichert und können nicht angezeigt, nur neu gesetzt werden. Ein hier gesetztes Passwort ist ein Startpasswort: Die Person meldet sich damit an und muss sofort ein eigenes wählen („Startpasswort“ = noch nicht geändert). Nach 5 falschen Versuchen ist die Anmeldung 15 Minuten gesperrt.</div></section>`;
   }
 
   // ---------- Stammdaten ----------

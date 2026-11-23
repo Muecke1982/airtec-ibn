@@ -30,6 +30,7 @@ import { users } from "../lib/auth.js";
 import { taeglich as sicherungTaeglich } from "../lib/sicherung.js";
 import { auth } from "../lib/auth.js";
 import { schreibe, beschreibe, aufraeumen } from "../lib/logbuch.js";
+import { fehlerAufraeumen } from "../lib/anmeldung.js";
 import { one } from "../lib/db.js";
 import { json } from "../lib/graph.js";
 
@@ -73,8 +74,10 @@ const routes = {
 async function protokolliere(env, me, url, body, res) {
   const pfad = url.pathname.replace(/\/+$/, "");
   if (pfad === "/api/login") {
+    if (body.aktion === "passwort")
+      return schreibe(env, (me && me.name) || "?", "Anmeldung", res.ok ? "Eigenes Passwort geändert" : res.status === 429 ? "Passwort ändern gesperrt (zu viele Fehlversuche)" : "Passwort ändern fehlgeschlagen");
     const name = String(body.name || "").trim().slice(0, 80) || "?";
-    return schreibe(env, name, "Anmeldung", res.ok ? "Angemeldet" : "Anmeldung fehlgeschlagen");
+    return schreibe(env, name, "Anmeldung", res.ok ? "Angemeldet" : res.status === 429 ? "Anmeldung gesperrt (zu viele Fehlversuche)" : "Anmeldung fehlgeschlagen");
   }
   if (!res.ok) return;
   const b = { ...body };
@@ -98,7 +101,7 @@ export default {
         body._name = ((await one(env, "SELECT name FROM mitarbeiter WHERE id = ?", +body.id).catch(() => null)) || {}).name;
       if (url.pathname.startsWith("/api/autos") && body.id && !body.kennzeichen)   // Kennzeichen fürs Logbuch
         body.kennzeichen = ((await one(env, "SELECT kennzeichen FROM autos WHERE id = ?", +body.id).catch(() => null)) || {}).kennzeichen;
-      const me = url.pathname.startsWith("/api/login") ? null : await auth(env, request).catch(() => null);   // vor der Aktion (z. B. eigenes Passwort ändern)
+      const me = url.pathname.startsWith("/api/login") && body.aktion !== "passwort" ? null : await auth(env, request).catch(() => null);   // vor der Aktion (z. B. eigenes Passwort ändern)
       const res = await h({ request, env, waitUntil: ctx && ctx.waitUntil ? p => ctx.waitUntil(p) : null });   // waitUntil: z. B. Handy-Mitteilungen nach der Antwort senden
       if (ctx && ctx.waitUntil) ctx.waitUntil(protokolliere(env, me, url, body, res).catch(e => console.error("Logbuch:", e.message)));
       return res;
@@ -108,6 +111,7 @@ export default {
   // Zeitgesteuert (siehe wrangler.jsonc „triggers“): altes Logbuch/Nachrichten löschen, TÜV prüfen, sichern
   async scheduled(event, env, ctx) {
     ctx.waitUntil(aufraeumen(env).catch(e => console.error("Logbuch aufräumen:", e.message)));
+    ctx.waitUntil(fehlerAufraeumen(env).catch(e => console.error("Fehlversuche aufräumen:", e.message)));
     ctx.waitUntil(austauschAufraeumen(env).catch(e => console.error("Austausch aufräumen:", e.message)));
     ctx.waitUntil(autosPruefen(env).catch(e => console.error("Autos prüfen:", e.message)));
     ctx.waitUntil(leiternPruefen(env).catch(e => console.error("Leitern prüfen:", e.message)));

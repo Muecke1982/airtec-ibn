@@ -135,7 +135,7 @@ input.auto{color:var(--blue);font-style:italic;background:#f3fafe}
 .legend div{display:flex;align-items:center;gap:6px;margin-top:3px}
 .legend i{flex:0 0 14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.12)}
 /* Anmeldung + Module */
-body.locked>*:not(#loginView):not(.toast){display:none!important}
+body.locked>*:not(#loginView):not(#pwView):not(.toast){display:none!important}
 .login{position:fixed;inset:0;background:var(--bg);z-index:40;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top) + 40px) 16px 30px}
 .login .lbox{background:#fff;border-radius:18px;padding:22px 18px;width:100%;max-width:420px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
 .login img{display:block;height:44px;margin:0 auto 10px}
@@ -664,6 +664,7 @@ button,select,label,a{touch-action:manipulation}
 <div class="modal" id="mSettings"><div class="box">
   <h3>Angemeldet</h3>
   <div class="acc"><b id="accName"></b><button id="accLogout">Abmelden</button></div>
+  <button class="add" id="accPw">🔑 Eigenes Passwort ändern</button>
   <div class="hint">Wird automatisch als Ersteller ins Protokoll eingetragen.</div>
   <div class="hide"><select id="sPick"></select><div id="sPickBox"></div><input id="sName"><input id="sMail"><input id="sCode"></div>
   <h3 style="margin-top:22px">Stammdaten (Auswahllisten)</h3>
