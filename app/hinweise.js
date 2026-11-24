@@ -20,7 +20,7 @@
   const root = document.getElementById("stView");
   root.innerHTML = `<section class="card sthello"><div class="hi" id="stHi"></div><div class="me" id="stMe"></div>
       <button class="mehint" id="stToPlan">Wochenplan ansehen →</button></section>
-    <section class="card stsuche"><input id="stQ" type="search" placeholder="🔍 Suchen: Kennzeichen, Name, Telefon, Maschine, Artikel …" autocomplete="off" enterkeyhint="search">
+    <section class="card stsuche"><div class="stqrow"><input id="stQ" type="search" placeholder="🔍 Suchen: Kennzeichen, Name, Telefon, Maschine, Artikel …" autocomplete="off" enterkeyhint="search"><button id="stScan" type="button" aria-label="QR-Code scannen" title="QR-Code scannen">📷</button></div>
       <div id="stRes"></div></section>
     <div id="hiBox"></div>`;
   const box = root.querySelector("#hiBox");
@@ -29,6 +29,8 @@
   // Server: Mitarbeiter (Name, Telefon) + Autos (Kennzeichen, Marke, Fahrer). Lokal: Maschinen, Lager-Artikel, Nachrichten.
   const sst = document.createElement("style");
   sst.textContent = `.stsuche{padding:10px 12px} .stsuche input{margin:0}
+    .stqrow{display:flex;gap:8px;align-items:stretch} .stqrow input{flex:1;min-width:0}
+    #stScan{flex:none;width:52px;border:1.5px solid var(--blue,#009ED5);background:#e8f6fc;border-radius:12px;font-size:22px;line-height:1;padding:0;cursor:pointer}
     .sres{margin-top:8px} .sres h4{margin:10px 2px 4px;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
     .sres .sr{display:block;width:100%;text-align:left;border:0;border-top:1px solid #eef1f4;background:none;padding:8px 2px;font:inherit;color:var(--ink)}
     .sres .sr b{font-size:15px} .sres .sr small{display:block;color:var(--mut);font-size:13px;margin-top:1px}
@@ -70,6 +72,12 @@
   const qIn = root.querySelector("#stQ");
   qIn.oninput = () => { clearTimeout(sTimer); sTimer = setTimeout(() => suchen(qIn.value.trim()), 300); };
   qIn.onkeydown = e => { if (e.key === "Escape") { qIn.value = ""; suchen(""); } };
+  // 📷 QR-Code scannen → je nach Zuordnung zur Maschine, Leiter, zum Lagerartikel oder ins Logbuch
+  root.querySelector("#stScan").onclick = async () => {
+    if (!AT.qr) return;
+    const code = await AT.qr.scan("QR-Code scannen");
+    if (code) AT.qr.oeffnen(code);
+  };
 
   async function hello() {
     const W = AT.wp;
