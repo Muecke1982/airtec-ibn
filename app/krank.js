@@ -91,7 +91,16 @@
       .map(n => ({ name: n, von: st.orig[n] || "", nach: st.cur[n] || "" }));
   }
 
-  const chip = n => `<button class="krchip${st.sel === n ? " sel" : ""}${(st.cur[n] || "") !== (st.orig[n] || "") ? " moved" : ""}" data-n="${esc(n)}">${esc(n)}</button>`;
+  const chip = n => `<button class="krchip${st.sel === n ? " sel" : ""}${(st.cur[n] || "") !== (st.orig[n] || "") ? " moved" : ""}" data-n="${esc(n)}">${W.tagged(st.data, n)}</button>`;
+  // Kennzeichen oben rechts an der Baustelle: allein / Zusammensetzung / ohne Fachkraft
+  function badge(t, off) {
+    const n = t.leute.length;
+    if (off) return { txt: String(n), cls: "" };
+    if (!n) return { txt: "unbesetzt", cls: " empty" };
+    if (W.ohneFach(st.data, t.leute)) return { txt: "ohne Fachkraft · " + W.besetzung(st.data, t.leute), cls: " alone" };
+    if (n === 1) { const a = W.artOf(st.data, t.leute[0]); return { txt: "allein" + (a && a !== "Monteur" ? " · " + a : ""), cls: " alone" }; }
+    return { txt: W.besetzung(st.data, t.leute), cls: "" };
+  }
 
   function paint() {
     const G = groups(), ch = changes(), names = st.data.spalten || [], hol = holiday(st.day);
@@ -103,16 +112,16 @@
           <label class="wpday"><b>${esc(WT[wd(st.day)] + ", " + dShort(st.day))}</b><small>${st.day === todayIso() ? "heute · " : ""}KW ${W.isoWeek(st.day).week} · Datum wählen</small><input type="date" id="krDay" value="${st.day}"></label>
           <button id="krNext" aria-label="Tag vor">›</button>
         </div>
-        <div class="hint">Monteur antippen, dann das Ziel antippen – eine Baustelle, „Nicht eingeplant“, „Krank“, „Urlaub“ oder „Frei“.</div>
+        <div class="hint">Mitarbeiter antippen, dann das Ziel antippen – eine Baustelle, „Nicht eingeplant“, „Krank“, „Urlaub“ oder „Frei“.</div>
         ${hol ? `<div class="krhol">🎉 Feiertag: <b>${esc(hol)}</b>${names.some(n => W.absence(st.cur[n]) !== "Feiertag") ? `<button class="krholbtn" id="krHol">Alle auf „Feiertag“ setzen</button>` : ""}</div>` : ""}
       </section>
       ${st.fehlt ? `<section class="card"><div class="lerr">Für KW ${st.data.kw} gibt es noch kein Blatt in der Tabelle.</div></section>` : ""}
       <div class="krhint${st.sel ? "" : " hide"}">${st.sel ? `<b>${esc(st.sel)}</b> ausgewählt – jetzt Ziel antippen <button id="krDesel">✕</button>` : ""}</div>
       ${G.teams.map(t => {
-        const n = t.leute.length, off = isOffice(t.ort);
+        const off = isOffice(t.ort), bd = badge(t, off);
         const lost = names.filter(x => st.orig[x] && norm(st.orig[x]) === norm(t.ort) && !t.leute.includes(x));
-        return `<section class="card krzone${off ? "" : n === 0 ? " empty" : n === 1 ? " alone" : ""}" data-to="${esc(t.ort)}">
-          <div class="krtop"><h3>${esc(t.ort)}</h3><span class="krbadge">${off ? n : n === 0 ? "unbesetzt" : n === 1 ? "allein" : n + " Monteure"}</span></div>
+        return `<section class="card krzone${bd.cls}" data-to="${esc(t.ort)}">
+          <div class="krtop"><h3>${esc(t.ort)}</h3><span class="krbadge">${esc(bd.txt)}</span></div>
           <div class="krchips">${t.leute.map(chip).join("") || `<span class="krempty">${st.sel ? "hierher tippen" : "niemand"}</span>`}</div>
           ${lost.length ? `<div class="krlost">vorher auch: ${lost.map(esc).join(", ")}</div>` : ""}
           ${off ? "" : `<div class="kracts"><button class="krlink" data-add="${esc(t.ort)}">+ weitere Baustelle am selben Tag</button><button class="krdel" data-del="${esc(t.ort)}">Baustelle streichen</button></div>`}
@@ -189,7 +198,7 @@
         for (const n of st.data.spalten || []) if (norm(st.cur[n]) === norm(o)) st.cur[n] = "";
         st.extra = st.extra.filter(x => norm(x) !== norm(o));
         st.gone.push(norm(o)); st.sel = null; paint();
-        toast2(`${o} gestrichen – Monteure stehen unter „Nicht eingeplant“`);
+        toast2(`${o} gestrichen – die Mitarbeiter stehen unter „Nicht eingeplant“`);
       } else {
         b.classList.add("sure"); b.textContent = "Wirklich streichen?";
         setTimeout(() => { if (b.isConnected) { b.classList.remove("sure"); b.textContent = "Baustelle streichen"; } }, 4000);

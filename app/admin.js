@@ -69,6 +69,7 @@
   }
 
   // ---------- Mitarbeiter ----------
+  const ARTEN_MA = ["Meister", "Techniker", "Monteur", "Helfer", "Azubi", "Praktikant"];   // wie lib/verwaltung.js
   // Häkchen für die Rechte. Gesperrt: beim Admin alles; „Mitarbeiter verwalten“ darf nur der Admin ändern.
   const rechteForm = m => {
     const hat = m.id ? (m.rechte || []) : MONTEUR;
@@ -92,7 +93,8 @@
     <label>Name (so meldet sich die Person an)</label><input id="fName" value="${esc(m.name)}" autocomplete="off">
     <div class="row"><div><label>E-Mail</label><input id="fMail" type="email" value="${esc(m.mail)}"></div>
       <div><label>Geburtstag (TT.MM.)</label><input id="fGeb" value="${esc(m.geb)}" placeholder="24.03." inputmode="decimal"></div></div>
-    <label>Name im Wochenplan (leer = wie oben)</label><input id="fPlan" value="${esc(m.plan)}">
+    <div class="row"><div><label>Art</label><select id="fArt">${ARTEN_MA.map(a => `<option ${(m.art || "Monteur") === a ? "selected" : ""}>${a}</option>`).join("")}</select></div>
+      <div><label>Name im Wochenplan (leer = wie oben)</label><input id="fPlan" value="${esc(m.plan)}"></div></div>
     <label>Telefon</label><input id="fTel" type="tel" value="${esc(m.telefon)}" inputmode="tel" autocomplete="off">
     <label>Adresse</label><textarea id="fAdr" rows="2" style="min-height:58px" placeholder="Straße Nr., PLZ Ort">${esc(m.adresse)}</textarea>
     <div class="row"><div><label>Schlüssel-Nr.</label><input id="fSchl" value="${esc(m.schluessel)}" autocomplete="off"></div>
@@ -108,7 +110,7 @@
       ${m.admin ? "" : `<div class="vwbtns">${ichAdmin() && m.aktiv && m.hatPw ? `<button class="secondary" id="fAdmin">Zum Admin machen</button>` : ""}<button class="vwdel" id="fDel">Mitarbeiter löschen</button></div>`}` : ""}`;
   };
   const zusatzZahl = m => m.admin ? ZUSATZ.length : (m.rechte || []).filter(r => ZUSATZ.includes(r)).length;
-  const tags = m => (m.admin ? '<span class="vwtag b">Admin</span>' : zusatzZahl(m) ? `<span class="vwtag b">${zusatzZahl(m) === ZUSATZ.length ? "Büro" : zusatzZahl(m) + " Zusatzrechte"}</span>` : "")
+  const tags = m => `<span class="vwtag">${esc(m.art || "Monteur")}</span>` + (m.admin ? '<span class="vwtag b">Admin</span>' : zusatzZahl(m) ? `<span class="vwtag b">${zusatzZahl(m) === ZUSATZ.length ? "Büro" : zusatzZahl(m) + " Zusatzrechte"}</span>` : "")
     + (m.aktiv ? "" : '<span class="vwtag">inaktiv</span>') + (m.hatPw ? "" : '<span class="vwtag w">kein Passwort</span>')
     + (m.gesperrt ? '<span class="vwtag w">gesperrt</span>' : m.pwNeu ? '<span class="vwtag">Startpasswort</span>' : "");
 
@@ -249,7 +251,7 @@
       if (save) save.onclick = () => busy(save, async () => {
         const rechte = [...view.querySelectorAll("[data-recht]")].filter(c => c.checked).map(c => c.dataset.recht);
         const mitteilungenAus = [...view.querySelectorAll("[data-mitt]")].filter(c => !c.checked).map(c => c.dataset.mitt);
-        const r = await post({ aktion: "ma_speichern", id: m && m.id, name: val("fName"), mail: val("fMail"), plan: val("fPlan"), geb: val("fGeb"),
+        const r = await post({ aktion: "ma_speichern", id: m && m.id, name: val("fName"), mail: val("fMail"), plan: val("fPlan"), art: val("fArt"), geb: val("fGeb"),
           rechte, mitteilungenAus, aktiv: val("fAktiv"), passwort: val("fPw"), telefon: val("fTel"), adresse: val("fAdr"), schluessel: val("fSchl"), alarm: val("fAlarm") });
         ma = r.mitarbeiter; offen = null; paint(); say("Gespeichert");
       });

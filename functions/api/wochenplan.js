@@ -26,7 +26,10 @@ export async function onRequestGet({ request, env }) {
     const plan = parseWeek(await sheetValues(env, sh), all.map(u => u.plan), monday);
     const ich = me.legacy ? "" : matchName(me, plan.spalten);
     const { zellen, ...rest } = plan;
-    return json(200, { jahr: year, kw: week, montag: isoDate(monday), blatt: sh.title, ich, ...rest, stand: new Date().toISOString() });
+    // Art je Spalte (Meister, Azubi …) aus den Mitarbeitern – Spalten ohne passenden Mitarbeiter bleiben leer
+    const arten = {};
+    for (const u of all) { const col = u.art && matchName(u, plan.spalten); if (col && !arten[col]) arten[col] = u.art; }
+    return json(200, { jahr: year, kw: week, montag: isoDate(monday), blatt: sh.title, ich, ...rest, arten, stand: new Date().toISOString() });
   } catch (e) {
     console.error(e);
     return json(500, { error: e.message });

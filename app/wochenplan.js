@@ -87,6 +87,23 @@
   }
   const names = l => l.length <= 1 ? (l[0] || "") : l.slice(0, -1).join(", ") + " und " + l[l.length - 1];
 
+  /* ---------- Art der Mitarbeiter (Meister, Azubi …) ---------- */
+  const MEHRZAHL = { Monteur: "Monteure", Azubi: "Azubis", Praktikant: "Praktikanten" };
+  const FACH = ["Meister", "Techniker", "Monteur"];
+  const artOf = (data, n) => ((data && data.arten) || {})[n] || "";
+  // Name mit kleinem Zusatz, wenn es kein Monteur ist (Monteur ist der Normalfall)
+  const tagged = (data, n) => { const a = artOf(data, n); return esc(n) + (a && a !== "Monteur" ? ` <small class="wpart">${esc(a)}</small>` : ""); };
+  // Zusammensetzung eines Teams, z. B. „2 Monteure · 1 Azubi“
+  function besetzung(data, leute) {
+    const z = new Map();
+    for (const n of leute) { const a = artOf(data, n) || "Person"; z.set(a, (z.get(a) || 0) + 1); }
+    const ord = [...FACH, "Helfer", "Azubi", "Praktikant", "Person"];
+    return [...z].sort((a, b) => ord.indexOf(a[0]) - ord.indexOf(b[0]))
+      .map(([a, k]) => k + " " + (k === 1 ? a : a === "Person" ? "Personen" : MEHRZAHL[a] || a)).join(" · ");
+  }
+  // Team ohne Meister/Techniker/Monteur (nur wenn alle Arten bekannt sind)
+  const ohneFach = (data, leute) => leute.length > 0 && leute.every(n => artOf(data, n)) && !leute.some(n => FACH.includes(artOf(data, n)));
+
   /* ---------- Ansicht ---------- */
   const root = document.getElementById("wpView");
   root.innerHTML = `
@@ -160,10 +177,10 @@
     const T = teams(data, s);
     if (!T.hat) { $("#wpTeams").innerHTML = '<div class="hint">An diesem Tag steht nichts in der Tabelle.</div>'; return; }
     const mine = myCol(data);
-    const li = (g, cls) => `<li class="${cls}${g.leute.includes(mine) ? " mine" : ""}"><b>${esc(g.ort)}</b><span>${g.leute.map(esc).join(", ")}</span></li>`;
+    const li = (g, cls) => `<li class="${cls}${g.leute.includes(mine) ? " mine" : ""}"><b>${esc(g.ort)}</b><span>${g.leute.map(n => tagged(data, n)).join(", ")}</span></li>`;
     let h = T.teams.length ? `<ul class="wplist">${T.teams.map(g => li(g, "")).join("")}</ul>` : "";
     if (T.abs.length) h += `<ul class="wplist">${T.abs.map(g => li(g, "abs")).join("")}</ul>`;
-    if (T.free.length && wd(s) < 5) h += `<ul class="wplist"><li class="open"><b>Noch nicht eingeplant</b><span>${T.free.map(esc).join(", ")}</span></li></ul>`;
+    if (T.free.length && wd(s) < 5) h += `<ul class="wplist"><li class="open"><b>Noch nicht eingeplant</b><span>${T.free.map(n => tagged(data, n)).join(", ")}</span></li></ul>`;
     $("#wpTeams").innerHTML = h || '<div class="hint">Keine Einträge.</div>';
     fillWho(data);
   }
@@ -171,7 +188,7 @@
   function fillWho(data) {
     const sel = $("#wpWho"), keep = sel.value || ls.get("wp_who") || "";
     const list = (data.spalten || []).filter(n => n !== myCol(data));
-    const html = '<option value="">– auswählen –</option>' + list.map(n => `<option ${n === keep ? "selected" : ""}>${esc(n)}</option>`).join("");
+    const html = '<option value="">– auswählen –</option>' + list.map(n => { const a = artOf(data, n); return `<option value="${esc(n)}" ${n === keep ? "selected" : ""}>${esc(n)}${a && a !== "Monteur" ? " (" + esc(a) + ")" : ""}</option>`; }).join("");
     if (sel.innerHTML !== html) sel.innerHTML = html;
     if (!$("#wpWhoDate").value) $("#wpWhoDate").value = cur;
   }
@@ -275,6 +292,7 @@
   AT.wp = {
     sentence, greet, myCol,
     week, teams, partnerOf, absence, norm, addDays, wd, dShort, WT, todayIso, dayOf, isoWeek, esc, names,
+    artOf, tagged, besetzung, ohneFach,
     get cur() { return cur; },
     forget(s) { delete cache[wkKey(s)]; },
     async refresh() { await go(cur, true); if (!$("#wkBox").classList.contains("hide")) paintWeek(); },
