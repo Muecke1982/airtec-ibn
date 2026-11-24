@@ -447,6 +447,7 @@ button,select,label,a{touch-action:manipulation}
     <div class="docsel" id="docSel">
       <button data-doc="ibn"><b>Inbetriebnahmeprotokoll</b><small>Split, Multisplit, VRF, Direktverdampfer, Kaltwassersatz, Wärmepumpe, Klimaschrank</small></button>
       <button data-doc="abn"><b>Abnahmeprotokoll</b><small>Abnahme mit Unterschrift von Auftraggeber und Airtec</small></button>
+      <button data-doc="aufm"><b>Schnellaufmaß</b><small>Material einer Baustelle schnell erfassen – Kälte- oder Wassersystem</small></button>
     </div>
     <button class="primary bigbtn" id="docGo" disabled>Weiter</button>
   </section>
@@ -758,7 +759,7 @@ const TYPES={
 const fam=()=>TYPES[S.type]?.fam||null;
 const chkOn=c=>!["kws","wp"].includes(fam())&&(!c[2]||c[2].split(" ").includes(fam()));
 function setType(t){S.type=t;save();applyType()}
-const DOCS={ibn:"Inbetriebnahmeprotokoll",abn:"Abnahmeprotokoll"};
+const DOCS={ibn:"Inbetriebnahmeprotokoll",abn:"Abnahmeprotokoll",aufm:"Schnellaufmaß"};
 let pickDoc=null;
 function setDoc(d){S.doc=d;S.docOk=true;save();bindInputs();applyType();window.scrollTo(0,0)}
 function applyType(){
@@ -778,7 +779,8 @@ function applyType(){
   $("#abnForm").classList.toggle("hide",!abn);
   $("#commonBottom").classList.toggle("hide",!(abn||f));
   $$("[data-show]").forEach(e=>e.classList.toggle("hide",!e.dataset.show.split(" ").includes(f)));
-  $("#hdrType").textContent=!ok?"Dokument wählen":abn?"Abnahmeprotokoll":S.type?TYPES[S.type].label:"Anlagenart wählen";
+  $("#hdrType").textContent=!ok?"Dokument wählen":abn?"Abnahmeprotokoll":S.doc==="aufm"?"Schnellaufmaß":S.type?TYPES[S.type].label:"Anlagenart wählen";
+  if(window.AT&&AT.aufmass)AT.aufmass.show(ok&&S.doc==="aufm");
   if(abn)renderAbn();
   $("#ksBox").classList.toggle("hide",S.type!=="server");
   renderChecks();
@@ -1333,7 +1335,7 @@ $("#mSettings").onclick=e=>{if(e.target.id==="mSettings")e.currentTarget.classLi
 /* ---------- Dialog ---------- */
 function ask(title,html,yes="Trotzdem"){return new Promise(r=>{$("#cTitle").textContent=title;$("#cBody").innerHTML=html;$("#cYes").textContent=yes;const m=$("#mConfirm");m.classList.add("show");$("#cYes").onclick=()=>{m.classList.remove("show");r(true)};$("#cNo").onclick=()=>{m.classList.remove("show");r(false)}})}
 
-$("#btnNew").onclick=async()=>{if(await ask("Neues Protokoll?","Alle Eingaben und Fotos dieses Protokolls werden gelöscht.","Löschen")){S=blank();pickDoc=null;photos=[];save();init();window.scrollTo(0,0)}};
+$("#btnNew").onclick=async()=>{if(S.doc==="aufm"){AT.aufmass.neu();return}if(await ask("Neues Protokoll?","Alle Eingaben und Fotos dieses Protokolls werden gelöscht.","Löschen")){S=blank();pickDoc=null;photos=[];save();init();window.scrollTo(0,0)}};
 
 /* ---------- PDF ---------- */
 const dash=v=>(v==null||String(v).trim()==="")?"–":String(v).trim();
@@ -1508,7 +1510,7 @@ const outAll=()=>outTx("readonly",s=>s.getAll());
 const outAdd=o=>outTx("readwrite",s=>s.add(o));
 const outDel=id=>outTx("readwrite",s=>s.delete(id));
 async function sendOne(o){
-  const q=new URLSearchParams({name:o.name,projekt:o.projekt||"",monteur:o.monteur||""});
+  const q=new URLSearchParams({name:o.name,projekt:o.projekt||"",monteur:o.monteur||"",art:o.art||""});
   return (await api("upload?"+q,{method:"POST",headers:{"Content-Type":"application/pdf"},body:o.blob})).json();
 }
 let flushing=false;
@@ -1523,7 +1525,7 @@ async function outBadge(){let n=0;try{n=(await outAll()).length}catch(e){}
 window.addEventListener("online",flushOutbox);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)flushOutbox()});
 async function deliver(blob,name){
-  const o={name,blob,projekt:S.kom||"",monteur:monteur?.name||"",ts:Date.now()};
+  const o={name,blob,projekt:S.kom||"",monteur:monteur?.name||"",art:S.doc==="ibn"?"ibn":"",ts:Date.now()};
   if(!appCode()){toast("Nicht angemeldet – PDF wird lokal gespeichert");return saveLocal(blob,name)}
   try{
     toast("Wird in SharePoint gespeichert …");
@@ -1543,6 +1545,7 @@ async function saveLocal(blob,name){
 }
 $("#btnPdf").onclick=async()=>{
   if(!S.doc){toast("Bitte zuerst das Dokument wählen");return}
+  if(S.doc==="aufm"){AT.aufmass.pdf();return}
   if(S.doc==="abn"){
     if(!monteur?.name){openSettings();return}
     if(dash(S.bv)==="–"){toast("Bitte Bauvorhaben eintragen");$('#abnForm [data-k="bv"]').focus();return}
@@ -1646,6 +1649,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch
 <script src="/qr.js"></script>
 <script src="/maschinen.js"></script>
 <script src="/lager.js"></script>
+<script src="/aufmass.js"></script>
 <script src="/logbuch.js"></script>
 <script src="/allgemein.js"></script>
 <script src="/typenschild.js"></script>

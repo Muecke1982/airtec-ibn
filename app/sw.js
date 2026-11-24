@@ -1,9 +1,9 @@
 // Offline-Fähigkeit: App-Dateien werden auf dem Handy zwischengespeichert.
-const CACHE = "airtec-kapp-v26";
-const FILES = ["/", "/index.html", "/manifest.webmanifest", "/apple-touch-icon.png", "/logo-kapp.png", "/icon-512.png", "/login.js", "/wochenplan.js", "/austausch.js", "/allgemein.js", "/autos.js", "/hinweise.js", "/urlaub.js", "/krank.js", "/maschinen.js", "/lager.js", "/admin.js", "/icon-192.png",
+const CACHE = "airtec-kapp-v27";
+const FILES = ["/", "/index.html", "/manifest.webmanifest", "/apple-touch-icon.png", "/logo-kapp.png", "/icon-512.png", "/login.js", "/wochenplan.js", "/austausch.js", "/allgemein.js", "/autos.js", "/hinweise.js", "/urlaub.js", "/krank.js", "/maschinen.js", "/lager.js", "/aufmass.js", "/admin.js", "/icon-192.png",
   "/qr.js", "/logbuch.js", "/typenschild.js", "/push.js", "/leitern.js",
   "/vendor/jspdf.umd.min.js", "/vendor/jspdf.plugin.autotable.min.js", "/vendor/xlsx.full.min.js", "/vendor/jsQR.js"];
-const APP = ["/", "/index.html", "/login.js", "/wochenplan.js", "/krank.js", "/hinweise.js", "/maschinen.js", "/lager.js", "/admin.js", "/austausch.js", "/urlaub.js", "/autos.js", "/allgemein.js",
+const APP = ["/", "/index.html", "/login.js", "/wochenplan.js", "/krank.js", "/hinweise.js", "/maschinen.js", "/lager.js", "/aufmass.js", "/admin.js", "/austausch.js", "/urlaub.js", "/autos.js", "/allgemein.js",
   "/qr.js", "/logbuch.js", "/typenschild.js", "/push.js", "/leitern.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(n => n !== CACHE).map(n => caches.delete(n))))); self.clients.claim(); });

@@ -18,6 +18,9 @@ export async function onRequestPost({ request, env }) {
     let folder = cfg(env, "SP_FOLDER").replace(/^\/+|\/+$/g, "");
     const proj = cleanName(q.get("projekt"));
     if (cfg(env, "SP_PROJECT_SUBFOLDER", false).toLowerCase() === "ja" && proj) folder += "/" + proj;
+    // Unterordner je Dokumentart (ältere, noch wartende Uploads ohne Angabe landen wie bisher direkt im Ordner)
+    const UNTER = { ibn: "Inbetriebnahmeprotokolle", aufmass: "Aufmaß" };
+    if (UNTER[q.get("art")]) folder += "/" + UNTER[q.get("art")];
     const item = await upload(env, folder, filename, bytes);
     console.log(`Protokoll gespeichert: ${folder}/${item.name} (${q.get("monteur") || "?"})`);
     return json(200, { ok: true, name: item.name, folder, webUrl: item.webUrl });
