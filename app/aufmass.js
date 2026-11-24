@@ -344,6 +344,9 @@
       if (A.sys === "kaelte") laden();
     },
     pdf, neu, summe,
+    stand: () => A,                                                           // für „Parken“
+    setzen(x) { A = Object.assign(leer(), JSON.parse(JSON.stringify(x || {}))); ansicht = "artikel"; such = ""; pad = null; merken(); },
+    leeren() { const sys = A.sys; A = leer(); A.sys = sys; ansicht = "artikel"; such = ""; pad = null; merken(); },
   };
   if (typeof S !== "undefined" && S.docOk && S.doc === "aufm") AT.aufmass.show(true);
 })();

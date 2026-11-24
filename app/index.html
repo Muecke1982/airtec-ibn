@@ -653,7 +653,7 @@ button,select,label,a{touch-action:manipulation}
       <h2>Fotos</h2>
       <label class="filebtn">📷 Foto aufnehmen / auswählen<input type="file" id="photoIn" accept="image/*" multiple></label>
       <div class="photos" id="photos"></div>
-      <div class="hint">Fotos werden verkleinert und als Anhang ins PDF übernommen. Sie bleiben nur bis zum Schließen der Seite erhalten.</div>
+      <div class="hint">Fotos werden verkleinert und als Anhang ins PDF übernommen. Sie bleiben nur bis zum Schließen der Seite erhalten – mit „🅿 Parken“ werden sie mitgespeichert.</div>
     </section>
     <p class="who" id="whoLine"></p>
   </div>
@@ -1652,6 +1652,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch
 <script src="/lager.js"></script>
 <script src="/baustellen.js"></script>
 <script src="/aufmass.js"></script>
+<script src="/parken.js"></script>
 <script src="/logbuch.js"></script>
 <script src="/allgemein.js"></script>
 <script src="/typenschild.js"></script>
