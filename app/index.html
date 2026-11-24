@@ -432,14 +432,15 @@ button,select,label,a{touch-action:manipulation}
 <body>
 <header>
   <img src="/logo-kapp.png" alt="Airtec">
-  <div class="t"><span class="hdrline"><span id="hdrNow"></span><i id="hdrLamp" class="lamp" title="Verbindung wird geprüft …" role="img" aria-label="Verbindung wird geprüft"></i></span><small id="hdrType" data-mod="protokolle">Anlagentyp wählen</small><small data-mod="wochenplan" class="hide">Wochenplan</small><small data-mod="maschinen" class="hide">Maschinen</small><small data-mod="lager" class="hide">Lager</small></div>
+  <div class="t"><span class="hdrline"><span id="hdrNow"></span><i id="hdrLamp" class="lamp" title="Verbindung wird geprüft …" role="img" aria-label="Verbindung wird geprüft"></i></span><small id="hdrType" data-mod="protokolle">Anlagentyp wählen</small><small data-mod="wochenplan" class="hide">Wochenplan</small><small data-mod="maschinen" class="hide">Maschinen</small><small data-mod="lager" class="hide">Lager</small><small data-mod="baustellen" class="hide">Baustellen</small></div>
   <button class="iconbtn" id="btnSettings" aria-label="Einstellungen">⚙︎</button>
 </header>
-<nav class="tabs" id="tabs"><button data-tab="start">Start</button><button data-tab="wochenplan">Wochenplan</button><button data-tab="protokolle">Protokolle</button><button data-tab="maschinen">Maschinen</button><button data-tab="lager">Lager</button></nav>
+<nav class="tabs" id="tabs"><button data-tab="start">Start</button><button data-tab="wochenplan">Wochenplan</button><button data-tab="protokolle">Protokolle</button><button data-tab="maschinen">Maschinen</button><button data-tab="lager">Lager</button><button data-tab="baustellen">Baustellen</button></nav>
 <main id="stView" data-mod="start" class="hide"></main>
 <main id="wpView" data-mod="wochenplan" class="hide"></main>
 <main id="maView" data-mod="maschinen" class="hide"></main>
 <main id="laView" data-mod="lager" class="hide"></main>
+<main id="bsView" data-mod="baustellen" class="hide"></main>
 
 <main id="app" data-mod="protokolle">
   <section class="card hide" id="docCard">
@@ -1510,7 +1511,7 @@ const outAll=()=>outTx("readonly",s=>s.getAll());
 const outAdd=o=>outTx("readwrite",s=>s.add(o));
 const outDel=id=>outTx("readwrite",s=>s.delete(id));
 async function sendOne(o){
-  const q=new URLSearchParams({name:o.name,projekt:o.projekt||"",monteur:o.monteur||"",art:o.art||""});
+  const q=new URLSearchParams({name:o.name,projekt:o.projekt||"",monteur:o.monteur||"",art:o.art||"",bv:o.bv||""});
   return (await api("upload?"+q,{method:"POST",headers:{"Content-Type":"application/pdf"},body:o.blob})).json();
 }
 let flushing=false;
@@ -1525,7 +1526,7 @@ async function outBadge(){let n=0;try{n=(await outAll()).length}catch(e){}
 window.addEventListener("online",flushOutbox);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)flushOutbox()});
 async function deliver(blob,name){
-  const o={name,blob,projekt:S.kom||"",monteur:monteur?.name||"",art:S.doc==="ibn"?"ibn":"",ts:Date.now()};
+  const o={name,blob,projekt:S.kom||"",monteur:monteur?.name||"",art:S.doc==="ibn"?"ibn":S.doc==="abn"?"abnahme":"",bv:dash(S.bv)==="–"?"":S.bv,ts:Date.now()};
   if(!appCode()){toast("Nicht angemeldet – PDF wird lokal gespeichert");return saveLocal(blob,name)}
   try{
     toast("Wird in SharePoint gespeichert …");
@@ -1649,6 +1650,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch
 <script src="/qr.js"></script>
 <script src="/maschinen.js"></script>
 <script src="/lager.js"></script>
+<script src="/baustellen.js"></script>
 <script src="/aufmass.js"></script>
 <script src="/logbuch.js"></script>
 <script src="/allgemein.js"></script>

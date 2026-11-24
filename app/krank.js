@@ -43,6 +43,7 @@
   W.holiday = holiday;
   const isSick = v => W.absence(v) === "Krank";
   const isOffice = o => /^(buro|buero|werkstatt|lager)$/.test(norm(o));
+  const teile = v => String(v || "").split(/\s+[·\/]\s+/).filter(Boolean);
   const label = s => WT[wd(s)] + ", " + dShort(s) + (s === todayIso() ? " · heute" : "");
 
   async function open(day) {
@@ -205,18 +206,20 @@
       }
     });
     // zweite Baustelle für dieses Team am selben Tag: Eintrag wird z. B. „Bochum / Münster“
-    view.querySelectorAll(".krlink").forEach(b => b.onclick = e => {
+    // Auswahl aus den Baustellen des Wochenplans (letzte 5 Monate), Eingabe eines neuen Namens geht auch
+    const frage = (titel, ohne) => AT.baustellen ? AT.baustellen.waehlen({ titel, ohne }) : Promise.resolve(prompt(titel));
+    view.querySelectorAll(".krlink").forEach(b => b.onclick = async e => {
       e.stopPropagation();
       const o = b.dataset.add;
-      const add = (prompt(`Weitere Baustelle für das Team „${o}“ am selben Tag:`) || "").trim();
+      const add = ((await frage(`Weitere Baustelle für „${o}“ am selben Tag`, teile(o))) || "").trim();
       if (!add) return;
       const neu = o + " / " + add;
       for (const n of st.data.spalten || []) if (norm(st.cur[n]) === norm(o)) st.cur[n] = neu;
       if (st.extra.some(x => norm(x) === norm(o))) st.extra = st.extra.map(x => norm(x) === norm(o) ? neu : x);
       st.sel = null; paint();
     });
-    $("#krNew").onclick = () => {
-      const o = (prompt("Name der neuen Baustelle") || "").trim();
+    $("#krNew").onclick = async () => {
+      const o = ((await frage("Neue Baustelle", groups().teams.map(t => t.ort))) || "").trim();
       if (!o) return;
       if (!st.extra.some(x => norm(x) === norm(o))) st.extra.push(o);
       st.gone = st.gone.filter(k => k !== norm(o));

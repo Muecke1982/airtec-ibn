@@ -239,6 +239,7 @@
   function bind() {
     const feld = (id, k) => { const el = box.querySelector(id); if (el) el.oninput = () => { A[k] = el.value; merken(); }; };
     feld("#aBv", "bv"); feld("#aBer", "bereich"); feld("#aKom", "kom");
+    if (AT.baustellen && box.querySelector("#aBv")) AT.baustellen.feld(box.querySelector("#aBv"));   // Baustellen aus dem Wochenplan vorschlagen
     // Suche: nur die Liste neu aufbauen, damit Eingabefeld und Tastatur bleiben
     const s = box.querySelector("#aSuch");
     if (s) s.oninput = () => { such = s.value; box.querySelector("#aufKatBody").innerHTML = katBody(); };
@@ -314,7 +315,7 @@
     if (!window.jspdf) { say("PDF-Modul nicht geladen – Internetverbindung prüfen"); return; }
     let blob; const name = dateiName();
     try { blob = baue().output("blob"); } catch (e) { console.error(e); say("Fehler beim Erstellen: " + e.message); return; }
-    const o = { name, blob, projekt: A.kom.trim(), monteur: (AT.user && AT.user.name) || "", art: "aufmass", ts: Date.now() };
+    const o = { name, blob, projekt: A.kom.trim(), monteur: (AT.user && AT.user.name) || "", art: "aufmass", bv: A.bv.trim(), ts: Date.now() };
     try {
       say("Wird in SharePoint gespeichert …");
       const r = await sendOne(o);

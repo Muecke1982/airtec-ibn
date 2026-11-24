@@ -243,6 +243,7 @@
     lend.querySelectorAll(".mlchips button").forEach(b => b.onclick = () => { lend.querySelector("#msB").value = b.dataset.b;
       lend.querySelectorAll(".mlchips button").forEach(x => x.classList.toggle("on", x === b)); });
     lend.querySelector("#msX").onclick = closeLend;
+    if (AT.baustellen) AT.baustellen.feld(lend.querySelector("#msB"));
     lend.querySelector("#msGo").onclick = async () => {
       const id = lend.querySelector("#msM").value, baustelle = lend.querySelector("#msB").value.trim();
       if (!baustelle) { lend.querySelector("#msB").focus(); toast2("Bitte die Baustelle angeben"); return; }

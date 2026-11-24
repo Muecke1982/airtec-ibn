@@ -21,6 +21,7 @@ import * as qr from "../functions/api/qr.js";
 import * as typenschild from "../functions/api/typenschild.js";
 import * as push from "../functions/api/push.js";
 import * as leitern from "../functions/api/leitern.js";
+import * as baustellen from "../functions/api/baustellen.js";
 import { pruefen as autosPruefen } from "../lib/autos.js";
 import { pruefen as leiternPruefen } from "../lib/leitern.js";
 import { pruefen as fuehrerscheinPruefen } from "../lib/personal.js";
@@ -68,6 +69,8 @@ const routes = {
   "POST /api/push": push.onRequestPost,
   "GET /api/leitern": leitern.onRequestGet,
   "POST /api/leitern": leitern.onRequestPost,
+  "GET /api/baustellen": baustellen.onRequestGet,
+  "POST /api/baustellen": baustellen.onRequestPost,
 };
 
 // Logbuch: Änderungen (POST) und Anmeldungen aufzeichnen – im Hintergrund, damit die Antwort nicht wartet

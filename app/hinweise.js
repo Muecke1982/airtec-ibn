@@ -86,7 +86,8 @@
 
   async function load() {
     const [m, lg, mm] = await Promise.allSettled([(AT.darf("maschinen") || AT.darf("maschinen_buero")) ? AT.api("maschinen") : Promise.reject(),
-      AT.darf("lager_bestellen") ? AT.api("lager") : Promise.reject(), AT.api("muell"), AT.austausch ? AT.austausch.load() : null]);
+      AT.darf("lager_bestellen") ? AT.api("lager") : Promise.reject(), AT.api("muell"), AT.austausch ? AT.austausch.load() : null,
+      AT.baustellen ? AT.baustellen.tickerLaden() : null]);
     if (mm.status === "fulfilled") { mu = mm.value; ls.set("mu_cache", mu); }
     if (lg.status === "fulfilled") { ls.set("lg_cache", lg.value); }
     if (m.status === "fulfilled") { ma = m.value; ma.geladen = Date.now(); ls.set("ma_cache", ma); }
@@ -115,6 +116,9 @@
       }
     }
     items.push(...geb);
+
+    // ---------- Baustellen-Infos für den nächsten Einsatz (baustellen.js) ----------
+    if (AT.baustellen) items.push(AT.baustellen.karten());
 
     // ---------- Austausch: angepinnt, dringend, Zähler ----------
     if (A) {
@@ -238,6 +242,7 @@
     box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => AT.austausch.oeffnen(+b.dataset.open || null));
     const w = box.querySelector("#stWrite"); if (w) w.onclick = () => AT.austausch.schreiben(AT.darf("hinweise") ? "" : "*buero");
     root.querySelector("#stToPlan").onclick = () => AT.tab("wochenplan");
+    if (AT.baustellen) AT.baustellen.binden(box, paint);
   }
 
   // bei jedem Öffnen der Startseite aktualisieren

@@ -1,6 +1,8 @@
 import { darf } from "../../lib/rechte.js";
 import { auth } from "../../lib/auth.js";
 import { cfg, upload, cleanName, json } from "../../lib/graph.js";
+import { hasDb } from "../../lib/db.js";
+import { dokumentMerken } from "../../lib/baustellen.js";
 const MAX = 60 * 1024 * 1024;
 
 // PDF-Protokoll in SharePoint ablegen
@@ -19,10 +21,16 @@ export async function onRequestPost({ request, env }) {
     const proj = cleanName(q.get("projekt"));
     if (cfg(env, "SP_PROJECT_SUBFOLDER", false).toLowerCase() === "ja" && proj) folder += "/" + proj;
     // Unterordner je Dokumentart (ältere, noch wartende Uploads ohne Angabe landen wie bisher direkt im Ordner)
-    const UNTER = { ibn: "Inbetriebnahmeprotokolle", aufmass: "Aufmaß" };
+    const UNTER = { ibn: "Inbetriebnahmeprotokolle", aufmass: "Aufmaß", mappe: "Baustellenmappe" };
     if (UNTER[q.get("art")]) folder += "/" + UNTER[q.get("art")];
     const item = await upload(env, folder, filename, bytes);
     console.log(`Protokoll gespeichert: ${folder}/${item.name} (${q.get("monteur") || "?"})`);
+    // in die Baustellen-Mappe aufnehmen (Fehler dabei dürfen den Upload nicht stören)
+    const ART = { ibn: "IBN-Protokoll", aufmass: "Aufmaß", abnahme: "Abnahmeprotokoll" };
+    if (q.get("bv") && ART[q.get("art")] && hasDb(env)) {
+      try { await dokumentMerken(env, me.name, { baustelle: q.get("bv"), art: ART[q.get("art")], name: item.name, ordner: folder, url: item.webUrl || "", projekt: proj }); }
+      catch (e) { console.error("Mappe:", e.message); }
+    }
     return json(200, { ok: true, name: item.name, folder, webUrl: item.webUrl });
   } catch (e) {
     console.error(e);
