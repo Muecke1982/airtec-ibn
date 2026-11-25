@@ -103,7 +103,12 @@
   .auprev button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:13px;line-height:22px;padding:0}
   .auacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;align-items:center}
   .auacts button{border:0;border-radius:9px;padding:7px 11px;font:inherit;font-size:13.5px;font-weight:600;background:#eef1f4;color:var(--ink)}
-  .auacts .on{background:#e3effc;color:var(--blue)} .auacts .zu{margin-left:auto} .auacts .del{background:none;color:var(--bad);padding:7px 4px}
+  .auacts .on{background:#e3effc;color:var(--blue)} .auacts .ein{margin-left:auto;background:none;color:var(--blue)} .auacts .del{background:none;color:var(--bad);padding:7px 4px}
+  .auklein{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:0;border-left:5px solid #d5dbe1;text-align:left;font:inherit;color:var(--ink);cursor:pointer}
+  .auklein.wichtig{border-left-color:#f08a00}
+  .auklein .avas{display:flex;flex:0 0 auto} .auklein .avas .ava{margin-left:-8px;border:2px solid #fff} .auklein .avas .ava:first-child{margin-left:0}
+  .auklein b{flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .auklein small{color:var(--mut);font-size:12.5px;white-space:nowrap} .auklein .go{color:var(--mut);font-size:18px}
   .auacts .del.sure{background:var(--bad);color:#fff;padding:7px 11px} .auacts .back{background:var(--green);color:#fff}
   .auinfo{font-size:12.5px;color:var(--mut);margin-top:8px}
   .auform textarea{min-height:80px}
@@ -264,8 +269,12 @@
       const acts = [];
       if (!m.eigene) acts.push(`<button data-like="${m.id}" class="${m.meineReaktion === "👍" ? "on" : ""}">👍${daumen.length ? " " + daumen.length : ""}</button>`);
       else if (daumen.length) acts.push(`<button disabled>👍 ${daumen.length}</button>`);
-      if (m.darfLoeschen) acts.push(`<button class="del" data-del="${m.id}">Löschen</button>`);
-      acts.push(`<button class="zu" data-zu="${m.id}">Chat schließen ✓</button>`);
+      // links: Löschen (nur Büro) bzw. Chat schließen (alle) · rechts: Einklappen (nur im Reiter Nachrichten)
+      const vorn = [];
+      if (m.darfLoeschen) vorn.push(`<button class="del" data-del="${m.id}">Löschen</button>`);
+      vorn.push(`<button data-zu="${m.id}">Chat schließen ✓</button>`);
+      acts.unshift(...vorn);
+      if (einklappbar(m)) acts.push(`<button class="ein" data-ein="${m.id}">Einklappen ▴</button>`);
       unten = `${ok}<div class="aureply"><button class="cam" data-foto="${m.id}" aria-label="Foto anhängen">📷</button>
           <textarea class="auin" data-entwurf="${m.id}" rows="1" placeholder="Antworten …">${esc(entwurf[m.id] || "")}</textarea>
           <button class="snd" data-send="${m.id}" aria-label="Senden">➤</button></div>${vorschau(m.id)}
@@ -281,6 +290,42 @@
     if (sel) unten = "";
     const kl = ["card", "auc", m.prio, m.pin ? "pin" : "", m.neu ? "neu" : "", offenOrd ? "" : "zu", sel && auswahl.has(m.id) ? "gewaehlt" : ""].join(" ");
     return `<section class="${kl}" data-m="${m.id}">${sel ? `<label class="ausel"><input type="checkbox" data-wahl="${m.id}" ${auswahl.has(m.id) ? "checked" : ""}> auswählen</label>` : ""}${top}${chat}${stat}${unten}</section>`;
+  }
+
+  // ---------- Eingeklappte Chats: nur Name(n) des Chatpartners; neue Nachricht → klappt wieder auf ----------
+  // zu: { id: Anzahl Antworten beim Einklappen } je Person auf dem Handy gespeichert; gemeldet: hier als gelesen gemeldete IDs
+  const zuKey = () => "au_zu_" + ich();
+  let zu = {};
+  const gemeldet = new Set();
+  const nAnt = m => (m.antworten || []).length;
+  const einklappbar = m => m.ordner === "offen" && !m.pin && m.typ !== "gruss" && m.typ !== "hinweis" && !(m.brauchtOk && !m.bestaetigt);
+  const ungelesen = m => m.neu && !gemeldet.has(m.id);
+  const istZu = m => zu[m.id] !== undefined && zu[m.id] === nAnt(m) && einklappbar(m) && !ungelesen(m);
+  function zuPruefen(list) {   // neue Antwort o. Ä. seit dem Einklappen → wieder offen
+    let geaendert = false;
+    for (const m of list) if (zu[m.id] !== undefined && !istZu(m)) { delete zu[m.id]; geaendert = true; }
+    const ids = new Set(list.map(m => m.id));
+    for (const id of Object.keys(zu)) if (!ids.has(+id)) { delete zu[id]; geaendert = true; }
+    if (geaendert) ls.set(zuKey(), zu);
+  }
+  function einklappen(m) { zu[m.id] = nAnt(m); ls.set(zuKey(), zu); }
+  // beim Verlassen der Nachrichten: alle gelesenen offenen Chats einklappen (nicht, wenn gerade etwas geschrieben wird)
+  function alleEinklappen() {
+    if (!data || form) return;
+    for (const m of data.nachrichten || []) if (einklappbar(m) && !ungelesen(m) && !(entwurf[m.id] || "").trim() && !(fotos[m.id] || []).length) zu[m.id] = nAnt(m);
+    ls.set(zuKey(), zu);
+  }
+  function partner(m) {
+    const andere = (m.beteiligt || []).filter(n => lc(n) !== lc(ich()));
+    if (andere.length) return andere;
+    return m.an.includes("Alle") ? ["Alle"] : m.an.includes("Büro") ? ["Büro"] : m.an.length ? m.an : [m.von];
+  }
+  function klein(m) {
+    const p = partner(m), z = (m.antworten || []).slice(-1)[0];
+    const namen = p.length > 3 ? p.slice(0, 3).map(first).join(", ") + ` +${p.length - 3}` : p.length > 1 ? p.map(first).join(", ") : p[0];
+    return `<button class="card auc auklein ${m.prio === "wichtig" ? "wichtig" : ""}" data-m="${m.id}" data-auf="${m.id}" aria-label="Chat mit ${esc(p.join(", "))} aufklappen">
+      <span class="avas">${p.slice(0, 3).map(n => `<span class="ava sm" style="background:${farbe(n)}">${esc(kuerzel(n))}</span>`).join("")}</span>
+      <b>${m.typ === "umfrage" ? "📊 " : ""}${esc(namen)}</b><small>${esc(wann(z ? z.zeit : m.erstellt))}</small><span class="go">▾</span></button>`;
   }
 
   function hinweisFormular() {
@@ -364,6 +409,7 @@
     const alle = (data.nachrichten || []).filter(m => m.typ !== "gruss");
     const N = { offen: alle.filter(m => m.ordner === "offen" && !m.pin), verlauf: alle.filter(m => m.ordner === "verlauf"), geloescht: alle.filter(m => m.ordner === "geloescht") };
     const pins = alle.filter(m => m.ordner === "offen" && m.pin).length;
+    zuPruefen(N.offen);
     let list = N[ordner] || [];
     if (ordner !== "offen" && person) list = list.filter(m => (m.beteiligt || []).some(n => lc(n) === lc(person)));
     if (ordner !== "verlauf") auswahl = null;
@@ -384,7 +430,7 @@
           <option value="">👥 Alle Personen</option>${leute.map(n => `<option ${lc(n) === lc(person) ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
           ${ordner === "verlauf" && waehlbar.length && !auswahl ? `<button class="add" id="auWahl" style="margin:0;flex:0 0 auto;padding:10px 12px">☑️ Auswählen</button>` : ""}</div>` : ""}
       ${ordner === "offen" && pins ? `<button class="aupinhint" id="auZurStart">📌 ${pins} angepinnte Mitteilung${pins > 1 ? "en" : ""} auf der Startseite →</button>` : ""}
-      ${list.length ? list.map(karte).join("") : `<section class="card auleer"><b>${leer[0]}</b>${esc(leer[1])}</section>`}
+      ${list.length ? list.map(m => ordner === "offen" && istZu(m) ? klein(m) : karte(m)).join("") : `<section class="card auleer"><b>${leer[0]}</b>${esc(leer[1])}</section>`}
       ${auswahl ? `<div class="ausel-bar"><b>${auswahl.size} ausgewählt</b><button class="ab" id="auWahlAlle">${auswahl.size === waehlbar.length ? "Keine" : "Alle"}</button>
         <button class="weg" id="auWahlWeg" ${auswahl.size ? "" : "disabled"}>🗑 In den Papierkorb</button><button class="ab" id="auWahlEnde" aria-label="Auswahl beenden">✕</button></div>` : ""}`;
     binden(view);
@@ -504,6 +550,11 @@
     });
     root.querySelectorAll("[data-stat]").forEach(b => b.onclick = () => { offenStatus = offenStatus === +b.dataset.stat ? null : +b.dataset.stat; neu(); });
     root.querySelectorAll("[data-alle]").forEach(b => b.onclick = () => { aufgeklappt.add(+b.dataset.alle); neu(); });
+    root.querySelectorAll("[data-ein]").forEach(b => b.onclick = () => { const m = data.nachrichten.find(x => x.id === +b.dataset.ein); if (m) { einklappen(m); paint(); } });
+    root.querySelectorAll("[data-auf]").forEach(b => b.onclick = () => {
+      const id = +b.dataset.auf; delete zu[id]; ls.set(zuKey(), zu); paint();
+      const el = view.querySelector(`[data-m="${id}"]`); if (el) el.scrollIntoView({ block: "nearest" });
+    });
     root.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
       const label = b.dataset.dellabel || "Löschen";
       if (!b.classList.contains("sure")) { b.classList.add("sure"); b.textContent = `Wirklich ${label.toLowerCase()}?`; setTimeout(() => { if (b.isConnected) { b.classList.remove("sure"); b.textContent = label; } }, 4000); return; }
@@ -527,6 +578,7 @@
       if (!ids.length) return;
       try { const d = await AT.api("austausch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: "gelesen", ids }) });
         // Markierung „neu“ bleibt in der aktuellen Ansicht sichtbar, nur der Zähler geht zurück
+        ids.forEach(id => gemeldet.add(id));
         data.ungelesen = d.ungelesen; data.wichtigOffen = d.wichtigOffen; data.offen = d.offen; ls.set(cacheKey(), d); punkt(); } catch (e) {}
     }, 1500);
   }
@@ -572,6 +624,7 @@
     gelesen(ids) { if (ids && ids.length) gelesenMelden(ids); },
     oeffnen(id) {
       const m = id && data && data.nachrichten.find(x => x.id === id);
+      if (m && zu[m.id] !== undefined) { delete zu[m.id]; ls.set(zuKey(), zu); }   // gezielt geöffnet → aufgeklappt zeigen
       if (m && m.pin && m.ordner === "offen") { AT.tab("start"); } else { ordner = m ? m.ordner : "offen"; person = ""; form = null; AT.tab("austausch"); }
       if (id) setTimeout(() => { const el = document.querySelector(`[data-m="${id}"]`); if (el) { el.scrollIntoView({ block: "center" }); el.classList.add("blink"); } }, 350);
     },
@@ -582,10 +635,18 @@
   function person_() {
     const n = AT.user && AT.user.name;
     if (n !== fuer) { fuer = n; data = n ? ls.get(cacheKey()) : null; ordner = "offen"; person = ""; form = null; offenStatus = null;
+      zu = (n && ls.get(zuKey())) || {}; gemeldet.clear();
       for (const k of Object.keys(entwurf)) delete entwurf[k]; for (const k of Object.keys(fotos)) delete fotos[k]; punkt(); }
   }
   AT.modules.austausch = { show() { person_(); ordner = "offen"; form = null; paint(); load(); gelesenMelden(); } };
   person_(); punkt();
+  // Nachrichten-Seite verlassen → gelesene Chats einklappen
+  let sichtbar = false;
+  new MutationObserver(() => {
+    const jetzt = !view.classList.contains("hide");
+    if (sichtbar && !jetzt) alleEinklappen();
+    sichtbar = jetzt;
+  }).observe(view, { attributes: true, attributeFilter: ["class"] });
   setInterval(() => { if (!document.hidden && AT.user) load(); }, 120000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden && AT.user) load(); });
 })();

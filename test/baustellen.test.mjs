@@ -67,7 +67,8 @@ const env = { DB: fakeD1() };
 
 const max = { name: "Max Monteur", rechte: ["wochenplan", "protokolle"] };
 const tom = { name: "Tom Techniker", rechte: ["wochenplan", "protokolle"] };
-const buero = { name: "Bea Büro", rechte: ["wochenplan", "plan_aendern"] };
+const buero = { name: "Bea Büro", rechte: ["wochenplan", "plan_aendern", "mappen"] };
+const azubi = { name: "Ali Azubi", rechte: [] };   // ohne Bereiche: Mappen sehen und eintragen geht trotzdem
 
 let m = await aktion(env, max, { aktion: "eintrag", baustelle: "Bochum DRV", text: "Schlüssel beim Hausmeister", reminder: true });
 assert.equal(m.name, "Bochum DRV");
@@ -103,14 +104,17 @@ assert.equal((await uebersicht(env)).length, 2);
 
 // Schließen und wieder öffnen
 await assert.rejects(aktion(env, max, { aktion: "eintrag", baustelle: "Bochum DRV", text: "" }), e => e.status === 400);
-m = await aktion(env, max, { aktion: "schliessen", id: m.id, ordner: "Protokolle/4711/Baustellenmappe/x.pdf", url: "https://x/m" });
+await assert.rejects(aktion(env, max, { aktion: "schliessen", id: m.id, ordner: "x", url: "" }), e => e.status === 403, "Monteur ohne Recht schließt nicht");
+assert.equal((await aktion(env, azubi, { aktion: "eintrag", id: m.id, text: "Azubi war da" })).eintraege.length, 2, "jeder darf eintragen");
+m = await aktion(env, buero, { aktion: "schliessen", id: m.id, ordner: "Protokolle/4711/Baustellenmappe/x.pdf", url: "https://x/m" });
 assert.equal(m.status, "geschlossen");
-assert.equal(m.geschlossen.von, "Max Monteur");
+assert.equal(m.geschlossen.von, "Bea Büro");
 await assert.rejects(aktion(env, max, { aktion: "eintrag", id: m.id, text: "noch was" }), e => e.status === 409, "geschlossene Mappe bleibt zu");
 assert.equal((await uebersicht(env)).length, 1, "geschlossene Mappe nicht mehr in der Liste");
 assert.equal((await uebersicht(env, { geschlossen: true }))[0].name, "Bochum DRV");
 const neu = await aktion(env, max, { aktion: "eintrag", baustelle: "Bochum DRV", text: "Nacharbeit" });
 assert.notEqual(neu.id, m.id, "nach dem Schließen gibt es eine neue Mappe");
-await assert.rejects(aktion(env, max, { aktion: "oeffnen", id: m.id }), e => e.status === 409, "zwei offene Mappen derselben Baustelle gibt es nicht");
+await assert.rejects(aktion(env, max, { aktion: "oeffnen", id: m.id }), e => e.status === 403, "wieder öffnen nur mit Recht");
+await assert.rejects(aktion(env, buero, { aktion: "oeffnen", id: m.id }), e => e.status === 409, "zwei offene Mappen derselben Baustelle gibt es nicht");
 
 console.log("✓ Baustellen");

@@ -17,7 +17,7 @@
   const dd = iso => iso ? `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}.` : "";
   const zeit = s => s ? dd(s) + (String(s).slice(0, 4) !== todayIso().slice(0, 4) ? String(s).slice(0, 4) : "") + (String(s).length > 10 ? " " + String(s).slice(11, 16) : "") : "";
   const teile = v => String(v || "").split(/\s+[·\/]\s+/).map(s => s.trim()).filter(Boolean);
-  const zugang = () => ["wochenplan", "protokolle", "plan_aendern", "maschinen"].some(r => AT.darf(r));
+  const zugang = () => !!AT.user;   // Mappen sehen alle; schließen/archivieren nur mit Recht „mappen“
   const post = body => AT.api("baustellen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
   const css = document.createElement("style");
@@ -315,10 +315,11 @@
           || `<div class="hint" style="margin:0">Noch nichts abgelegt.</div>`}
         <div class="hint">Kommen automatisch hierher, wenn beim IBN-Protokoll, Abnahmeprotokoll oder Schnellaufmaß diese Baustelle als Bauvorhaben gewählt ist. Die PDFs selbst liegen in SharePoint.</div>
       </section>
-      ${m.id ? `<section class="card">${zuM
+      ${m.id && AT.darf("mappen") ? `<section class="card">${zuM
         ? `<button class="add" id="bsReopen" style="margin:0">Mappe wieder öffnen</button>`
         : `<button class="bigbtn" id="bsClose" style="margin:0">📦 Mappe schließen & archivieren</button>
-           <div class="hint">Wenn die Baustelle fertig ist: Alle Infos, Aufgaben und die Liste der Protokolle werden als PDF in SharePoint abgelegt. Danach erscheint die Mappe unter „Geschlossene Mappen“.</div>`}</section>` : ""}`;
+           <div class="hint">Wenn die Baustelle fertig ist: Alle Infos, Aufgaben und die Liste der Protokolle werden als PDF in SharePoint abgelegt. Danach erscheint die Mappe unter „Geschlossene Mappen“.</div>`}</section>`
+        : m.id && !zuM ? `<div class="hint" style="margin:0 4px 12px">Ist die Baustelle fertig? Schließen und archivieren macht das Büro.</div>` : ""}`;
     bindBack();
     const $ = s => root.querySelector(s);
     if ($("#bsAdd")) $("#bsAdd").onclick = async () => {

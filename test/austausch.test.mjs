@@ -142,7 +142,7 @@ await aktion(env, elv, { aktion: "reaktion", id: um.id, r: "👍" });
 assert.deepEqual(finde(await liste(env, seb), "Weihnachtsfeier?").reaktionen, [{ wer: "Elvin Morawez", r: "👍" }]);
 await aktion(env, elv, { aktion: "reaktion", id: um.id, r: "👍" });   // nochmal = zurücknehmen
 assert.equal(finde(await liste(env, seb), "Weihnachtsfeier?").reaktionen.length, 0);
-await rejects(aktion(env, nick, { aktion: "loeschen", id: um.id }), /Absender oder das Büro/);
+await rejects(aktion(env, nick, { aktion: "loeschen", id: um.id }), /nur das Büro/);
 await aktion(env, chr, { aktion: "loeschen", id: um.id });
 assert.ok(!finde(await liste(env, nick), "Weihnachtsfeier?"), "Monteur sieht gelöschte nicht");
 const gel = finde(await liste(env, seb), "Weihnachtsfeier?");
@@ -150,8 +150,10 @@ assert.ok(gel.ordner === "geloescht" && gel.geloescht.von === "Christina Schatz"
 await rejects(aktion(env, seb, { aktion: "antworten", id: um.id, text: "x" }), /gelöscht/);
 await aktion(env, seb, { aktion: "wiederherstellen", id: um.id });
 assert.ok(offen(await liste(env, nick), "Weihnachtsfeier?"), "aus dem Papierkorb zurück");
-await aktion(env, nick, { aktion: "loeschen", id: (finde(await liste(env, nick), "Normale Frage")).id });
-assert.equal(finde(await liste(env, nick), "Normale Frage").ordner, "geloescht", "eigene gelöschte im Papierkorb");
+await rejects(aktion(env, nick, { aktion: "loeschen", id: (finde(await liste(env, nick), "Normale Frage")).id }), /nur das Büro/, "eigenen Chat löschen: nur Büro");
+assert.ok(!finde(await liste(env, nick), "Normale Frage").darfLoeschen);
+await aktion(env, chr, { aktion: "loeschen", id: (finde(await liste(env, nick), "Normale Frage")).id });
+assert.equal(finde(await liste(env, nick), "Normale Frage").ordner, "geloescht", "Absender sieht gelöschte im Papierkorb");
 const idx = finde(await liste(env, nick), "Normale Frage").id;
 await run(env, "UPDATE nachrichten SET geloescht_am = '2020-01-01 08:00' WHERE id = ?", idx);
 await aufraeumen(env);
@@ -165,7 +167,7 @@ let lS2 = await liste(env, seb);
 await aktion(env, seb, { aktion: "loeschen", ids: [finde(lS2, "Alt 1").id, finde(lS2, "Alt 2").id] });
 lS2 = await liste(env, seb);
 assert.ok(finde(lS2, "Alt 1").ordner === "geloescht" && finde(lS2, "Alt 2").ordner === "geloescht");
-await rejects(aktion(env, nick, { aktion: "loeschen", ids: [finde(lS2, "Info an alle").id] }), /Absender oder das Büro/);
+await rejects(aktion(env, nick, { aktion: "loeschen", ids: [finde(lS2, "Info an alle").id] }), /nur das Büro/);
 
 // Abstimmung anpinnen
 await aktion(env, chr, { aktion: "umfrage", an: ["*alle"], text: "Grillen?", optionen: ["ja", "nein"], prio: "pin", bis: morgen });

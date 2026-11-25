@@ -3,8 +3,8 @@ import { auth } from "../../lib/auth.js";
 import { json } from "../../lib/graph.js";
 import { vorschlaege, uebersicht, mappe, aktion } from "../../lib/baustellen.js";
 
-// Baustellen sehen alle mit Wochenplan, Protokollen oder Planänderung
-const zugang = me => darf(me, "wochenplan") || darf(me, "protokolle") || darf(me, "plan_aendern") || darf(me, "maschinen");
+// Baustellenmappen sehen alle Angemeldeten; schließen/wieder öffnen nur mit Recht „mappen“ (lib/baustellen.js)
+const zugang = me => !!me;
 
 // GET ?vorschlaege=1 → Baustellen aus dem Wochenplan (letzte 5 Monate) · ?id=N → eine Mappe · sonst offene Mappen (?geschlossen=1)
 export async function onRequestGet({ request, env }) {

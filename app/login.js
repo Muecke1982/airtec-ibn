@@ -181,8 +181,8 @@
     if (navigator.onLine) AT.api("login").then(r => { AT.session.user = r.user; ls.set("at_session", AT.session); reiter(); if (r.user.pwNeu) pwZeigen(true); }).catch(e => { if (e.status === 401) AT.logout(true); });
   }
   // Reiter nur für freigegebene Bereiche zeigen (Zusatzrecht schließt den Bereich ein)
-  const BEREICH = { wochenplan: ["wochenplan", "plan_aendern"], protokolle: ["protokolle"], maschinen: ["maschinen", "maschinen_buero"], lager: ["lager", "lager_bestellen"],
-    baustellen: ["wochenplan", "protokolle", "plan_aendern", "maschinen"] };   // „Allgemeines“ sehen alle (eigene Angaben)
+  const BEREICH = { wochenplan: ["wochenplan", "plan_aendern"], protokolle: ["protokolle"], maschinen: ["maschinen", "maschinen_buero"], lager: ["lager", "lager_bestellen"] };
+  // „Allgemeines“ (eigene Angaben) und „Baustellen“ sehen alle
   function reiter() {
     document.querySelectorAll("#tabs button").forEach(b => {
       const need = BEREICH[b.dataset.tab];
