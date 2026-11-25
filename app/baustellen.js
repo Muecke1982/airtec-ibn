@@ -76,19 +76,28 @@
     for (const m of M) if (!out.some(x => norm(x.name) === norm(m.name))) out.push({ name: m.name, m });
     return out;
   }
+  // Suche auch in Projekt-/KD-Nummer und Info aus dem Wochenplan (z. B. „Krantermin“)
   function filter(q, list = alle()) {
     const w = norm(q).split(" ").filter(Boolean);
-    return w.length ? list.filter(x => { const n = norm(x.name); return w.every(t => n.includes(t)); }) : list;
+    return w.length ? list.filter(x => {
+      const v = x.v || planVon(x.name), n = norm([x.name, v && v.nummer, v && v.info, x.m && x.m.projekt].filter(Boolean).join(" "));
+      return w.every(t => n.includes(t));
+    }) : list;
   }
   function info(x) {
     const v = x.v || planVon(x.name), t = todayIso(), out = [];
     if (v) {
+      if (v.art === "kd") out.push("🔧 Kundendienst");
+      if (v.nummer) out.push((v.art === "kd" ? "KD-Nr. " : "Projekt ") + v.nummer);
+      else if (x.m && x.m.projekt) out.push("Projekt " + x.m.projekt);
       if (v.zuletzt === t) out.push("heute");
       else if (v.zuletzt) out.push("zuletzt " + dd(v.zuletzt));
       if (v.naechster) out.push("geplant " + dd(v.naechster));
+      if (v.info) out.push((v.infoTag && v.infoTag !== t ? dd(v.infoTag) + " " : "") + v.info);
     }
-    return out.join(" · ") || (x.m ? "Mappe" : "");
+    return out.join(" · ") || (x.m ? "Mappe" + (x.m.projekt ? " · Projekt " + x.m.projekt : "") : "");
   }
+  const finde = name => planVon(name) || null;
 
   /* ---------- Vorschläge an einem Eingabefeld ---------- */
   function feld(inp) {
@@ -113,10 +122,19 @@
     box.addEventListener("pointerdown", e => e.preventDefault());   // Feld behält den Fokus
     box.addEventListener("click", e => {
       const b = e.target.closest("button"); if (!b) return;
-      inp.value = L[+b.dataset.i].name;
+      const x = L[+b.dataset.i];
+      inp.value = x.name;
       box.classList.add("hide"); inp.blur();
       inp.dispatchEvent(new Event("input", { bubbles: true }));
       inp.dispatchEvent(new Event("change", { bubbles: true }));
+      // Projektnummer aus dem Wochenplan bzw. der Mappe ins Protokoll übernehmen (nur wenn das Feld noch leer ist)
+      const nr = (x.v && x.v.art !== "kd" && x.v.nummer) || (x.m && x.m.projekt) || "";
+      const sec = inp.closest("section"), kom = sec && sec.querySelector('[data-k="kom"]');
+      if (nr && kom && !kom.value.trim()) {
+        kom.value = nr;
+        kom.dispatchEvent(new Event("input", { bubbles: true }));
+        kom.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     });
   }
 
@@ -402,5 +420,5 @@
   // Bauvorhaben-Felder im IBN- und Abnahmeprotokoll
   document.querySelectorAll('#app [data-k="bv"]').forEach(feld);
 
-  AT.baustellen = { feld, waehlen, vorschlaege, tickerLaden, karten, binden, oeffne, oeffneName, get mappen() { return M; } };
+  AT.baustellen = { feld, waehlen, vorschlaege, finde, tickerLaden, karten, binden, oeffne, oeffneName, get mappen() { return M; } };
 })();

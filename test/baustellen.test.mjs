@@ -28,8 +28,43 @@ assert.equal(L.find(x => x.name === "Dortmund Halle").zuletzt, "2026-11-23");
 assert.deepEqual(L.find(x => x.name === "Bochum").heute.sort(), ["A", "B"]);
 assert.equal(L.find(x => x.name === "Essen").naechster, "2026-12-01");
 
+// Einsatz-Angaben: „nur Info“ ist keine Baustelle, Nummer/Info/Kundendienst kommen an den Vorschlag
+const wochen2 = [{ tage: [{ datum: "2026-11-24", e: { A: "TÜV", B: "Müller KD", C: "Essen" } }, { datum: "2026-11-26", e: { C: "Essen" } }] }];
+const meta = {
+  "2026-11-23": { essen: { art: "baustelle", nummer: "4711", info: "alt", fix: false } },
+  "2026-11-24": { tuv: { art: "info" }, "muller kd": { art: "kd", nummer: "KD-17", info: "", fix: false } },
+  "2026-11-26": { essen: { art: "baustelle", nummer: "", info: "Krantermin 7 Uhr", fix: true } },
+};
+const L2 = sammeln(wochen2, tag, ab, meta);
+assert.ok(!L2.some(x => x.name === "TÜV"), "Art „Info“ ist keine Baustelle");
+assert.equal(L2.find(x => x.name === "Müller KD").art, "kd");
+assert.equal(L2.find(x => x.name === "Müller KD").nummer, "KD-17");
+const E = L2.find(x => x.name === "Essen");
+assert.equal(E.nummer, "4711", "Projektnummer bleibt aus dem früheren Eintrag");
+assert.equal(E.info, "Krantermin 7 Uhr", "Info vom nächsten Einsatz");
+assert.equal(E.fix, "2026-11-26");
+
 /* ---------- Mappen ---------- */
 const env = { DB: fakeD1() };
+
+// Einsätze speichern/laden
+{
+  const { speichern, laden } = await import("../lib/einsaetze.js");
+  const env0 = env;
+  await speichern(env0,"Bea", [{ datum: "2026-11-24", titel: "Bochum DRV", info: "Krantermin", fix: true }, { datum: "2026-11-24", titel: "Essen" },
+    { datum: "2026-11-25", titel: "Bochum DRV", nummer: "4711" }]);
+  let M0 = await laden(env0, "2026-11-23", "2026-11-29");
+  assert.deepEqual(Object.keys(M0["2026-11-24"]), ["bochum drv"], "ohne Angaben wird nichts gespeichert");
+  assert.equal(M0["2026-11-24"]["bochum drv"].fix, true);
+  await speichern(env0, "Bea", [{ datum: "2026-11-24", titel: "Schule", art: "info" }], ["2026-11-24"]);
+  M0 = await laden(env0, "2026-11-23", "2026-11-29");
+  assert.deepEqual(Object.keys(M0["2026-11-24"]), ["schule"], "ersetzen löscht die übrigen des Tages");
+  assert.equal(M0["2026-11-25"]["bochum drv"].nummer, "4711", "andere Tage bleiben");
+  await speichern(env0, "Bea", [{ datum: "2026-11-25", titel: "bochum  DRV" }]);
+  M0 = await laden(env0, "2026-11-23", "2026-11-29");
+  assert.equal(M0["2026-11-25"], undefined, "ohne Angaben wieder gespeichert → gelöscht");
+}
+
 const max = { name: "Max Monteur", rechte: ["wochenplan", "protokolle"] };
 const tom = { name: "Tom Techniker", rechte: ["wochenplan", "protokolle"] };
 const buero = { name: "Bea Büro", rechte: ["wochenplan", "plan_aendern"] };

@@ -4,6 +4,7 @@ import { json } from "../../lib/graph.js";
 import { sheets, sheetValues } from "../../lib/google.js";
 import { isoWeek, mondayOf, isoDate, findSheet, parseWeek, matchName } from "../../lib/wochenplan.js";
 import { planJahr } from "../../lib/jahreswechsel.js";
+import { laden as ladeEinsaetze } from "../../lib/einsaetze.js";
 
 // Wochenplan einer Kalenderwoche: /api/wochenplan?datum=2026-11-09  oder  ?jahr=2026&kw=46
 export async function onRequestGet({ request, env }) {
@@ -29,7 +30,12 @@ export async function onRequestGet({ request, env }) {
     // Art je Spalte (Meister, Azubi …) aus den Mitarbeitern – Spalten ohne passenden Mitarbeiter bleiben leer
     const arten = {};
     for (const u of all) { const col = u.art && matchName(u, plan.spalten); if (col && !arten[col]) arten[col] = u.art; }
-    return json(200, { jahr: year, kw: week, montag: isoDate(monday), blatt: sh.title, ich, ...rest, arten, stand: new Date().toISOString() });
+    // nicht im Wochenplan angezeigt (nur sichtbar, wenn eingeplant)
+    const ausgeblendet = all.filter(u => u.imPlan === false).map(u => matchName(u, plan.spalten)).filter(Boolean);
+    const sonntag = new Date(monday.getTime() + 6 * 864e5);
+    let einsaetze = {};
+    try { einsaetze = await ladeEinsaetze(env, isoDate(monday), isoDate(sonntag)); } catch (e) { console.error(e); }
+    return json(200, { jahr: year, kw: week, montag: isoDate(monday), blatt: sh.title, ich, ...rest, arten, ausgeblendet, einsaetze, stand: new Date().toISOString() });
   } catch (e) {
     console.error(e);
     return json(500, { error: e.message });
