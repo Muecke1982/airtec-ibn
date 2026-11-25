@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { fakeD1 } from "./d1-fake.mjs";
 import { run, one } from "../lib/db.js";
 import { feiertage, wochenImJahr, textUmschreiben, umschreiben,vorbereiten, neuesJahr, taeglich, planJahr, status } from "../lib/jahreswechsel.js";
-import { mondayOf, isoDate, findSheet } from "../lib/wochenplan.js";
+import { mondayOf, isoDate, findSheet, zellText, norm } from "../lib/wochenplan.js";
 import { writePlan } from "../lib/planwrite.js";
+import { zelle, anwenden } from "../lib/einsaetze.js";
 
 // Feiertage
 const f27 = feiertage(2027);
@@ -182,6 +183,27 @@ assert.equal(wert("KW 2 2027", 3, 2), "Urlaub");
 assert.equal(wert("KW 2", 3, 2), "Urlaub", "altes Blatt KW 2 (2026) unverändert");
 const x = await writePlan(env, [{ datum: "2027-02-02", name: "Peter", wert: "Urlaub" }], true);
 assert.match(x.fehler[0], /KW 5\/2027: kein Blatt/);
+
+// Einsatz-Angaben als Zusatzzeilen in der Zelle; gelesen wird nur die Überschrift
+assert.equal(zelle("Halle 3", { art: "baustelle", nummer: "4711", info: "Kran" }), "Halle 3\nProjekt-Nr.: 4711\nInfo: Kran");
+assert.equal(zelle("Müller", { art: "kd", nummer: "17", info: "" }), "Müller\nKD-Nr.: 17");
+assert.equal(zelle("Bochum", null), "Bochum");
+assert.equal(zellText("Halle 3\nProjekt-Nr.: 4711\nInfo: Kran"), "Halle 3");
+assert.equal(zellText("Bochum\nKran ab 7"), "Bochum\nKran ab 7", "eigene Zeilen bleiben");
+const am = anwenden({ "2027-01-13": { alt: { titel: "Alt", art: "baustelle", nummer: "1", info: "", fix: false } } },
+  [{ datum: "2027-01-13", titel: "Halle 3", nummer: "4711" }], ["2027-01-13"]);
+assert.deepEqual(Object.keys(am["2027-01-13"]), ["halle 3"], "ersetzen: alte Angaben des Tages fallen weg");
+const fmt = (d, v) => zelle(v, am[d] && am[d][norm(v)]);
+const y = await writePlan(env, [{ datum: "2027-01-13", name: "Peter", wert: "Halle 3" }], false, { format: fmt });
+assert.deepEqual(y.fehler, []);
+assert.equal(wert("KW 2 2027", 4, 2), "Halle 3\nProjekt-Nr.: 4711");
+byTitle("KW 2 2027").rows[4][3] = str("Halle 3");   // jemand trägt in der Tabelle nur die Überschrift ein
+const y2 = await writePlan(env, [], false, { format: fmt, auffrischen: ["2027-01-13"] });
+assert.equal(y2.cells.length, 1, "nur die eine Zelle wird ergänzt");
+assert.equal(wert("KW 2 2027", 4, 3), "Halle 3\nProjekt-Nr.: 4711");
+const y3 = await writePlan(env, [{ datum: "2027-01-13", name: "Peter", wert: "Halle 3" }], false, { format: fmt, auffrischen: ["2027-01-13"] });
+assert.equal(y3.vorher["Peter|2027-01-13"], "Halle 3", "beim Lesen ohne Zusatzzeilen");
+assert.equal(y3.cells.length, 1, "keine doppelten Zellen");
 
 // Neues Jahr: vor dem 1. Januar gesperrt
 await assert.rejects(neuesJahr(env, "Chef", { heute: "2026-12-30", sp }), /ab dem 1\. Januar 2027/);
