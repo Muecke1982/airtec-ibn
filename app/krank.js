@@ -82,10 +82,30 @@
   }
   const frage2 = (t, h, ok) => typeof ask === "function" ? ask(t, h, ok) : Promise.resolve(confirm(t));
 
-  // Formular für einen Einsatz: { titel, art, nummer, info, fix } oder null (abgebrochen)
-  function einsatzForm(init, kopf) {
+  // Tage-Raster Mo–Fr (w = 0 diese, 1 nächste Woche); neu = Formular „neuer Einsatz“ (aktueller Tag fest angehakt)
+  function tagRaster(wahl, w, neu) {
+    const mon = W.monOf(st.day);
+    return `<div class="kpwk">KW ${W.isoWeek(addDays(mon, 7 * w)).week}${w ? " (nächste Woche)" : ""}</div><div class="kpdays">${[0, 1, 2, 3, 4].map(i => {
+      const d = addDays(mon, 7 * w + i), hol = holiday(d);
+      if (d === st.day) return `<label class="${neu ? "on fest" : "off"}"><span>${WT[i].slice(0, 2)}</span><b>${dShort(d).slice(0, 3)}</b><small>${neu ? "dieser Tag" : "dieser"}</small></label>`;
+      return `<label class="${wahl.has(d) ? "on" : ""}" title="${esc(hol)}"><input type="checkbox" data-d="${d}" ${wahl.has(d) ? "checked" : ""}><span>${WT[i].slice(0, 2)}</span><b>${dShort(d).slice(0, 3)}</b>${hol ? "<small>🎉</small>" : ""}</label>`;
+    }).join("")}</div>`;
+  }
+  const tageBinden = (sh, wahl) => sh.querySelectorAll("[data-d]").forEach(c => c.onchange = () => {
+    c.checked ? wahl.add(c.dataset.d) : wahl.delete(c.dataset.d); c.parentNode.classList.toggle("on", c.checked);
+  });
+
+  // Formular für einen Einsatz: { titel, art, nummer, info, fix, leute, tage } oder null (abgebrochen)
+  // ext (nur bei „neue Baustelle“): { frei: [nicht eingeplante Mitarbeiter], sel } → Auswahl Wer? und An welchen Tagen?
+  function einsatzForm(init, kopf, ext) {
     return new Promise(res => {
       let art = (init && init.art) || "baustelle";
+      const wahl = new Set();
+      const extHtml = !ext ? "" : `<div class="kpwk">Wer? <small style="font-weight:400">(am ${esc(dShort(st.day))} noch nicht eingeplant)</small></div>
+          ${ext.frei.length ? `<div class="kpleute">${ext.frei.map(n => `<label><input type="checkbox" data-n="${esc(n)}" ${n === ext.sel ? "checked" : ""}> ${W.tagged(st.data, n)}</label>`).join("")}</div>`
+            : `<div class="hint" style="margin:0 0 6px">An diesem Tag sind schon alle eingeplant – Mitarbeiter danach auf dem Brett umsetzen.</div>`}
+          <div class="kpwk">An welchen Tagen?</div>${tagRaster(wahl, 0, true)}${tagRaster(wahl, 1, true)}
+          <div class="hint" style="margin:0">Weitere Tage: Urlaub, Krank, Schule usw. bleiben stehen, andere Einträge werden ersetzt – das wird vorher angezeigt.</div>`;
       const sh = document.createElement("div");
       sh.className = "bssheet";
       sh.innerHTML = `<div class="bsbox efbox"><h3>${esc(kopf)}</h3>
@@ -96,6 +116,7 @@
           <label>Info <small style="color:var(--mut)">(z. B. Krantermin 7 Uhr, Schlüssel beim Hausmeister)</small></label><input id="efI" autocomplete="off" value="${esc((init && init.info) || "")}">
           <label class="bschk"><input type="checkbox" id="efF" ${init && init.fix ? "checked" : ""}><span>📌 Fester Termin<small>Wer das später ändern will, bekommt den Hinweis: nur nach Rücksprache ändern.</small></span></label>
           <div class="hint" id="efH" style="margin:4px 0 0"></div>
+          ${extHtml}
         </div>
         <div class="efbtns"><button class="bigbtn primary" id="efOk">Übernehmen</button><button class="add" id="efX" style="margin:0">Abbrechen</button></div></div>`;
       document.body.appendChild(sh);
@@ -110,6 +131,7 @@
       };
       malen();
       sh.querySelectorAll("[data-a]").forEach(b => b.onclick = () => { art = b.dataset.a; malen(); });
+      tageBinden(sh, wahl);
       if (AT.baustellen) {
         AT.baustellen.feld(q("#efT"));
         q("#efT").addEventListener("change", () => {
@@ -124,7 +146,10 @@
         const titel = q("#efT").value.trim().replace(/\s+/g, " ");
         if (!titel) { q("#efT").focus(); toast2("Bitte eine Überschrift eingeben"); return; }
         if (/\s[·\/]\s/.test(titel)) { toast2("„ / “ und „ · “ bitte nicht in der Überschrift verwenden"); return; }
-        fertig({ titel, art, nummer: art === "info" ? "" : q("#efN").value.trim(), info: q("#efI").value.trim(), fix: q("#efF").checked });
+        const leute = [...sh.querySelectorAll("[data-n]")].filter(c => c.checked).map(c => c.dataset.n);
+        if (wahl.size && ext && !leute.length) { toast2("Für weitere Tage bitte mindestens einen Mitarbeiter anhaken"); return; }
+        fertig({ titel, art, nummer: art === "info" ? "" : q("#efN").value.trim(), info: q("#efI").value.trim(), fix: q("#efF").checked,
+          leute, tage: [...wahl].sort() });
       };
       q("#efX").onclick = () => fertig(null);
       sh.addEventListener("click", e => { if (e.target === sh) fertig(null); });
@@ -146,7 +171,9 @@
     .kpdays{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0 10px}
     .kpdays label{display:flex;flex-direction:column;align-items:center;border:1.5px solid #d8dee5;border-radius:10px;padding:6px 2px;font-size:12.5px;color:var(--ink);margin:0}
     .kpdays label.on{border-color:var(--blue);background:#e8f6fc}
-    .kpdays label.off{opacity:.45}
+    .kpdays label.off{opacity:.45} .kpdays label.fest{border-style:dashed}
+    .krwk{display:flex;gap:8px;margin:0 0 6px}
+    .krwk button{flex:1;border:0;border-radius:12px;background:#fff;color:var(--blue);font:inherit;font-size:14.5px;font-weight:700;padding:9px 6px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
     .kpdays input{display:none} .kpdays b{font-size:14px}
     .kpleute{display:flex;flex-wrap:wrap;gap:6px 14px;margin:4px 0 8px} .kpleute label{display:flex;gap:6px;align-items:center;margin:0;color:var(--ink);font-size:14.5px}
     .kpwk{font-size:12.5px;font-weight:700;color:var(--mut);margin-top:6px}`;
@@ -226,6 +253,7 @@
           <label class="wpday"><b>${esc(WT[wd(st.day)] + ", " + dShort(st.day))}</b><small>${st.day === todayIso() ? "heute · " : ""}KW ${W.isoWeek(st.day).week} · Datum wählen</small><input type="date" id="krDay" value="${st.day}"></label>
           <button id="krNext" aria-label="Tag vor">›</button>
         </div>
+        <div class="krwk"><button id="krWPrev">‹ KW ${W.isoWeek(addDays(st.day, -7)).week}</button><button id="krWNext">KW ${W.isoWeek(addDays(st.day, 7)).week} ›</button></div>
         <div class="hint">Mitarbeiter antippen, dann das Ziel antippen – eine Baustelle, „Nicht eingeplant“, „Krank“, „Urlaub“ oder „Frei“.</div>
         ${hol ? `<div class="krhol">🎉 Feiertag: <b>${esc(hol)}</b>${names.some(n => W.absence(st.cur[n]) !== "Feiertag") ? `<button class="krholbtn" id="krHol">Alle auf „Feiertag“ setzen</button>` : ""}</div>` : ""}
       </section>
@@ -299,17 +327,13 @@
       try { await save(); } catch (e) { toast2(e.message); return; }
     }
     const mon = W.monOf(st.day), tage = [];
-    for (let w = 0; w < 2; w++) for (let i = 0; i < 5; i++) { const d = addDays(mon, 7 * w + i); if (d !== st.day) tage.push(d); }
-    const wahl = new Set(tage.filter(d => d > st.day && d < addDays(mon, 5) && !holiday(d)));
+    for (let i = 0; i < 5; i++) tage.push(addDays(mon, i));
+    const wahl = new Set(tage.filter(d => d > st.day && !holiday(d)));
     const leute = new Set(leute0);
     const auswahl = await new Promise(res => {
       const sh = document.createElement("div");
       sh.className = "bssheet";
-      const tagHtml = (w) => `<div class="kpwk">KW ${W.isoWeek(addDays(mon, 7 * w)).week}${w ? " (nächste Woche)" : ""}</div><div class="kpdays">${[0, 1, 2, 3, 4].map(i => {
-        const d = addDays(mon, 7 * w + i), hol = holiday(d);
-        if (d === st.day) return `<label class="off"><span>${WT[i].slice(0, 2)}</span><b>${dShort(d).slice(0, 3)}</b><small>dieser</small></label>`;
-        return `<label class="${wahl.has(d) ? "on" : ""}" title="${esc(hol)}"><input type="checkbox" data-d="${d}" ${wahl.has(d) ? "checked" : ""}><span>${WT[i].slice(0, 2)}</span><b>${dShort(d).slice(0, 3)}</b>${hol ? "<small>🎉</small>" : ""}</label>`;
-      }).join("")}</div>`;
+      const tagHtml = w => tagRaster(wahl, w, false);
       sh.innerHTML = `<div class="bsbox efbox"><h3>📋 „${esc(ort)}“ auf weitere Tage</h3>
         <div class="eflist">
           <div class="hint" style="margin:0 0 4px">Dieselben Leute${m && m.nummer ? " (mit " + (m.art === "kd" ? "KD-Nr. " : "Projekt ") + esc(m.nummer) + ")" : ""} an den gewählten Tagen eintragen.</div>
@@ -323,7 +347,7 @@
         </div>
         <div class="efbtns"><button class="bigbtn primary" id="kpOk">Weiter</button><button class="add" id="kpX" style="margin:0">Abbrechen</button></div></div>`;
       document.body.appendChild(sh);
-      sh.querySelectorAll("[data-d]").forEach(c => c.onchange = () => { c.checked ? wahl.add(c.dataset.d) : wahl.delete(c.dataset.d); c.parentNode.classList.toggle("on", c.checked); });
+      tageBinden(sh, wahl);
       sh.querySelectorAll("[data-n]").forEach(c => c.onchange = () => { c.checked ? leute.add(c.dataset.n) : leute.delete(c.dataset.n); });
       const fertig = v => { sh.remove(); res(v); };
       sh.querySelector("#kpOk").onclick = () => {
@@ -336,42 +360,47 @@
       sh.addEventListener("click", e => { if (e.target === sh) fertig(null); });
     });
     if (!auswahl) return;
-    // Zieltage einlesen und prüfen
+    const mk = m ? { art: m.art || "baustelle", nummer: m.nummer || "", info: auswahl.info ? m.info || "" : "", fix: auswahl.fix } : null;
+    if (await eintragen(ort, auswahl.leute, auswahl.tage, mk)) open(st.day);
+  }
+
+  // Leute an Tagen auf „ort“ setzen (andere Tage als st.day): prüfen, nachfragen, schreiben. vorher() läuft nach dem OK, vor dem Schreiben.
+  async function eintragen(ort, leuteListe, tageListe, mk, vorher, zusatz) {
     const aend = [], ersetzt = [], fest = [], bleibt = [], fehlt = [];
-    for (const d of auswahl.tage) {
+    for (const d of tageListe) {
       let data;
-      try { data = await W.week(d, true); } catch (e) { toast2(e.message); return; }
+      try { data = await W.week(d, true); } catch (e) { toast2(e.message); return false; }
       if (data.fehlt) { fehlt.push(`KW ${data.kw}`); continue; }
       const t = W.dayOf(data, d);
-      for (const n of auswahl.leute) {
+      for (const n of leuteListe) {
         const prev = (t && t.e[n]) || "";
         if (norm(prev) === norm(ort)) continue;
         const kurz = `${WT[wd(d)].slice(0, 2)} ${dShort(d)} ${n}`;
         if (W.absence(prev)) { bleibt.push(`${kurz}: ${prev}`); continue; }
-        if (prev) { ersetzt.push(`${kurz}: ${prev}`); const pm = W.metaOf(data, d, prev); if (pm && pm.fix) fest.push(`${kurz}: ${prev}`); }
+        if (prev) { const pm = W.metaOf(data, d, prev); (pm && pm.fix ? fest : ersetzt).push(`${kurz}: ${prev}`); }
         aend.push({ datum: d, name: n, wert: ort });
       }
     }
     const fehltTxt = [...new Set(fehlt)];
-    if (!aend.length) { toast2(fehltTxt.length ? `Kein Blatt für ${fehltTxt.join(", ")}` : "Nichts zu ändern – steht schon so im Plan"); return; }
-    if (aend.length > 80) { toast2("Zu viele auf einmal – bitte weniger Tage wählen"); return; }
+    if (!aend.length) { toast2(fehltTxt.length ? `Kein Blatt für ${fehltTxt.join(", ")}` : "Nichts zu ändern – steht schon so im Plan"); return false; }
+    if (aend.length > 80) { toast2("Zu viele auf einmal – bitte weniger Tage wählen"); return false; }
     const liste = l => `<ul style="margin:4px 0 8px;padding-left:18px;font-size:14px">${l.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
     const nTage = new Set(aend.map(a => a.datum)).size;
-    const html = `<p style="font-size:15px"><b>${aend.length}</b> Eintr${aend.length === 1 ? "ag" : "äge"} „${esc(ort)}“ an ${nTage} Tag${nTage === 1 ? "" : "en"}.</p>`
+    const html = (zusatz || "") + `<p style="font-size:15px"><b>${aend.length}</b> Eintr${aend.length === 1 ? "ag" : "äge"} „${esc(ort)}“ an ${nTage} ${zusatz ? "weiteren " : ""}Tag${nTage === 1 ? "" : "en"}.</p>`
       + (fest.length ? `<p style="font-size:15px;color:#b3261e"><b>📌 Feste Termine werden ersetzt – nur nach Rücksprache!</b></p>${liste(fest)}` : "")
       + (ersetzt.length ? `<p style="font-size:14px;margin-bottom:0">Wird ersetzt:</p>${liste(ersetzt)}` : "")
       + (bleibt.length ? `<p style="font-size:14px;margin-bottom:0">Bleibt stehen:</p>${liste(bleibt)}` : "")
       + (fehltTxt.length ? `<p style="font-size:14px">⚠ Kein Blatt in der Tabelle für ${esc(fehltTxt.join(", "))} – diese Tage werden übersprungen.</p>` : "");
-    if (!(await frage2("Auf weitere Tage kopieren?", html, fest.length ? "Ja, abgesprochen" : "Eintragen"))) return;
+    if (!(await frage2(zusatz ? "Neuen Einsatz eintragen?" : "Auf weitere Tage kopieren?", html, fest.length ? "Ja, abgesprochen" : "Eintragen"))) return false;
     const tageMit = [...new Set(aend.map(a => a.datum))];
-    const mk = m ? { art: m.art || "baustelle", nummer: m.nummer || "", info: auswahl.info ? m.info || "" : "", fix: auswahl.fix } : null;
     const einsaetze = mk && !leer(mk) ? tageMit.map(d => ({ datum: d, titel: ort, ...mk })) : [];
     try {
+      if (vorher) await vorher();
       await AT.api("plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aenderungen: aend, einsaetze }) });
-    } catch (e) { toast2(e.message); return; }
+    } catch (e) { toast2(e.message); return false; }
     tageMit.forEach(d => W.forget(d));
-    toast2(`📋 ${aend.length} Eintr${aend.length === 1 ? "ag" : "äge"} kopiert`);
-    open(st.day);
+    toast2(`📋 ${aend.length} Eintr${aend.length === 1 ? "ag" : "äge"} ${zusatz ? "an weiteren Tagen eingetragen" : "kopiert"}`);
+    return true;
   }
 
   // Tag wechseln: bei ungespeicherten Änderungen erst fragen
@@ -388,6 +417,8 @@
     const $ = s => view.querySelector(s);
     $("#krPrev").onclick = () => stepDay(-1);
     $("#krNext").onclick = () => stepDay(1);
+    $("#krWPrev").onclick = () => goDay(addDays(st.day, -7));   // gleicher Wochentag in der Vorwoche
+    $("#krWNext").onclick = () => goDay(addDays(st.day, 7));
     $("#krDay").onchange = e => { if (e.target.value && e.target.value !== st.day) goDay(e.target.value); else e.target.value = st.day; };
     if ($("#krDesel")) $("#krDesel").onclick = () => { st.sel = null; paint(); };
     if ($("#krHol")) $("#krHol").onclick = () => { for (const n of st.data.spalten || []) st.cur[n] = "Feiertag"; st.sel = null; paint(); toast2("Alle auf „Feiertag“ gesetzt – zum Übernehmen speichern"); };
@@ -449,16 +480,27 @@
       if (st.meta[norm(o)]) { st.meta[norm(neu)] = { ...st.meta[norm(o)], titel: neu }; delete st.meta[norm(o)]; st.fixOk.add(norm(neu)); }
       st.sel = null; paint();
     });
+    // neue Baustelle: direkt freie Mitarbeiter anhaken und weitere Tage (diese/nächste Woche) wählen
     $("#krNew").onclick = async () => {
-      const r = await einsatzForm({ art: "baustelle" }, st.sel ? `Neuer Einsatz für ${st.sel}` : "Neue Baustelle / Einsatz");
+      const G = groups(), hid = W.hiddenOf(st.data);
+      const frei = G.free.filter(n => st.zeigeAus || !hid.has(n));
+      if (st.sel && !frei.includes(st.sel)) frei.unshift(st.sel);
+      const r = await einsatzForm({ art: "baustelle" }, "Neue Baustelle / Einsatz", { frei, sel: st.sel });
       if (!r) return;
       const o = r.titel, k = norm(o);
-      const da = groups().teams.find(t => norm(t.ort) === k);
-      if (da && !(await fixOk([da.ort]))) return;
+      const da = G.teams.find(t => norm(t.ort) === k), ziel = da ? da.ort : o;
+      if (!(await fixOk([da && da.ort, ...r.leute.map(n => st.cur[n] && !fixOf(st.cur[n]) ? st.cur[n] : "")]))) return;
+      const mk = { art: r.art, nummer: r.nummer, info: r.info, fix: r.fix };
       if (!da && !st.extra.some(x => norm(x) === k)) st.extra.push(o);
       st.gone = st.gone.filter(x => x !== k);
-      st.meta[k] = r; st.fixOk.add(k);
-      if (st.sel) moveTo(st.sel, da ? da.ort : o); else paint();
+      st.meta[k] = { titel: ziel, ...mk }; st.fixOk.add(k);
+      for (const n of r.leute) st.cur[n] = ziel;
+      st.sel = null; paint();
+      if (!r.tage.length) return;
+      const heute = `<p style="font-size:15px">${esc(label(st.day))}: ${r.leute.map(esc).join(", ")} → <b>${esc(ziel)}</b> (wird mit gespeichert)</p>`;
+      const ok = await eintragen(ziel, r.leute, r.tage, mk, save, heute);
+      if (ok || !offen()) open(st.day);   // Tag evtl. schon gespeichert, auch wenn weitere Tage scheiterten
+      else setTimeout(() => toast2("Nur für diesen Tag übernommen – bitte noch speichern"), 2500);
     };
     $("#krReset").onclick = () => { st.cur = { ...st.orig }; st.extra = []; st.gone = []; st.sel = null; st.meta = JSON.parse(JSON.stringify(st.origMeta)); paint(); };
     $("#krClose").onclick = () => {
