@@ -214,6 +214,10 @@ await writePlan(env, [{ datum: "2027-01-13", name: "Peter", wert: "Halle 3 / Doc
 assert.equal(wert("KW 2 2027", 4, 2), "Halle 3\nProjekt-Nr.: 4711\nDock 5\nKD-Nr.: 9");
 const y4 = await writePlan(env, [{ datum: "2027-01-13", name: "Peter", wert: "Halle 3 / Dock 5" }], false, { format: fmt2 });
 assert.equal(y4.vorher["Peter|2027-01-13"], "Halle 3 / Dock 5");
+// von Hand in die Tabelle geschriebene Nummer bleibt stehen, wenn die App zu dieser Baustelle keine Angaben hat
+byTitle("KW 2 2027").rows[4][3] = str("Kiosk\nProjekt-Nr.: 999");
+const y5 = await writePlan(env, [], false, { format: (d, v) => zelleTag(v, {}), auffrischen: ["2027-01-13"], betroffen: () => false });
+assert.equal(y5.cells.length, 0); assert.equal(wert("KW 2 2027", 4, 3), "Kiosk\nProjekt-Nr.: 999");
 
 // Neues Jahr: vor dem 1. Januar gesperrt
 await assert.rejects(neuesJahr(env, "Chef", { heute: "2026-12-30", sp }), /ab dem 1\. Januar 2027/);
@@ -254,4 +258,21 @@ assert.equal(st2.planJahr, 2027); assert.equal(st2.letzter.sicherung, uploads[0]
 assert.deepEqual((await writePlan(env, [{ datum: "2027-02-02", name: "Peter", wert: "Urlaub" }])).fehler, []);
 // Zweiter Lauf im selben Jahr: gesperrt (erst 2028)
 await assert.rejects(neuesJahr(env, "Chef", { heute: "2027-01-03", sp }), /1\. Januar 2028/);
+
+// Abbruch mitten im Jahreswechsel 2027 → 2028: KW 2 wurde schon übernommen, der Fortschritt aber nicht mehr gespeichert.
+// Neustart darf das übernommene Blatt (mit vorab eingetragenem Urlaub) nicht noch einmal umschreiben und leeren.
+await vorbereiten(env, { heute: "2027-11-20" });
+assert.ok(byTitle("KW 2 2028"), "Blätter für 2028 vorab angelegt");
+assert.deepEqual((await writePlan(env, [{ datum: "2028-01-11", name: "Peter", wert: "Urlaub" }])).fehler, []);
+assert.equal(wert("KW 2 2028", 3, 2), "Urlaub");
+for (const w of [1, 2]) {   // so weit war der erste Lauf gekommen
+  const alt = byTitle(`KW ${w}`), neu = byTitle(`KW ${w} 2028`);
+  sheets = sheets.filter(s => s !== alt); neu.title = `KW ${w}`; neu.index = alt.index - 0.5; reindex();
+}
+await run(env, "INSERT OR REPLACE INTO einstellungen (schluessel, wert) VALUES ('jahreswechsel_lauf', ?)",
+  JSON.stringify({ nach: 2028, gesichert: "x.json", erledigt: [1], inArbeit: { w: 2, id: byTitle("KW 2").id }, wer: "Chef", start: "2028-01-02" }));
+const n28 = await neuesJahr(env, "Chef", { heute: "2028-01-02", sp });
+assert.equal(wert("KW 2", 3, 2), "Urlaub", "vorab eingetragener Urlaub bleibt nach Wiederaufnahme erhalten");
+assert.ok(n28.uebernommen.includes("KW 2") && n28.uebernommen.includes("KW 3"), "KW 2 als übernommen erkannt, KW 3 normal übernommen");
+assert.equal(await planJahr(env), 2028);
 console.log("Wochenplan-Jahreswechsel: alle Prüfungen bestanden.");

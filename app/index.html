@@ -745,7 +745,14 @@ let monteur=store.get("kapp_monteur");
 function num(x){if(x==null||x==="")return NaN;return parseFloat(String(x).replace(",","."))}
 function fmt(n,d=0){return n.toLocaleString("de-DE",{minimumFractionDigits:d,maximumFractionDigits:d})}
 function toast(t){const e=$("#toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",2600)}
-function save(){store.set("kapp_draft",S)}
+/* Fotos des offenen Protokolls auf dem Handy sichern (IndexedDB „airtec-fotos“) – die Texte liegen in localStorage,
+   die Fotos wären sonst weg, wenn das Handy die App im Hintergrund schließt (z. B. beim Wechsel zur Kamera) */
+const fotoDb={db:null,bereit:false,t:null,
+  open(){return this.db||(this.db=new Promise((res,rej)=>{const q=indexedDB.open("airtec-fotos",1);q.onupgradeneeded=()=>q.result.createObjectStore("f");q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}))},
+  async put(v){const d=await this.open();return new Promise((res,rej)=>{const t=d.transaction("f","readwrite");t.objectStore("f").put(v,"aktuell");t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})},
+  async get(){const d=await this.open();return new Promise((res,rej)=>{const r=d.transaction("f").objectStore("f").get("aktuell");r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)})}};
+function fotosSichern(){if(!fotoDb.bereit)return;clearTimeout(fotoDb.t);fotoDb.t=setTimeout(()=>fotoDb.put(photos.map(p=>Object.assign({},p))).catch(()=>toast("Fotos konnten auf dem Handy nicht gesichert werden – Speicher voll?")),300)}
+function save(){store.set("kapp_draft",S);fotosSichern()}
 
 /* ---------- Rendering ---------- */
 const TYPES={
@@ -1318,8 +1325,12 @@ function shrink(file){return new Promise((res,rej)=>{
 function renderPhotos(){
   $("#photos").innerHTML=photos.map((p,i)=>`<div class="ph"><img src="${p.src}"><button data-i="${i}">×</button><input data-cap="${i}" placeholder="Beschriftung" value="${esc(p.cap)}"></div>`).join("");
   $$("#photos button").forEach(b=>b.onclick=()=>{photos.splice(+b.dataset.i,1);renderPhotos()});
-  $$("#photos input").forEach(el=>el.oninput=()=>photos[el.dataset.cap].cap=el.value);
+  $$("#photos input").forEach(el=>el.oninput=()=>{photos[el.dataset.cap].cap=el.value;fotosSichern()});
+  fotosSichern();
 }
+// beim Start: Fotos des noch offenen Protokolls zurückholen
+fotoDb.get().then(f=>{if(!photos.length&&S.doc&&S.docOk&&Array.isArray(f)&&f.length){photos=f;renderPhotos();toast(f.length+" Foto"+(f.length>1?"s":"")+" wiederhergestellt")}})
+  .catch(()=>{}).finally(()=>{fotoDb.bereit=true;fotosSichern()});
 
 /* ---------- Monteur ---------- */
 function showWho(){$("#whoLine").textContent=monteur?.name?"Ersteller: "+monteur.name+(monteur.mail?" ("+monteur.mail+")":""):"Nicht angemeldet"}

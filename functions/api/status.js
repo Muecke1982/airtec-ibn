@@ -4,9 +4,13 @@ import { sheets, sheetValues, saEmail } from "../../lib/google.js";
 import { isoWeek, mondayOf, findSheet, parseWeek, matchName } from "../../lib/wochenplan.js";
 import { cfg, drive, download, upload, json } from "../../lib/graph.js";
 
-// Einrichtungs-Test: /api/status?code=FIRMENCODE
+// Einrichtungs-Test (zeigt interne Pfade, Dienstkonto, legt auf Wunsch eine Testdatei an) – nur für den Admin
 export async function onRequestGet({ request, env }) {
-  try { if (!(await auth(env, request, true))) return json(401, { error: "Nicht angemeldet / Code falsch" }); }
+  try {
+    const me = await auth(env, request, true);
+    if (!me) return json(401, { error: "Nicht angemeldet" });
+    if (!me.admin || me.legacy) return json(403, { error: "Nur für den Admin" });
+  }
   catch (e) { return json(500, { error: e.message }); }
   const out = {};
   try {

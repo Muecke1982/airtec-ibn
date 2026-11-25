@@ -52,6 +52,10 @@ const meS2 = await auth(env, req((await login(env, "Stefan Wermers", "stefan-pw-
 // Admin schützen: Stefan (Mitarbeiter verwalten, kein Admin) darf den Admin nicht ändern/löschen/Passwort setzen
 await rejects(V.mitarbeiterSpeichern(env, meS2, { id: sebi.id, name: "Sebastian", rechte: [], aktiv: true }), /nur der Admin selbst/);
 await rejects(V.mitarbeiterPasswort(env, meS2, { id: sebi.id, passwort: "gekapert" }), /nur der Admin selbst/);
+// anderer Verwalter: Passwort nur durch den Admin; Monteure und sich selbst darf ein Verwalter
+assert.ok(ma.find(m => m.name === "Marius Schöler").rechte.includes("mitarbeiter"));
+await rejects(V.mitarbeiterPasswort(env, meS2, { id: id("Marius Schöler"), passwort: "gekapert" }), /anderen Verwalters/);
+await V.mitarbeiterPasswort(env, meS2, { id: id("Nick"), passwort: "nick-start-1" });
 await rejects(V.mitarbeiterLoeschen(env, meS2, { id: sebi.id }), /nicht gelöscht/);
 await rejects(V.mitarbeiterLoeschen(env, meA, { id: sebi.id }), /nicht gelöscht/);
 // Admin behält immer alle Rechte, auch wenn er sich selbst Häkchen wegnimmt

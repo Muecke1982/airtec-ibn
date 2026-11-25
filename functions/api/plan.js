@@ -3,6 +3,8 @@ import { auth } from "../../lib/auth.js";
 import { json } from "../../lib/graph.js";
 import { writePlan } from "../../lib/planwrite.js";
 import { speichern as einsaetzeSpeichern, laden as einsaetzeLaden, anwenden, zelleTag } from "../../lib/einsaetze.js";
+import { norm } from "../../lib/wochenplan.js";
+import { teile } from "../../lib/baustellen.js";
 import { resetVorschlaege } from "../../lib/baustellen.js";
 
 // Einträge im Wochenplan ändern (nur mit Schreibrecht).
@@ -21,12 +23,15 @@ export async function onRequestPost({ request, env }) {
     // Zellen: Überschrift, darunter Projekt-/KD-Nr. und Info (zur Nachverfolgung in der Tabelle)
     const tage = [...new Set([...list.map(a => a && a.datum), ...ein.map(e => e && e.datum), ...ers])]
       .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ""))).sort();
-    let meta = {};
-    if (tage.length) meta = anwenden(await einsaetzeLaden(env, tage[0], tage[tage.length - 1]), ein, ers);
+    let meta = {}, alt = {};
+    if (tage.length) { alt = await einsaetzeLaden(env, tage[0], tage[tage.length - 1]); meta = anwenden(alt, ein, ers); }
     const format = (d, w) => zelleTag(w, meta[d] || {});
+    // übrige Zellen nur neu schreiben, wenn es zu dieser Überschrift Angaben in der App gibt oder gab –
+    // sonst bleiben z. B. von Hand in die Tabelle geschriebene Projekt-Nummern stehen
+    const betroffen = (d, w) => [w, ...teile(w)].some(t => (alt[d] || {})[norm(t)] || (meta[d] || {})[norm(t)]);
     let r = { cells: [], fehler: [] };
     if (list.length || tage.length) {
-      r = await writePlan(env, list, !!b.teilweise, { format, auffrischen: tage });
+      r = await writePlan(env, list, !!b.teilweise, { format, auffrischen: tage, betroffen });
       if (r.abgebrochen) return json(409, { error: r.fehler.join("; "), fehler: r.fehler });
     }
     if (ein.length || ers.length) await einsaetzeSpeichern(env, me.name, ein, ers);

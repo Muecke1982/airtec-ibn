@@ -73,6 +73,14 @@
       nummer: st.meta[k].nummer || "", info: st.meta[k].info || "", fix: !!st.meta[k].fix } : null).filter(Boolean);
   }
   const sig = m => leer(m) ? "" : JSON.stringify([m.art || "baustelle", m.nummer || "", m.info || "", !!m.fix]);
+  // zum Speichern: geänderte Angaben + gelöschte (leere Angaben = auf dem Server entfernen)
+  function einsatzAenderungen() {
+    const jetzt = einsatzListe(st.cur);
+    const out = jetzt.filter(e => sig(e) !== sig(st.origMeta[norm(e.titel)]));
+    for (const [k, m] of Object.entries(st.origMeta))
+      if (!leer(m) && !jetzt.some(e => norm(e.titel) === k)) out.push({ datum: st.day, titel: m.titel || k, art: "baustelle", nummer: "", info: "", fix: false });
+    return out;
+  }
   // Überschriften, deren Angaben sich geändert haben (nur solche, die noch im Plan stehen)
   function metaChanges() {
     const out = [];
@@ -324,8 +332,9 @@
         a.notiz = (c.von ? `vorher: ${c.von} – ` : "") + (fx[1] === "Krank" ? "Krank gemeldet" : fx[1] + " eingetragen") + ` von ${AT.user.name} am ${stamp}`;
       return a;
     });
+    // nur geänderte Angaben schicken – was ein Kollege inzwischen zu anderen Baustellen eingetragen hat, bleibt erhalten
     await AT.api("plan", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ aenderungen: list, einsaetze: einsatzListe(st.cur), ersetzen: [st.day] }) });
+      body: JSON.stringify({ aenderungen: list, einsaetze: einsatzAenderungen() }) });
     W.forget(st.day);
     const n = list.length + mch.length;
     toast2(`${n} Änderung${n === 1 ? "" : "en"} gespeichert`);
