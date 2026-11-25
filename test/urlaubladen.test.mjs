@@ -131,4 +131,10 @@ await assert.rejects(speichereEmpfaenger(env, "quatsch"), /keine gültige/);
 await speichereEmpfaenger(env, "a@example.org; b@example.org");
 assert.equal((await einstellung(env)).an, "a@example.org, b@example.org");
 assert.match(mailText({ X: new Map([["2026-12-07", "ganz"]]) }, {}, "").subject, /Urlaub in Label eintragen: X, Mo 07\.12\.2026/);
+
+// Urlaub über drei Wochen: die Wochenblätter werden mit einem einzigen Abruf gelesen
+const vorher = abrufe;
+const ueber = await eintragen(env, peter, { von: "2026-11-16", bis: "2026-12-04" }, people, { heute: "2026-11-01" });
+assert.ok(ueber.eingetragen > 0);
+assert.equal(abrufe - vorher, 1, "KW 47–49 in einem Abruf");
 console.log("Urlaub laden/eintragen/Infomail: alle Prüfungen bestanden.");

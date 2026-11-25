@@ -392,9 +392,11 @@
   // Leute an Tagen auf „ort“ setzen (andere Tage als st.day): prüfen, nachfragen, schreiben. vorher() läuft nach dem OK, vor dem Schreiben.
   async function eintragen(ort, leuteListe, tageListe, mk, vorher, zusatz) {
     const aend = [], ersetzt = [], fest = [], bleibt = [], fehlt = [];
+    const wochen = new Map();   // jede Woche nur einmal frisch laden (nicht je Tag)
     for (const d of tageListe) {
       let data;
-      try { data = await W.week(d, true); } catch (e) { toast2(e.message); return false; }
+      const wk = W.monOf(d);
+      try { if (!wochen.has(wk)) wochen.set(wk, await W.week(d, true)); data = wochen.get(wk); } catch (e) { toast2(e.message); return false; }
       if (data.fehlt) { fehlt.push(`KW ${data.kw}`); continue; }
       const t = W.dayOf(data, d);
       for (const n of leuteListe) {

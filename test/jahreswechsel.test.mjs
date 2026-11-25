@@ -121,6 +121,10 @@ globalThis.fetch = async (url, opt = {}) => {
     return ok({ sheets: titel.map(t => { const s = byTitle(t); return { properties: { sheetId: s.id, title: s.title, index: s.index }, merges: clone(s.merges),
       data: [{ rowData: s.rows.map(r => ({ values: r.map(z => ({ ...clone(z || {}), formattedValue: shown(z || {}) })) })) }] }; }) });
   }
+  if (url.includes("values:batchGet")) {
+    const titel = new URL(url).searchParams.getAll("ranges").map(r => r.match(/^'(.*)'!/)[1].replace(/''/g, "'"));
+    return ok({ valueRanges: titel.map(t => ({ values: byTitle(t).rows.map(r => r.map(z => shown(z || {}))) })) });
+  }
   if (url.includes("/values/")) {
     const t = decodeURIComponent(url.split("/values/")[1]).match(/^'?(.*?)'?!/)[1];
     return ok({ values: byTitle(t).rows.map(r => r.map(z => shown(z || {}))) });

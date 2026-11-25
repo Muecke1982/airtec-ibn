@@ -15,7 +15,7 @@ export function fakeD1(file = ":memory:") {
     async batch(list) {
       sql.exec("BEGIN");
       try {
-        const out = list.map(s => s._run());
+        const out = list.map(s => { const r = s._run(); return { meta: { changes: r.changes, last_row_id: Number(r.lastInsertRowid) } }; });   // wie D1
         sql.exec("COMMIT");
         return out;
       } catch (e) { sql.exec("ROLLBACK"); throw e; }
