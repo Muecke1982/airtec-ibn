@@ -153,10 +153,14 @@
   const horcher = [];
   function tell() { horcher.forEach(f => { try { f(data); } catch (e) {} }); }
   function punkt() {
-    const n = (data && data.offen) || 0, c = tabBtn.querySelector(".aucnt");
+    // Zahl am Reiter = Chats mit ungelesener Nachricht oder noch zu bestätigen (nicht alle offenen Chats)
+    const imReiter = ((data && data.nachrichten) || []).filter(m => m.ordner === "offen" && !m.pin && m.typ !== "gruss");
+    const wichtig = imReiter.filter(m => m.brauchtOk && !m.bestaetigt);
+    const neuL = imReiter.filter(ungelesen);
+    const n = data && data.nachrichten ? imReiter.filter(m => wichtig.includes(m) || neuL.includes(m)).length : 0, c = tabBtn.querySelector(".aucnt");
     c.textContent = n; c.classList.toggle("hide", !n);
-    tabBtn.classList.toggle("auwichtig", !!(data && data.wichtigOffen));
-    tabBtn.classList.toggle("auneu", !!(data && data.ungelesen) && !(data && data.wichtigOffen));
+    tabBtn.classList.toggle("auwichtig", !!wichtig.length);
+    tabBtn.classList.toggle("auneu", !!neuL.length && !wichtig.length);
   }
 
   // ---------- Fotos ----------
@@ -276,7 +280,7 @@
       acts.unshift(...vorn);
       if (einklappbar(m)) acts.push(`<button class="ein" data-ein="${m.id}">Einklappen ▴</button>`);
       unten = `${ok}<div class="aureply"><button class="cam" data-foto="${m.id}" aria-label="Foto anhängen">📷</button>
-          <textarea class="auin" data-entwurf="${m.id}" rows="1" placeholder="Antworten …">${esc(entwurf[m.id] || "")}</textarea>
+          <textarea class="auin" data-nodirty data-entwurf="${m.id}" rows="1" placeholder="Antworten …">${esc(entwurf[m.id] || "")}</textarea>
           <button class="snd" data-send="${m.id}" aria-label="Senden">➤</button></div>${vorschau(m.id)}
         <div class="auacts">${acts.join("")}</div>`;
     } else if (m.ordner === "verlauf") {
@@ -293,13 +297,13 @@
   }
 
   // ---------- Eingeklappte Chats: nur Name(n) des Chatpartners; neue Nachricht → klappt wieder auf ----------
-  // zu: { id: Anzahl Antworten beim Einklappen } je Person auf dem Handy gespeichert; gemeldet: hier als gelesen gemeldete IDs
+  // zu: { id: Anzahl Antworten beim Einklappen } je Person auf dem Handy gespeichert; gemeldet: hier als gelesen gemeldet (ID → Anzahl Antworten dabei)
   const zuKey = () => "au_zu_" + ich();
   let zu = {};
-  const gemeldet = new Set();
+  const gemeldet = new Map();
   const nAnt = m => (m.antworten || []).length;
   const einklappbar = m => m.ordner === "offen" && !m.pin && m.typ !== "gruss" && m.typ !== "hinweis" && !(m.brauchtOk && !m.bestaetigt);
-  const ungelesen = m => m.neu && !gemeldet.has(m.id);
+  const ungelesen = m => m.neu && gemeldet.get(m.id) !== nAnt(m);   // neue Antwort nach dem Lesen zählt wieder
   const istZu = m => zu[m.id] !== undefined && zu[m.id] === nAnt(m) && einklappbar(m) && !ungelesen(m);
   function zuPruefen(list) {   // neue Antwort o. Ä. seit dem Einklappen → wieder offen
     let geaendert = false;
@@ -426,7 +430,7 @@
       <div class="auord"><button data-o="offen" class="${ordner === "offen" ? "on" : ""}">💬 Offen<i>${N.offen.length}</i></button>
         <button data-o="verlauf" class="${ordner === "verlauf" ? "on" : ""}">🗂 Verlauf<i>${N.verlauf.length}</i></button>
         ${zeigPapierkorb ? `<button data-o="geloescht" class="${ordner === "geloescht" ? "on" : ""}">🗑 Papierkorb<i>${N.geloescht.length}</i></button>` : ""}</div>
-      ${ordner !== "offen" ? `<div style="display:flex;gap:8px;align-items:flex-start"><select class="auperson" id="auPerson" style="flex:1">
+      ${ordner !== "offen" ? `<div style="display:flex;gap:8px;align-items:flex-start"><select class="auperson" id="auPerson" data-nodirty style="flex:1">
           <option value="">👥 Alle Personen</option>${leute.map(n => `<option ${lc(n) === lc(person) ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
           ${ordner === "verlauf" && waehlbar.length && !auswahl ? `<button class="add" id="auWahl" style="margin:0;flex:0 0 auto;padding:10px 12px">☑️ Auswählen</button>` : ""}</div>` : ""}
       ${ordner === "offen" && pins ? `<button class="aupinhint" id="auZurStart">📌 ${pins} angepinnte Mitteilung${pins > 1 ? "en" : ""} auf der Startseite →</button>` : ""}
@@ -578,7 +582,7 @@
       if (!ids.length) return;
       try { const d = await AT.api("austausch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: "gelesen", ids }) });
         // Markierung „neu“ bleibt in der aktuellen Ansicht sichtbar, nur der Zähler geht zurück
-        ids.forEach(id => gemeldet.add(id));
+        ids.forEach(id => { const m = data.nachrichten.find(x => x.id === id); gemeldet.set(id, m ? nAnt(m) : -1); });
         data.ungelesen = d.ungelesen; data.wichtigOffen = d.wichtigOffen; data.offen = d.offen; ls.set(cacheKey(), d); punkt(); } catch (e) {}
     }, 1500);
   }

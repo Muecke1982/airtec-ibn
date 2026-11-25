@@ -6,7 +6,7 @@ import { run, one } from "../lib/db.js";
 import { feiertage, wochenImJahr, textUmschreiben, umschreiben,vorbereiten, neuesJahr, taeglich, planJahr, status } from "../lib/jahreswechsel.js";
 import { mondayOf, isoDate, findSheet, zellText, norm } from "../lib/wochenplan.js";
 import { writePlan } from "../lib/planwrite.js";
-import { zelle, anwenden } from "../lib/einsaetze.js";
+import { zelle, zelleTag, anwenden } from "../lib/einsaetze.js";
 
 // Feiertage
 const f27 = feiertage(2027);
@@ -188,6 +188,9 @@ assert.match(x.fehler[0], /KW 5\/2027: kein Blatt/);
 assert.equal(zelle("Halle 3", { art: "baustelle", nummer: "4711", info: "Kran" }), "Halle 3\nProjekt-Nr.: 4711\nInfo: Kran");
 assert.equal(zelle("Müller", { art: "kd", nummer: "17", info: "" }), "Müller\nKD-Nr.: 17");
 assert.equal(zelle("Bochum", null), "Bochum");
+assert.equal(zelleTag("Bochum / Münster", { bochum: { art: "baustelle", nummer: "4711", info: "" }, munster: { art: "kd", nummer: "17", info: "Kran" } }),
+  "Bochum / Münster\nProjekt-Nr.: 4711 (Bochum)\nKD-Nr.: 17 (Münster)\nInfo: Kran (Münster)", "zwei Baustellen: Angaben je Baustelle");
+assert.equal(zellText("Bochum / Münster\nProjekt-Nr.: 4711 (Bochum)\nInfo: Kran (Münster)"), "Bochum / Münster");
 assert.equal(zellText("Halle 3\nProjekt-Nr.: 4711\nInfo: Kran"), "Halle 3");
 assert.equal(zellText("Bochum\nKran ab 7"), "Bochum\nKran ab 7", "eigene Zeilen bleiben");
 const am = anwenden({ "2027-01-13": { alt: { titel: "Alt", art: "baustelle", nummer: "1", info: "", fix: false } } },

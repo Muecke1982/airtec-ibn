@@ -66,7 +66,16 @@
 
   /* ---------- Einsatz-Angaben (Art, Nummer, Info, fest) und ausgeblendete Mitarbeiter ---------- */
   const ICON = { baustelle: "🏗", kd: "🔧", info: "ℹ️" };
-  const metaOf = (data, s, v) => (((data && data.einsaetze) || {})[s] || {})[norm(v)] || null;
+  // bei zwei Baustellen am Tag („Bochum / Münster“) stehen die Angaben je Baustelle – hier zusammengefasst
+  function metaOf(data, s, v) {
+    const tag = ((data && data.einsaetze) || {})[s] || {};
+    if (tag[norm(v)]) return tag[norm(v)];
+    const ps = String(v || "").split(/\s+[·\/]\s+/).map(p => p.trim()).filter(Boolean);
+    const ms = ps.length > 1 ? ps.map(p => [p, tag[norm(p)]]).filter(x => x[1]) : [];
+    if (!ms.length) return null;
+    return { titel: v, art: ms.length === ps.length && ms.every(([, m]) => m.art === "info") ? "info" : "baustelle", nummer: "",
+      info: ms.map(([p, m]) => metaText(m) ? p + ": " + metaText(m) : "").filter(Boolean).join(" · "), fix: ms.some(([, m]) => m.fix), teile: ms };
+  }
   const hiddenOf = data => new Set((data && data.ausgeblendet) || []);
   // „Projekt 4711 · Krantermin 7 Uhr“
   function metaText(m) {

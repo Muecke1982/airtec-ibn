@@ -162,6 +162,14 @@
     zeichnen();
   };
 
+  // Reiter „Protokolle“ verlassen, während ein Protokoll/Aufmaß offen ist → „Parken?“
+  if (AT.wache) AT.wache("protokolle", () => {
+    const doc = offenIst(); if (!doc) return null;
+    const t = titelVon(doc, S, aufm() || {});
+    return { titel: "Protokoll parken?", text: `<p>„<b>${ESC(t.titel)}</b>“ (${ESC(t.sub)}) ist noch offen.</p><p style="font-size:14px;color:var(--mut)">Parken legt es mit Fotos auf diesem Handy beiseite – unter „Geparkt“ geht es später weiter. Ohne Parken bleibt es hier geöffnet.</p>`,
+      ja: "🅿 Parken", nein: "Nicht parken", tun: async () => { const n = await parkeAktuelles(); if (n) toast("Geparkt: " + n); zeichnen(); } };
+  });
+
   AT.parken = { zeichnen, alle, anzahl: () => anzahl };
   zeichnen();
 })();

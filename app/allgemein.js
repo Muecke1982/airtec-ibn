@@ -121,7 +121,7 @@
       if (!data.pflegen) { pe.innerHTML = L.length ? karte(L[0]) : `<section class="card"><div class="hint" style="margin:0">Keine Angaben gefunden.</div></section>`; bind(); return; }
       const m = L.find(x => x.id === wahl);
       const icon = x => x.fuehrerschein.status === "faellig" || x.fuehrerschein.status === "leer" ? "⚠️ " : x.fuehrerschein.status === "bald" ? "⏳ " : "";
-      pe.innerHTML = `<section class="card"><label style="margin-top:0">Mitarbeiter</label><select id="peWahl"><option value="">– Mitarbeiter wählen –</option>${L.map(x =>
+      pe.innerHTML = `<section class="card"><label style="margin-top:0">Mitarbeiter</label><select id="peWahl" data-nodirty><option value="">– Mitarbeiter wählen –</option>${L.map(x =>
         `<option value="${x.id}" ${x.id === wahl ? "selected" : ""}>${icon(x)}${esc(x.name)}</option>`).join("")}</select></section>
         ${m ? karte(m) : `<section class="card"><h3>🪪 Führerschein – Übersicht</h3>${L.map(x =>
           `<div class="peli" data-ma="${x.id}"><b>${esc(x.name)}</b>${badge(x.fuehrerschein).replace("Nächste Prüfung bis", "bis").replace("Noch keine Prüfung eingetragen", "nicht eingetragen")}</div>`).join("")}</section>`}`;

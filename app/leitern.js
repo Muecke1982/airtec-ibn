@@ -124,7 +124,7 @@
         <div><button class="add" id="leCsv" style="margin:0;width:100%">📄 Prüfbuch exportieren</button></div></div>` : ""}
     </section>
     ${scanKarte()}
-    ${aktiv.length > 6 ? `<input id="leSuch" placeholder="Suchen: Nr., Standort, Art …" value="${esc(suche)}" style="margin-bottom:10px">` : ""}
+    ${aktiv.length > 6 ? `<input id="leSuch" data-nodirty placeholder="Suchen: Nr., Standort, Art …" value="${esc(suche)}" style="margin-bottom:10px">` : ""}
     ${treffer.length ? `<section class="card">${treffer.map(zeile).join("")}</section>` : ""}
     ${aus.length ? `<section class="card"><button class="back" id="leAus" style="padding:0">${zeigAus ? "▾" : "▸"} Ausgesonderte Leitern (${aus.length})</button>${zeigAus ? aus.map(zeile).join("") : ""}</section>` : ""}`;
   }

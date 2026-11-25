@@ -52,10 +52,23 @@
   const ART = { baustelle: ["🏗", "Baustelle"], kd: ["🔧", "Kundendienst"], info: ["ℹ️", "Nur Info"] };
   const leer = m => !m || ((m.art || "baustelle") === "baustelle" && !m.nummer && !m.info && !m.fix);
   const metaFor = o => st.meta[norm(o)] || null;
-  // gespeicherte Angaben je Überschrift, wie sie im Plan stehen (Krank/Urlaub/Frei-Felder zählen nicht)
+  // zwei Baustellen am Tag („Bochum / Münster“): Angaben je Baustelle → [[teil, angaben], …]
+  const teilMetas = o => {
+    const tm = teile(o).length > 1 ? teile(o).map(p => [p, st.meta[norm(p)] || null]) : [];
+    return tm.some(([, m]) => m) || !metaFor(o) && tm.length ? tm : [[o, metaFor(o)]];
+  };
+  const istFix = o => !!(metaFor(o) && metaFor(o).fix) || teilMetas(o).some(([, m]) => m && m.fix);
+  const hatTitel = (v, k) => norm(v) === k || (teile(v).length > 1 && teile(v).some(p => norm(p) === k));
+  // Überschrift oder Teil („Münster“ in „Bochum / Münster“) überall umbenennen
+  const ersetzeTitel = (v, k, neu) => norm(v) === k ? neu : teile(v).length > 1 ? teile(v).map(p => norm(p) === k ? neu : p).join(" / ") : v;
+  // gespeicherte Angaben je Überschrift (und je Teil), wie sie im Plan stehen (Krank/Urlaub/Frei-Felder zählen nicht)
   function einsatzListe(werte) {
     const titel = new Map();
-    for (const n of st.data.spalten || []) { const v = werte[n]; if (v && !fixOf(v)) titel.set(norm(v), v); }
+    for (const n of st.data.spalten || []) {
+      const v = werte[n]; if (!v || fixOf(v)) continue;
+      titel.set(norm(v), v);
+      if (teile(v).length > 1) for (const p of teile(v)) titel.set(norm(p), p);
+    }
     return [...titel].map(([k, v]) => st.meta[k] && !leer(st.meta[k]) ? { datum: st.day, titel: v, art: st.meta[k].art || "baustelle",
       nummer: st.meta[k].nummer || "", info: st.meta[k].info || "", fix: !!st.meta[k].fix } : null).filter(Boolean);
   }
@@ -66,7 +79,7 @@
     for (const e of einsatzListe(st.cur)) if (sig(e) !== sig(st.origMeta[norm(e.titel)])) out.push(e.titel);
     for (const [k, m] of Object.entries(st.origMeta)) {
       if (leer(m) || out.some(t => norm(t) === k)) continue;
-      const da = (st.data.spalten || []).some(n => norm(st.cur[n]) === k);
+      const da = (st.data.spalten || []).some(n => hatTitel(st.cur[n], k));
       if (da && leer(st.meta[k])) out.push(m.titel || k);
     }
     return out;
@@ -74,7 +87,7 @@
 
   // Fester Termin: vor jeder Änderung einmal nachfragen
   async function fixOk(orte) {
-    const hit = orte.filter(Boolean).map(o => [o, metaFor(o)]).find(([o, m]) => m && m.fix && !st.fixOk.has(norm(o)));
+    const hit = orte.filter(Boolean).map(o => [o, { fix: istFix(o) }]).find(([o, m]) => m.fix && !st.fixOk.has(norm(o)));
     if (!hit) return true;
     const ok = await frage2("📌 Fester Termin", `<p style="font-size:15px">„<b>${esc(hit[0])}</b>“ ist als <b>fester Termin</b> eingetragen und sollte nur nach Rücksprache geändert werden.</p><p style="font-size:15px">Wurde das abgesprochen?</p>`, "Ja, ändern");
     if (ok) orte.filter(Boolean).forEach(o => st.fixOk.add(norm(o)));
@@ -243,8 +256,11 @@
   function paint() {
     const G = groups(), ch = changes(), mch = metaChanges(), names = st.data.spalten || [], hol = holiday(st.day);
     const hid = W.hiddenOf(st.data), freiSicht = G.free.filter(n => st.zeigeAus || !hid.has(n) || n === st.sel), ausZahl = G.free.length - freiSicht.length;
-    const kopf = t => { const m = metaFor(t.ort); return `${m && m.art && m.art !== "baustelle" ? ART[m.art][0] + " " : ""}${esc(t.ort)}${m && m.fix ? '<span class="krfix">📌 fix</span>' : ""}`; };
-    const metaZeile = t => { const s = W.metaText(metaFor(t.ort)); return s ? `<div class="krmeta">${esc(s)}</div>` : ""; };
+    const kopf = t => { const m = metaFor(t.ort); return `${m && m.art && m.art !== "baustelle" ? ART[m.art][0] + " " : ""}${esc(t.ort)}${istFix(t.ort) ? '<span class="krfix">📌 fix</span>' : ""}`; };
+    const metaZeile = t => {
+      const tm = teilMetas(t.ort), zwei = tm.length > 1;
+      return tm.map(([p, m]) => { const s = W.metaText(m); return s || (zwei && m && m.art === "kd") ? `<div class="krmeta">${zwei ? `<b>${m && m.art !== "baustelle" ? ART[m.art][0] + " " : ""}${esc(p)}:</b> ` : ""}${esc(s)}${zwei && m && m.fix ? " 📌" : ""}</div>` : ""; }).join("");
+    };
     view.innerHTML = `
       <section class="card krhead">
         <h2>Änderungen</h2>
@@ -262,13 +278,13 @@
       ${G.teams.map(t => {
         const off = isOffice(t.ort), bd = badge(t, off);
         const lost = names.filter(x => st.orig[x] && norm(st.orig[x]) === norm(t.ort) && !t.leute.includes(x));
-        const fx = metaFor(t.ort) && metaFor(t.ort).fix;
+        const fx = istFix(t.ort), tl = teile(t.ort);
         return `<section class="card krzone${bd.cls}${fx ? " fixed" : ""}" data-to="${esc(t.ort)}">
           <div class="krtop"><h3>${kopf(t)}</h3><span class="krbadge">${esc(bd.txt)}</span></div>
           ${metaZeile(t)}
           <div class="krchips">${t.leute.map(chip).join("") || `<span class="krempty">${st.sel ? "hierher tippen" : "niemand"}</span>`}</div>
           ${lost.length ? `<div class="krlost">vorher auch: ${lost.map(esc).join(", ")}</div>` : ""}
-          <div class="kracts"><button class="krlink" data-edit="${esc(t.ort)}">✎ Angaben</button>${t.leute.length ? `<button class="krlink" data-copy="${esc(t.ort)}">📋 auf weitere Tage</button>` : ""}
+          <div class="kracts">${tl.length > 1 ? tl.map(p => `<button class="krlink" data-edit="${esc(p)}">✎ ${esc(p)}</button>`).join("") : `<button class="krlink" data-edit="${esc(t.ort)}">✎ Angaben</button>`}${t.leute.length ? `<button class="krlink" data-copy="${esc(t.ort)}">📋 auf weitere Tage</button>` : ""}
             ${off ? "" : `<button class="krlink" data-add="${esc(t.ort)}">+ 2. Baustelle am Tag</button><button class="krdel" data-del="${esc(t.ort)}">streichen</button>`}</div>
         </section>`;
       }).join("")}
@@ -454,8 +470,8 @@
       if (!r) return;
       const nk = norm(r.titel);
       if (nk !== k) {
-        for (const n of st.data.spalten || []) if (norm(st.cur[n]) === k) st.cur[n] = r.titel;
-        st.extra = st.extra.map(x => norm(x) === k ? r.titel : x);
+        for (const n of st.data.spalten || []) if (hatTitel(st.cur[n], k)) st.cur[n] = ersetzeTitel(st.cur[n], k, r.titel);
+        st.extra = st.extra.map(x => ersetzeTitel(x, k, r.titel));
         st.gone = st.gone.filter(x => x !== nk);
         delete st.meta[k];
         st.fixOk.add(nk);
@@ -465,19 +481,22 @@
     });
     view.querySelectorAll("[data-copy]").forEach(b => b.onclick = e => { e.stopPropagation(); kopieren(b.dataset.copy); });
     if ($("#krAus")) $("#krAus").onclick = e => { e.stopPropagation(); st.zeigeAus = !st.zeigeAus; paint(); };
-    // zweite Baustelle für dieses Team am selben Tag: Eintrag wird z. B. „Bochum / Münster“
-    // Auswahl aus den Baustellen des Wochenplans (letzte 5 Monate), Eingabe eines neuen Namens geht auch
-    const frage = (titel, ohne) => AT.baustellen ? AT.baustellen.waehlen({ titel, ohne }) : Promise.resolve(prompt(titel));
+    // zweite Baustelle für dieses Team am selben Tag: Eintrag wird z. B. „Bochum / Münster“ –
+    // mit denselben Angaben wie eine neue Baustelle (Art, Projekt-/KD-Nr., Info, fester Termin), je Baustelle gespeichert
     view.querySelectorAll("[data-add]").forEach(b => b.onclick = async e => {
       e.stopPropagation();
       const o = b.dataset.add;
       if (!(await fixOk([o]))) return;
-      const add = ((await frage(`Weitere Baustelle für „${o}“ am selben Tag`, teile(o))) || "").trim();
-      if (!add) return;
-      const neu = o + " / " + add;
+      const r = await einsatzForm({ art: "baustelle" }, `2. Baustelle am Tag – zusätzlich zu „${o}“`);
+      if (!r) return;
+      if (teile(o).some(p => norm(p) === norm(r.titel))) { toast2("Diese Baustelle steht schon drin"); return; }
+      const neu = o + " / " + r.titel;
+      // Angaben der bisherigen Baustelle bleiben bei ihr (je Teil), die neue bekommt ihre eigenen
+      if (st.meta[norm(o)] && teile(o).length === 1) st.meta[norm(o)].titel = o;
+      st.meta[norm(r.titel)] = { titel: r.titel, art: r.art, nummer: r.nummer, info: r.info, fix: r.fix };
       for (const n of st.data.spalten || []) if (norm(st.cur[n]) === norm(o)) st.cur[n] = neu;
       if (st.extra.some(x => norm(x) === norm(o))) st.extra = st.extra.map(x => norm(x) === norm(o) ? neu : x);
-      if (st.meta[norm(o)]) { st.meta[norm(neu)] = { ...st.meta[norm(o)], titel: neu }; delete st.meta[norm(o)]; st.fixOk.add(norm(neu)); }
+      st.fixOk.add(norm(neu)); st.fixOk.add(norm(r.titel));
       st.sel = null; paint();
     });
     // neue Baustelle: direkt freie Mitarbeiter anhaken und weitere Tage (diese/nächste Woche) wählen
@@ -525,7 +544,14 @@
     if (!view.classList.contains("hide")) return;
     return prev.apply(this, arguments);
   };
-  document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {
-    if (b.dataset.tab !== "wochenplan" && !view.classList.contains("hide")) { view.classList.add("hide"); root.classList.remove("hide"); }
-  }));
+  // Reiter verlassen mit ungespeicherten Änderungen → „Speichern?“
+  if (AT.wache) AT.wache("wochenplan", () => {
+    if (!st || view.classList.contains("hide") || !offen()) return null;
+    const n = offen();
+    return { titel: "Wochenplan speichern?", text: `<p>Für ${esc(label(st.day))} ${n === 1 ? "ist <b>1 Änderung</b>" : `sind <b>${n} Änderungen</b>`} noch nicht gespeichert.</p>`,
+      ja: "Speichern", nein: "Verwerfen", tun: async () => { await save(); st = null; }, verwerfen: () => { st = null; } };
+  });
+  document.addEventListener("at:tab", e => {
+    if (e.detail.von === "wochenplan" && !view.classList.contains("hide")) { view.classList.add("hide"); root.classList.remove("hide"); }
+  });
 })();

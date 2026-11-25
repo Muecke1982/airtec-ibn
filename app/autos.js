@@ -66,7 +66,7 @@
         ${offen === a.id ? form(a) : ""}</section>`;
     const autos = list.filter(a => a.art !== "anhaenger"), anh = list.filter(a => a.art === "anhaenger");
     view.innerHTML = `${kann() ? (offen === "neu" ? `<section class="card"><h2>Neues Fahrzeug</h2>${form()}</section>` : `<button class="add" id="faNew" style="margin:0 0 12px">+ Auto oder Anhänger eintragen</button>`) : ""}
-      ${data.autos.length > 4 ? `<input id="faFilter" placeholder="🔍 Kennzeichen, Marke oder Fahrer" value="${esc(filter)}" style="margin-bottom:12px">` : ""}
+      ${data.autos.length > 4 ? `<input id="faFilter" data-nodirty placeholder="🔍 Kennzeichen, Marke oder Fahrer" value="${esc(filter)}" style="margin-bottom:12px">` : ""}
       ${autos.length ? `<h3 style="margin:4px 2px 8px;font-size:14px;color:var(--mut)">Autos (${autos.length})</h3>` + autos.map(karte).join("") : ""}
       ${anh.length ? `<h3 style="margin:14px 2px 8px;font-size:14px;color:var(--mut)">Anhänger (${anh.length})</h3>` + anh.map(karte).join("") : ""}
       ${!list.length ? `<section class="card"><div class="hint" style="margin:0">${data.autos.length ? "Nichts gefunden." : "Noch keine Fahrzeuge eingetragen."}</div></section>` : ""}`;

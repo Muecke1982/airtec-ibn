@@ -2,8 +2,7 @@ import { darf } from "../../lib/rechte.js";
 import { auth } from "../../lib/auth.js";
 import { json } from "../../lib/graph.js";
 import { writePlan } from "../../lib/planwrite.js";
-import { speichern as einsaetzeSpeichern, laden as einsaetzeLaden, anwenden, zelle } from "../../lib/einsaetze.js";
-import { norm } from "../../lib/wochenplan.js";
+import { speichern as einsaetzeSpeichern, laden as einsaetzeLaden, anwenden, zelleTag } from "../../lib/einsaetze.js";
 import { resetVorschlaege } from "../../lib/baustellen.js";
 
 // Einträge im Wochenplan ändern (nur mit Schreibrecht).
@@ -24,7 +23,7 @@ export async function onRequestPost({ request, env }) {
       .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ""))).sort();
     let meta = {};
     if (tage.length) meta = anwenden(await einsaetzeLaden(env, tage[0], tage[tage.length - 1]), ein, ers);
-    const format = (d, w) => zelle(w, meta[d] && meta[d][norm(w)]);
+    const format = (d, w) => zelleTag(w, meta[d] || {});
     let r = { cells: [], fehler: [] };
     if (list.length || tage.length) {
       r = await writePlan(env, list, !!b.teilweise, { format, auffrischen: tage });

@@ -40,9 +40,70 @@
     },
   };
 
+  /* ---------- Reiter verlassen: ungespeicherte Eingaben ----------
+     Bereiche mit eigener Logik melden sich mit AT.wache(reiter, () => null | { titel, text, ja, tun }) an
+     (z. B. Wochenplan „Speichern?“, Protokolle „Parken?“). tun() erledigt das Speichern, Rückgabe false = hierbleiben.
+     Alle anderen Bereiche: Eingabefelder, die jemand geändert hat und die noch nicht gespeichert sind. */
+  const wachen = {};
+  AT.wache = (name, f) => { wachen[name] = f; };
+  let beruehrt = new WeakSet();
+  ["input", "change"].forEach(t => document.addEventListener(t, e => { if (e.isTrusted && e.target && e.target.matches && e.target.matches("input,textarea,select")) beruehrt.add(e.target); }, true));
+  // nach dem Speichern zeichnen die Bereiche ihre Felder neu – neue Felder gelten als unverändert.
+  // Wer ohne Neuzeichnen speichert, ruft AT.eingabenGespeichert() auf.
+  AT.eingabenGespeichert = () => { beruehrt = new WeakSet(); };
+  const anders = el => el.type === "checkbox" || el.type === "radio" ? el.checked !== el.defaultChecked
+    : el.tagName === "SELECT" ? [...el.options].some(o => o.selected !== o.defaultSelected) : el.value !== el.defaultValue;
+  function offeneEingaben(name) {
+    for (const v of document.querySelectorAll(`main[data-mod="${name}"]`)) {
+      for (const el of v.querySelectorAll("input,textarea,select")) {
+        if (!beruehrt.has(el) || ["search", "file", "button", "submit"].includes(el.type) || el.closest("[data-nodirty]") || el.offsetParent === null) continue;
+        const wahl = el.type === "checkbox" || el.type === "radio" || el.tagName === "SELECT";
+        if (wahl ? anders(el) : String(el.value || "").trim() !== String(el.defaultValue || "").trim()) return true;
+      }
+    }
+    return false;
+  }
+  // Abfrage mit drei Möglichkeiten: ja (speichern/parken) · nein (ohne weiter) · hierbleiben
+  const dlg = document.createElement("div");
+  dlg.className = "modal"; dlg.id = "mWechsel";
+  dlg.innerHTML = `<div class="box"><h3 id="wxT"></h3><div id="wxB" style="font-size:15px"></div>
+    <div class="btns" style="flex-wrap:wrap"><button class="secondary" id="wxBleib">Hierbleiben</button><button class="secondary" id="wxNein"></button><button class="primary" id="wxJa"></button></div></div>`;
+  document.body.appendChild(dlg);
+  function wechselFrage(f) {
+    return new Promise(res => {
+      q("#wxT").textContent = f.titel; q("#wxB").innerHTML = f.text;
+      q("#wxJa").textContent = f.ja || "Speichern"; q("#wxJa").classList.toggle("hide", !f.tun);
+      q("#wxNein").textContent = f.nein || "Nicht speichern";
+      const zu = v => { dlg.classList.remove("show"); res(v); };
+      q("#wxJa").onclick = () => zu("ja"); q("#wxNein").onclick = () => zu("nein"); q("#wxBleib").onclick = () => zu(null);
+      dlg.classList.add("show");
+    });
+  }
+  let aktuell = null, fragt = false;
+  async function darfVerlassen(von) {
+    // Bereich mit eigener Prüfung: nur die (z. B. Protokolle werden ohnehin auf dem Handy gespeichert)
+    const f = wachen[von] ? wachen[von]() : (offeneEingaben(von) ? { titel: "Eingaben nicht gespeichert", text: "<p>Sie haben hier etwas eingegeben, das noch nicht gespeichert ist. Beim Wechseln geht es verloren.</p>", nein: "Verwerfen" } : null);
+    if (!f) return true;
+    const a = await wechselFrage(f);
+    if (a === null) return false;
+    if (a === "ja") { try { if ((await f.tun()) === false) return false; } catch (e) { if (typeof toast === "function") toast(e.message || String(e)); return false; } }
+    else if (f.verwerfen) f.verwerfen();
+    beruehrt = new WeakSet();
+    return true;
+  }
+
   /* ---------- Modul-Umschaltung ---------- */
-  function tab(name) {
+  async function tab(name, opt = {}) {
+    if (fragt) return;
+    if (aktuell && aktuell !== name && !opt.ohneFrage && AT.user) {
+      fragt = true;
+      let ok = true;
+      try { ok = await darfVerlassen(aktuell); } finally { fragt = false; }
+      if (!ok) return false;
+    }
+    const von = aktuell; aktuell = name;
     ls.set("at_tab", name);
+    if (von && von !== name) document.dispatchEvent(new CustomEvent("at:tab", { detail: { von, nach: name } }));
     document.querySelectorAll("[data-mod]").forEach(el => el.classList.toggle("hide", el.dataset.mod !== name));
     document.querySelectorAll("#tabs button").forEach(b => {
       b.classList.toggle("on", b.dataset.tab === name);
@@ -175,7 +236,7 @@
     const who = q("#accName"); if (who) who.textContent = u.name + (u.admin ? " (Admin)" : u.schreiben ? " (Büro)" : "");
     reiter();
     if (window.protoReady) window.protoReady();
-    tab("start");   // App öffnet immer auf der Startseite
+    tab("start", { ohneFrage: true });   // App öffnet immer auf der Startseite
     if (AT.checkMaschinen && navigator.onLine) setTimeout(AT.checkMaschinen, 1200);
     // Anmeldung im Hintergrund prüfen (z. B. Passwort geändert oder Zugang entfernt)
     if (navigator.onLine) AT.api("login").then(r => { AT.session.user = r.user; ls.set("at_session", AT.session); reiter(); if (r.user.pwNeu) pwZeigen(true); }).catch(e => { if (e.status === 401) AT.logout(true); });
@@ -189,7 +250,7 @@
       b.classList.toggle("hide", !!need && !need.some(r => AT.darf(r)));
     });
     const cur = ls.get("at_tab"), nb = BEREICH[cur];
-    if (nb && !nb.some(r => AT.darf(r))) tab("start");
+    if (nb && !nb.some(r => AT.darf(r))) tab("start", { ohneFrage: true });
   }
   AT.reiter = reiter;
   const lo = q("#accLogout"); if (lo) lo.onclick = () => { q("#mSettings").classList.remove("show"); AT.logout(); };

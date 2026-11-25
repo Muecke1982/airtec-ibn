@@ -417,6 +417,17 @@
     Promise.all([ladeMappen().catch(() => {}), vorschlaege()]).then(() => { if (!ansicht) listeMalen(); });
   }
   AT.modules.baustellen = { show: zeige };
+  // Reiter verlassen mit getipptem, aber noch nicht eingetragenem Text → „Eintragen?“
+  if (AT.wache) AT.wache("baustellen", () => {
+    const t = root.querySelector("#bsText"), m = ansicht && ansicht.mappe;
+    if (!t || !m || !t.value.trim()) return null;
+    const rem = !!(root.querySelector("#bsRem") || {}).checked;
+    return { titel: "Info noch nicht eingetragen", text: `<p>In der Mappe „<b>${esc(m.name)}</b>“ steht noch ein Text, der nicht eingetragen ist.</p>`,
+      ja: "Eintragen", nein: "Verwerfen", tun: async () => {
+        const r = await post(m.id ? { aktion: "eintrag", id: m.id, text: t.value.trim(), reminder: rem } : { aktion: "eintrag", baustelle: m.name, text: t.value.trim(), reminder: rem });
+        ansicht = { id: r.mappe.id, name: r.mappe.name, mappe: r.mappe }; mappeMalen(); toast2("Eingetragen ✓"); ladeMappen().catch(() => {});
+      } };
+  });
 
   // Bauvorhaben-Felder im IBN- und Abnahmeprotokoll
   document.querySelectorAll('#app [data-k="bv"]').forEach(feld);

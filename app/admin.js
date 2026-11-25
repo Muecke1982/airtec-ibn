@@ -208,9 +208,9 @@
         <small>${esc(e.bereich)}${e.details ? " · " + esc(e.details) : ""}</small></div></div>`;
     }
     return `<section class="card"><h2>Logbuch</h2>
-      <div class="row"><div><label>Zeitraum</label><select id="lgTage">${[[1, "Heute"], [7, "7 Tage"], [30, "30 Tage"], [90, "90 Tage"]].map(([v, l]) => opt(v, l, logQ.tage)).join("")}</select></div>
-        <div><label>Bereich</label><select id="lgBer">${opt("", "Alle", logQ.bereich)}${log.bereiche.map(b => opt(b, b, logQ.bereich)).join("")}</select></div></div>
-      <label>Person</label><select id="lgWer">${opt("", "Alle", logQ.wer)}${log.personen.map(p => opt(p, p, logQ.wer)).join("")}</select>
+      <div class="row"><div><label>Zeitraum</label><select id="lgTage" data-nodirty>${[[1, "Heute"], [7, "7 Tage"], [30, "30 Tage"], [90, "90 Tage"]].map(([v, l]) => opt(v, l, logQ.tage)).join("")}</select></div>
+        <div><label>Bereich</label><select id="lgBer" data-nodirty>${opt("", "Alle", logQ.bereich)}${log.bereiche.map(b => opt(b, b, logQ.bereich)).join("")}</select></div></div>
+      <label>Person</label><select id="lgWer" data-nodirty>${opt("", "Alle", logQ.wer)}${log.personen.map(p => opt(p, p, logQ.wer)).join("")}</select>
       <div class="vwbtns"><button class="secondary" id="lgCsv" ${log.eintraege.length ? "" : "disabled"}>Als Excel-Datei (CSV) speichern</button></div>
       <div class="hint">${log.eintraege.length} Einträge${log.eintraege.length >= 2000 ? " (die neuesten 2000)" : ""}. Aufgezeichnet werden Änderungen und Anmeldungen, kein reines Ansehen. Einträge werden nach ${log.aufbewahrung} Tagen gelöscht.</div>
       <div style="margin-top:8px">${rows || '<div class="hint">Keine Einträge im gewählten Zeitraum.</div>'}</div></section>`;
