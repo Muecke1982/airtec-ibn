@@ -6,9 +6,9 @@
    Die Startseite zeigt die angepinnten Chats (hinweise.js nutzt AT.austausch.karte / binden). */
 (function () {
   const AT = window.AT;
-  const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const say = t => { if (typeof toast === "function") toast(t); };
+  const ls = window.AT.ls;
+  const esc = window.AT.esc;
+  const say = window.AT.say;
   const buero = () => AT.darf("hinweise");
   const first = n => String(n || "").split(" ")[0];
   const lc = s => String(s || "").toLowerCase().trim();
@@ -266,7 +266,7 @@
         ${offenStatus === m.id ? `<div class="aunames">${E.map(x => `${mitOk && x.bestaetigt ? "✅" : x.gelesen ? "👁" : "⏳"} ${esc(x.wer)}`).join("<br>")}</div>` : ""}</div>`;
     }
     let unten = "";
-    if (m.typ === "gruss") unten = "";
+    if (m.typ === "gruss") { /* Geburtstagsgruß: keine Bedienelemente */ }
     else if (offenOrd) {
       const ok = m.brauchtOk && !m.bestaetigt ? `<button class="auok ${m.pin ? "pin" : ""}" data-ok="${m.id}">✓ Gelesen und bestätigen</button>` : "";
       const daumen = (m.reaktionen || []).filter(r => r.r === "👍");

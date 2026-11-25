@@ -6,11 +6,8 @@
    • Tipp auf eine Mitteilung: sw.js öffnet die App → hier zum richtigen Reiter springen */
 (function () {
   const AT = window.AT;
-  const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  };
-  const toast2 = t => { if (typeof toast === "function") toast(t); };
+  const ls = window.AT.ls;
+  const toast2 = window.AT.say;
   const kann = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const installiert = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;

@@ -2,14 +2,11 @@
    Daten: /api/maschinen (Excel „Airtec_Maschinen.xlsx“ in SharePoint, Blatt „Protokoll“ schreibt die App). */
 (function () {
   const AT = window.AT;
-  const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  };
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ls = window.AT.ls;
+  const esc = window.AT.esc;
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
   const short = s => String(s || "").replace(/^(\d{2}\.\d{2}\.)\d{4}/, "$1");
-  const toast2 = t => { if (typeof toast === "function") toast(t); };
+  const toast2 = window.AT.say;
 
   const root = document.getElementById("maView");
   root.innerHTML = `

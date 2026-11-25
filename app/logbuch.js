@@ -4,7 +4,7 @@
    Hinweis: Das Logbuch der Verwaltung (wer hat was geändert) ist etwas anderes und bleibt unter ⚙︎ → Verwaltung. */
 (function () {
   const AT = window.AT;
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const esc = window.AT.esc;
 
   const tabBtn = document.createElement("button");
   tabBtn.dataset.tab = "logbuch"; tabBtn.textContent = "Logbuch";

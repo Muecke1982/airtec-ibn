@@ -4,7 +4,7 @@
    Greift auf das Protokoll-Skript in index.html zu (S, DEV, renderList, save, fam …). Server: POST /api/typenschild */
 (function () {
   const AT = window.AT;
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const esc = window.AT.esc;
   const komma = v => String(v ?? "").replace(".", ",");
 
   // je Geräteliste: welche Schild-Angabe in welches Feld; aussen = auch Kältemittel/Füllmenge/Stromaufnahme

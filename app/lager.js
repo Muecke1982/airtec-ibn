@@ -4,13 +4,10 @@
    Büro: Bestellliste nach Lieferant – abhaken oder „Bei … bestellen“ mit Mail-Vorschau. Daten: /api/lager (Airtec_Lager.xlsx). */
 (function () {
   const AT = window.AT;
-  const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  };
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ls = window.AT.ls;
+  const esc = window.AT.esc;
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss");
-  const toast2 = t => { if (typeof toast === "function") toast(t); };
+  const toast2 = window.AT.say;
   const office = () => AT.darf("lager_bestellen");
   const short = s => String(s || "").replace(/^(\d{2}\.\d{2}\.)\d{4}/, "$1");
   const first = n => String(n || "").split(",")[0].trim().split(" ")[0];
@@ -226,11 +223,8 @@
     const imp = `<button class="add" id="lgImp">📥 Artikel aus Excel in die Liste importieren</button>`;
     if (!all.length) { box.innerHTML = `<section class="card"><h2>Bestellliste</h2><div class="hint" style="margin:0">Nichts zu bestellen – alles da. 👍</div>${imp}</section>`; return; }
     const keyOf = a => groupBy === "lief" ? (a.lief || "Ohne Lieferant") : (data.kats.find(k => k.id === a.kat) || {}).name || "–";
-    const groups = new Map();
-    for (const a of items.sort((x, y) => (x.offen.status === "Leer" ? 0 : 1) - (y.offen.status === "Leer" ? 0 : 1) || x.bez.localeCompare(y.bez)))
-      { const k = keyOf(a); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(a); }
     const keyOf2 = a => a.frei && groupBy !== "lief" ? "🆕 Nicht in der Liste" : keyOf(a);
-    groups.clear();
+    const groups = new Map();
     for (const a of items.sort((x, y) => (x.offen.status === "Leer" ? 0 : 1) - (y.offen.status === "Leer" ? 0 : 1) || x.bez.localeCompare(y.bez)))
       { const k = keyOf2(a); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(a); }
     box.innerHTML = `<section class="card lgohead"><h2>Bestellliste</h2>

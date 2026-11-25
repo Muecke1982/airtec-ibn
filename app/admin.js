@@ -5,8 +5,8 @@
    Geöffnet über ⚙︎ → „Verwaltung öffnen“. */
 (function () {
   const AT = window.AT;
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const say = m => { if (typeof toast === "function") toast(m); };
+  const esc = window.AT.esc;
+  const say = window.AT.say;
   // Rechte – gleiche Schlüssel wie lib/rechte.js
   const RECHTE = [
     ["Bereiche", [["wochenplan", "Wochenplan"], ["protokolle", "Protokolle"], ["maschinen", "Maschinen"], ["lager", "Lager (Material melden)"], ["autos", "Autos"]]],
@@ -19,8 +19,9 @@
   const office = () => darf("mitarbeiter") || darf("stammdaten");
   const TEILE = [["mitarbeiter", "Mitarbeiter", "mitarbeiter"], ["stamm", "Stammdaten", "stammdaten"], ["db", "Datenbank", "mitarbeiter"], ["log", "Logbuch", "admin"]];
   const teile = () => TEILE.filter(x => x[2] === "admin" ? ichAdmin() : darf(x[2]));
-  const get = async teil => (await api("admin" + (teil ? "?teil=" + teil : ""))).json();
-  const post = async body => (await api("admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
+  // über AT.api: bei abgelaufener Anmeldung zurück zur Anmeldeseite (wie überall sonst)
+  const get = teil => AT.api("admin" + (teil ? "?teil=" + teil : ""));
+  const post = body => AT.api("admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
   // ---------- Ansicht anlegen ----------
   const view = document.createElement("main");
@@ -241,7 +242,7 @@
   function bind() {
     const q = s => view.querySelector(s);
     view.querySelectorAll("[data-open]").forEach(h => h.onclick = () => {
-      const k = teil === "mitarbeiter" ? +h.dataset.open : +h.dataset.open;
+      const k = +h.dataset.open;
       offen = offen === k ? null : k; paint();
     });
     const cancel = q("#fCancel"); if (cancel) cancel.onclick = () => { offen = null; paint(); };

@@ -6,13 +6,10 @@
    • Startseite: Hinweis an den, der die Baustelle als Nächstes im Wochenplan hat (karten/binden/tickerLaden) */
 (function () {
   const AT = window.AT, W = AT.wp;
-  const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  };
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ls = window.AT.ls;
+  const esc = window.AT.esc;
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-  const toast2 = t => { if (typeof toast === "function") toast(t); };
+  const toast2 = window.AT.say;
   const todayIso = () => W ? W.todayIso() : (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); })();
   const dd = iso => iso ? `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}.` : "";
   const zeit = s => s ? dd(s) + (String(s).slice(0, 4) !== todayIso().slice(0, 4) ? String(s).slice(0, 4) : "") + (String(s).length > 10 ? " " + String(s).slice(11, 16) : "") : "";

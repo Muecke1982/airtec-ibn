@@ -6,12 +6,9 @@
      Büro (Recht „urlaub“): für alle eintragen, Urlaub im Team, Empfänger der Infomail */
 (function () {
   const AT = window.AT;
-  const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  };
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const say = t => { if (typeof toast === "function") toast(t); };
+  const ls = window.AT.ls;
+  const esc = window.AT.esc;
+  const say = window.AT.say;
   const office = () => AT.darf("urlaub");
   const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
   const d1 = iso => iso ? `${WT[new Date(iso + "T12:00:00Z").getUTCDay()]} ${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : "?";

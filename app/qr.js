@@ -7,8 +7,8 @@
    Steht im QR-Code ein Link auf die App (…/q/CODE oder …?qr=CODE), öffnet auch die normale Handy-Kamera direkt die App. */
 (function () {
   const AT = window.AT;
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const say = t => { if (typeof toast === "function") toast(t); };
+  const esc = window.AT.esc;
+  const say = window.AT.say;
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
 
   // gleiche Regel wie lib/qr.js

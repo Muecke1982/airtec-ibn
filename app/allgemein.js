@@ -6,15 +6,12 @@
    • Leitern (app/leitern.js, AT.leiternTab) – Leiter-Prüfbuch */
 (function () {
   const AT = window.AT;
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const say = t => { if (typeof toast === "function") toast(t); };
+  const esc = window.AT.esc;
+  const say = window.AT.say;
   const de = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : "";
   const zahl = n => n === null || n === undefined ? "–" : String(Math.round(n * 2) / 2).replace(".", ",");
   const tg = n => n === null || n === undefined ? "–" : zahl(n) + (n === 1 ? " Tag" : " Tage");
-  const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  };
+  const ls = window.AT.ls;
 
   // Reiter + Ansicht
   const tabBtn = document.createElement("button");

@@ -8,7 +8,7 @@
   const AT = window.AT, W = AT.wp;
   if (!W) return;
   const { esc, norm, todayIso, WT, wd, dShort, addDays } = W;
-  const toast2 = t => { if (typeof toast === "function") toast(t); };
+  const toast2 = window.AT.say;
   const root = document.getElementById("wpView");
 
   const btnCard = document.createElement("section");

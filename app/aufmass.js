@@ -4,13 +4,10 @@
    „PDF erstellen“ legt das Aufmaß in SharePoint im Protokoll-Ordner unter „Aufmaß“ ab (ohne Netz: Postausgang). */
 (function () {
   const AT = window.AT;
-  const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  };
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ls = window.AT.ls;
+  const esc = window.AT.esc;
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-  const say = t => { if (typeof toast === "function") toast(t); };
+  const say = window.AT.say;
   const heute = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   const dDE = iso => iso ? iso.split("-").reverse().join(".") : "";
   const SYS = { kaelte: "Kältesystem", wasser: "Wassersystem" };

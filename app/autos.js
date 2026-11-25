@@ -2,8 +2,8 @@
    Pflegen (anlegen, ändern, „TÜV erledigt“, löschen) mit dem Recht „Autos verwalten“. */
 (function () {
   const AT = window.AT;
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const say = t => { if (typeof toast === "function") toast(t); };
+  const esc = window.AT.esc;
+  const say = window.AT.say;
   const de = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : "";
 
   // Unterreiter im Reiter „Allgemeines“ (app/allgemein.js legt den Platz an)

@@ -45,6 +45,12 @@
     },
   };
 
+  // gemeinsame Hilfsfunktionen für alle Module (früher in jeder Datei einzeln kopiert):
+  // AT.esc(text) für HTML, AT.ls.get/set/del für den Handy-Speicher, AT.say(text) für die Kurzmeldung unten
+  AT.esc = esc;
+  AT.ls = ls;
+  AT.say = t => { if (typeof toast === "function") toast(t); };
+
   /* ---------- Reiter verlassen: ungespeicherte Eingaben ----------
      Bereiche mit eigener Logik melden sich mit AT.wache(reiter, () => null | { titel, text, ja, tun }) an
      (z. B. Wochenplan „Speichern?“, Protokolle „Parken?“). tun() erledigt das Speichern, Rückgabe false = hierbleiben.

@@ -5,7 +5,7 @@
    auf diesem Gerät. Nutzt die globalen S, photos, pickDoc, blank, save, init, ask, toast, esc, DOCS, TYPES. */
 (function () {
   const AT = window.AT;
-  const ESC = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ESC = window.AT.esc;
 
   /* ---------- Speicher ---------- */
   const db = () => new Promise((res, rej) => {

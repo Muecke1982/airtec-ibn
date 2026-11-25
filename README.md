@@ -26,7 +26,6 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 |---|---|
 | `app/` | Die App (eine HTML-Seite), Symbole, Offline-Speicher (`sw.js`) |
 | `functions/api/` + `lib/` | Hintergrunddienst für **Cloudflare Pages** (aktuell genutzt): `upload` legt PDFs in SharePoint ab, `stamm` liefert die Stammdaten-Excel, `status` prüft die Einrichtung |
-| `api/` | Derselbe Dienst als Alternative für **Azure Static Web Apps** |
 
 ## Cloudflare Pages – Einstellungen
 
@@ -37,12 +36,6 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 
 * „Repository importieren“, Build-Befehl leer, Deploy-Befehl `npx wrangler deploy` (Standard) – die Einstellungen stehen in `wrangler.jsonc`
 * Umgebungsvariablen wie unten unter *Einstellungen → Variablen und Geheimnisse*
-
-## Azure Static Web App – Build-Einstellungen (Alternative)
-
-* App location: `app`
-* Api location: `api`
-* Output location: *(leer lassen)*
 
 ## Umgebungsvariablen
 
@@ -65,7 +58,7 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 
 ## Einrichtung prüfen
 
-Im Browser aufrufen: `https://<adresse-der-app>/api/status?code=<APP_CODE>`
+Nur für den Admin: angemeldet in der App, dann `https://<adresse-der-app>/api/status?code=<Sitzungs-Token>` aufrufen.
 Die Antwort zeigt, ob Anmeldung, SharePoint-Website, Ordner und Stammdaten gefunden werden.
 
 ## Verhalten ohne Internet

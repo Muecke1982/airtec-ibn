@@ -7,15 +7,12 @@
    • ganz unten: Urlaub (siehe urlaub.js) */
 (function () {
   const AT = window.AT;
-  const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  };
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ls = window.AT.ls;
+  const esc = window.AT.esc;
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
   const short = s => String(s || "").replace(/^(\d{2}\.\d{2}\.)\d{4}/, "$1");
   const dd = iso => iso ? `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}.` : "";
-  const toast2 = t => { if (typeof toast === "function") toast(t); };
+  const toast2 = window.AT.say;
 
   const root = document.getElementById("stView");
   root.innerHTML = `<section class="card sthello"><div class="hi" id="stHi"></div><div class="me" id="stMe"></div>
