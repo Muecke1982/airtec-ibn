@@ -189,10 +189,11 @@ assert.equal(zelle("Halle 3", { art: "baustelle", nummer: "4711", info: "Kran" }
 assert.equal(zelle("Müller", { art: "kd", nummer: "17", info: "" }), "Müller\nKD-Nr.: 17");
 assert.equal(zelle("Bochum", null), "Bochum");
 assert.equal(zelleTag("Bochum / Münster", { bochum: { art: "baustelle", nummer: "4711", info: "" }, munster: { art: "kd", nummer: "17", info: "Kran" } }),
-  "Bochum / Münster\nProjekt-Nr.: 4711 (Bochum)\nKD-Nr.: 17 (Münster)\nInfo: Kran (Münster)", "zwei Baustellen: Angaben je Baustelle");
-assert.equal(zellText("Bochum / Münster\nProjekt-Nr.: 4711 (Bochum)\nInfo: Kran (Münster)"), "Bochum / Münster");
+  "Bochum\nProjekt-Nr.: 4711\nMünster\nKD-Nr.: 17\nInfo: Kran", "zwei Baustellen untereinander, je mit ihren Angaben");
+assert.equal(zelleTag("Bochum / Münster", {}), "Bochum\nMünster", "auch ohne Angaben untereinander");
+assert.equal(zellText("Bochum\nProjekt-Nr.: 4711\nMünster\nKD-Nr.: 17\nInfo: Kran"), "Bochum / Münster", "beim Lesen wieder „A / B“");
 assert.equal(zellText("Halle 3\nProjekt-Nr.: 4711\nInfo: Kran"), "Halle 3");
-assert.equal(zellText("Bochum\nKran ab 7"), "Bochum\nKran ab 7", "eigene Zeilen bleiben");
+assert.equal(zellText("Bochum / Münster"), "Bochum / Münster", "alte Schreibweise bleibt lesbar");
 const am = anwenden({ "2027-01-13": { alt: { titel: "Alt", art: "baustelle", nummer: "1", info: "", fix: false } } },
   [{ datum: "2027-01-13", titel: "Halle 3", nummer: "4711" }], ["2027-01-13"]);
 assert.deepEqual(Object.keys(am["2027-01-13"]), ["halle 3"], "ersetzen: alte Angaben des Tages fallen weg");
@@ -207,6 +208,12 @@ assert.equal(wert("KW 2 2027", 4, 3), "Halle 3\nProjekt-Nr.: 4711");
 const y3 = await writePlan(env, [{ datum: "2027-01-13", name: "Peter", wert: "Halle 3" }], false, { format: fmt, auffrischen: ["2027-01-13"] });
 assert.equal(y3.vorher["Peter|2027-01-13"], "Halle 3", "beim Lesen ohne Zusatzzeilen");
 assert.equal(y3.cells.length, 1, "keine doppelten Zellen");
+// zwei Baustellen am Tag: in der Zelle untereinander, in der App wieder „A / B“
+const fmt2 = (d, v) => zelleTag(v, { "halle 3": { art: "baustelle", nummer: "4711", info: "" }, "dock 5": { art: "kd", nummer: "9", info: "" } });
+await writePlan(env, [{ datum: "2027-01-13", name: "Peter", wert: "Halle 3 / Dock 5" }], false, { format: fmt2 });
+assert.equal(wert("KW 2 2027", 4, 2), "Halle 3\nProjekt-Nr.: 4711\nDock 5\nKD-Nr.: 9");
+const y4 = await writePlan(env, [{ datum: "2027-01-13", name: "Peter", wert: "Halle 3 / Dock 5" }], false, { format: fmt2 });
+assert.equal(y4.vorher["Peter|2027-01-13"], "Halle 3 / Dock 5");
 
 // Neues Jahr: vor dem 1. Januar gesperrt
 await assert.rejects(neuesJahr(env, "Chef", { heute: "2026-12-30", sp }), /ab dem 1\. Januar 2027/);
