@@ -51,7 +51,16 @@
     keys.slice(8).forEach(k => delete cache[k]);
     ls.set("wp_cache", cache);
   }
+  // der Zwischenspeicher gehört einer Person („ich“ = deine Spalte) – bei Personenwechsel leeren
+  let cacheFuer = ls.get("wp_cache_fuer");
+  function pruefeFuer() {
+    const n = (AT.user && AT.user.name) || "";
+    if (n === cacheFuer) return;
+    for (const k of Object.keys(cache)) delete cache[k];
+    cacheFuer = n; ls.set("wp_cache_fuer", n); ls.set("wp_cache", cache);
+  }
   function week(s, force) {
+    pruefeFuer();
     const key = wkKey(s);
     const c = cache[key];
     if (!force && c && Date.now() - (c.geladen || 0) < 2 * 60 * 1000) return Promise.resolve(c);
@@ -222,6 +231,7 @@
 
   async function go(s, force) {
     cur = s; ls.set("wp_day", s); ls.set("wp_day_session", todayIso());
+    pruefeFuer();
     const c = cache[wkKey(s)];
     paint(c || null, s);
     try {

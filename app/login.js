@@ -36,6 +36,11 @@
     },
     logout(expired) {
       ls.del("at_session"); ls.del("kapp_code"); this.session = null;
+      // zwischengespeicherte Daten der Person entfernen (Wochenplan mit „Du fährst …“, Lager/Maschinen mit Büro-Angaben)
+      // – das angefangene Protokoll (kapp_draft) bleibt, damit nach abgelaufener Anmeldung nichts verloren geht
+      ["wp_cache", "wp_day", "wp_day_session", "lg_cache", "ma_cache", "mu_cache", "bs_mappen", "bs_vor", "at_tab"].forEach(k => ls.del(k));
+      const war = aktuell; aktuell = null;   // offene Ansichten (z. B. Wochenplan-Brett) schließen
+      if (war) document.dispatchEvent(new CustomEvent("at:tab", { detail: { von: war, nach: null } }));
       showLogin(expired ? "Anmeldung abgelaufen – bitte neu anmelden." : "");
     },
   };
@@ -253,7 +258,13 @@
     if (nb && !nb.some(r => AT.darf(r))) tab("start", { ohneFrage: true });
   }
   AT.reiter = reiter;
-  const lo = q("#accLogout"); if (lo) lo.onclick = () => { q("#mSettings").classList.remove("show"); AT.logout(); };
+  // Abmelden: erst ungespeicherte Eingaben abfragen, dann Handy-Mitteilungen für diese Person abmelden
+  const lo = q("#accLogout"); if (lo) lo.onclick = async () => {
+    q("#mSettings").classList.remove("show");
+    if (aktuell && !(await darfVerlassen(aktuell))) return;
+    if (AT.pushAbmelden) await AT.pushAbmelden();
+    AT.logout();
+  };
 
   AT.ready = () => { if (AT.session && AT.session.token) start(); else showLogin(); };
 })();

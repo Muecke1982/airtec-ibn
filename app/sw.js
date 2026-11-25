@@ -1,5 +1,5 @@
 // Offline-FÃ¤higkeit: App-Dateien werden auf dem Handy zwischengespeichert.
-const CACHE = "airtec-kapp-v35";
+const CACHE = "airtec-kapp-v36";
 const FILES = ["/", "/index.html", "/manifest.webmanifest", "/apple-touch-icon.png", "/logo-kapp.png", "/icon-512.png", "/login.js", "/wochenplan.js", "/austausch.js", "/allgemein.js", "/autos.js", "/hinweise.js", "/urlaub.js", "/krank.js", "/maschinen.js", "/lager.js", "/aufmass.js", "/parken.js", "/baustellen.js", "/admin.js", "/icon-192.png",
   "/qr.js", "/logbuch.js", "/typenschild.js", "/push.js", "/leitern.js",
   "/vendor/jspdf.umd.min.js", "/vendor/jspdf.plugin.autotable.min.js", "/vendor/xlsx.full.min.js", "/vendor/jsQR.js"];
@@ -7,7 +7,7 @@ const APP = ["/", "/index.html", "/login.js", "/wochenplan.js", "/krank.js", "/h
   "/qr.js", "/logbuch.js", "/typenschild.js", "/push.js", "/leitern.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(n => n !== CACHE).map(n => caches.delete(n))))); self.clients.claim(); });
-// Handy-Mitteilungen (lib/push.js): anzeigen, Punkt am App-Symbol, Tipp Ã¶ffnet die App am richtigen Reiter
+// Handy-Mitteilungen (lib/push.js): anzeigen, Punkt am App-Symbol, Tipp öffnet die App am richtigen Reiter
 self.addEventListener("push", e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (x) { d = { text: e.data ? e.data.text() : "" }; }
@@ -31,7 +31,18 @@ self.addEventListener("fetch", e => {
   if (e.request.method !== "GET" || u.origin !== location.origin || u.pathname.startsWith("/api/")) return;
   // App selbst: erst Netz (Updates), sonst Cache. Bibliotheken: erst Cache.
   if (APP.includes(u.pathname)) {
-    e.respondWith(fetch(e.request).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match("/index.html"))));
+    // nur fehlerfreie Antworten zwischenspeichern; bei schwachem Netz nach 4 s die gespeicherte Fassung nehmen
+    // (das Netz lädt im Hintergrund weiter und aktualisiert den Zwischenspeicher für den nächsten Start)
+    e.respondWith((async () => {
+      const netz = fetch(e.request).then(r => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); } return r; });
+      const ausCache = () => caches.match(e.request).then(r => r || (e.request.mode === "navigate" ? caches.match("/index.html") : undefined));
+      try {
+        const r = await Promise.race([netz, new Promise(res => setTimeout(() => res(null), 4000))]);
+        if (r && r.ok) return r;
+        const c = await ausCache(); if (c) return c;
+        return r || await netz;
+      } catch (x) { const c = await ausCache(); if (c) return c; throw x; }
+    })());
   } else {
     e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
   }

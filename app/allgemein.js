@@ -70,7 +70,7 @@
   /* ---------- Mitarbeiter ---------- */
   const personal = (function () {
     let data = null, wahl = null, busy = false, fehler = "";
-    const heute = () => (data && data.heute) || new Date().toISOString().slice(0, 10);
+    const heute = () => (data && data.heute) || (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); })();
     const badge = f => f.status === "leer" ? `<span class="tuev leer">Noch keine Prüfung eingetragen</span>`
       : f.status === "faellig" ? `<span class="tuev ueberfaellig">Prüfung fällig seit ${de(f.naechste)}</span>`
       : f.status === "bald" ? `<span class="tuev bald">Nächste Prüfung bis ${de(f.naechste)}</span>`

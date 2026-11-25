@@ -116,5 +116,10 @@ const neu = await aktion(env, max, { aktion: "eintrag", baustelle: "Bochum DRV",
 assert.notEqual(neu.id, m.id, "nach dem Schließen gibt es eine neue Mappe");
 await assert.rejects(aktion(env, max, { aktion: "oeffnen", id: m.id }), e => e.status === 403, "wieder öffnen nur mit Recht");
 await assert.rejects(aktion(env, buero, { aktion: "oeffnen", id: m.id }), e => e.status === 409, "zwei offene Mappen derselben Baustelle gibt es nicht");
+// umbenennen: nur mit Recht, und nicht auf den Namen einer anderen offenen Mappe
+const essen = (await uebersicht(env)).find(x => x.name === "Essen");
+await assert.rejects(aktion(env, max, { aktion: "umbenennen", id: essen.id, name: "Essen Klinik" }), e => e.status === 403);
+await assert.rejects(aktion(env, buero, { aktion: "umbenennen", id: essen.id, name: "bochum drv" }), e => e.status === 409);
+assert.equal((await aktion(env, buero, { aktion: "umbenennen", id: essen.id, name: "Essen Klinik" })).name, "Essen Klinik");
 
 console.log("✓ Baustellen");

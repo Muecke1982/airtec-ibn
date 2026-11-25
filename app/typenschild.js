@@ -83,11 +83,19 @@
     modal.classList.add("show");
     if (!navigator.onLine) { fehler("Keine Internetverbindung – bitte später nochmal oder von Hand eintragen.", bild); return; }
     laeuft = true;
+    // Abbrechen (z. B. bei schlechtem Netz auf dem Dach) – und spätestens nach 60 s von selbst
+    const ab = new AbortController(), uhr = setTimeout(() => ab.abort(), 60000);
+    let abgebrochen = false;
+    q("#tsBtns").innerHTML = `<button class="secondary" id="tsAb">Abbrechen</button>`;
+    q("#tsAb").onclick = () => { abgebrochen = true; ab.abort(); laeuft = false; zu(); };
     try {
-      const d = await AT.api("typenschild", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bild }) });
-      laeuft = false;
-      zeigen(d, bild);
-    } catch (e) { laeuft = false; fehler(e.message, bild); }
+      const d = await AT.api("typenschild", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bild }), signal: ab.signal });
+      laeuft = false; clearTimeout(uhr);
+      if (!abgebrochen) zeigen(d, bild);
+    } catch (e) {
+      laeuft = false; clearTimeout(uhr);
+      if (!abgebrochen) fehler(e.name === "AbortError" ? "Keine Antwort (schlechtes Netz?) – bitte nochmal versuchen oder von Hand eintragen." : e.message, bild);
+    }
   };
 
   function fehler(text, bild) {

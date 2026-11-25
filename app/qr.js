@@ -123,8 +123,10 @@
       bauDetector(); if (!("BarcodeDetector" in window)) jsqr().catch(() => {});
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $b("#qrMsg").textContent = "Live-Kamera nicht verfügbar – bitte „📷 Foto“ tippen."; return; }
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-        if (!fertig) { stopp(); return; }
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        // inzwischen abgebrochen oder neu gestartet: diese Kamera gleich wieder ausschalten
+        if (fertig !== ok) { s.getTracks().forEach(t => t.stop()); return; }
+        stream = s;
         video.srcObject = stream; await video.play().catch(() => {});
         $b("#qrMsg").textContent = "QR-Code in den Rahmen halten";
         schleife();

@@ -93,7 +93,7 @@ assert.deepEqual(e.ueberschrieben, [{ datum: "2026-12-08", vorher: "Baustelle Bo
 assert.deepEqual(zeilen("KW 50").slice(1).map(r => r[1]), ["Urlaub", "Urlaub", "Urlaub", "Urlaub", "Urlaub"]);
 // Feiertag bleibt, schon eingetragener Urlaub wird übersprungen
 const f = await eintragen(env, peter, { von: "2026-12-21", bis: "2026-12-25" }, people, { heute: "2026-11-01" });
-assert.equal(f.eingetragen, 4); assert.equal(f.uebersprungen, 1);
+assert.equal(f.eingetragen, 3, "21.–23.12."); assert.equal(f.uebersprungen, 1, "24.12. steht in der Tabelle als Feiertag; 25.12. ist gesetzlicher Feiertag und zählt gar nicht");
 assert.equal(zeilen("KW 52")[4][1], "Feiertag");
 // Ins Jahr 2027 nur, wenn es ein Blatt mit Jahreszahl gibt
 const g = await eintragen(env, peter, { von: "2027-01-18", bis: "2027-01-18" }, people, { heute: "2026-11-01" });
@@ -102,12 +102,13 @@ assert.equal(g.eingetragen, 0); assert.match(g.fehler[0], /KW 3\/2027/);
 // Abgleich → eine Mail mit beiden Zeiträumen
 cacheLeeren();
 const a = await abgleich(env, people, { heute: "2026-11-01", wer: "Peter Muster" });
-assert.equal(a.gesendet, true); assert.equal(a.neu, 9);
+assert.equal(a.gesendet, true); assert.equal(a.neu, 8);
 assert.equal(mails.length, 1);
 assert.equal(mails[0].from, "kapp@example.org");
 assert.deepEqual(mails[0].toRecipients, [{ emailAddress: { address: "schatz@example.org" } }]);
 assert.match(mails[0].body.content, /Peter Muster: Mo 07\.12\.2026 – Fr 11\.12\.2026 \(5 Arbeitstage\)/);
-assert.match(mails[0].body.content, /Peter Muster: Mo 21\.12\.2026 – Mi 23\.12\.2026 \(3 Arbeitstage\)\n• Peter Muster: Fr 25\.12\.2026 \(1 Arbeitstag\)/, "Feiertag Do bleibt frei");
+assert.match(mails[0].body.content, /Peter Muster: Mo 21\.12\.2026 – Mi 23\.12\.2026 \(3 Arbeitstage\)/, "Feiertag Do bleibt frei");
+assert.doesNotMatch(mails[0].body.content, /25\.12\.2026/, "1. Weihnachtstag ist kein Urlaubstag");
 assert.equal((await abgleich(env, people, { heute: "2026-11-01" })).gesendet, false, "nicht doppelt");
 
 // Urlaub direkt in der Tabelle gestrichen → Mail „gestrichen“

@@ -5,6 +5,7 @@ import { sheets, sheetValues } from "../../lib/google.js";
 import { isoWeek, mondayOf, isoDate, findSheet, parseWeek, matchName } from "../../lib/wochenplan.js";
 import { planJahr } from "../../lib/jahreswechsel.js";
 import { laden as ladeEinsaetze } from "../../lib/einsaetze.js";
+import { heute } from "../../lib/db.js";
 
 // Wochenplan einer Kalenderwoche: /api/wochenplan?datum=2026-11-09  oder  ?jahr=2026&kw=46
 export async function onRequestGet({ request, env }) {
@@ -15,7 +16,7 @@ export async function onRequestGet({ request, env }) {
     const q = new URL(request.url).searchParams;
     let year = +q.get("jahr"), week = +q.get("kw");
     if (!year || !week) {
-      const d = q.get("datum") ? new Date(q.get("datum") + "T12:00:00Z") : new Date();
+      const d = new Date((q.get("datum") || heute()) + "T12:00:00Z");   // ohne Datum: heute in Berlin (nicht UTC – sonst Mo 0–2 Uhr noch Vorwoche)
       if (isNaN(d)) return json(400, { error: "Datum ungültig" });
       ({ year, week } = isoWeek(d));
     }

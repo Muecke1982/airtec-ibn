@@ -82,15 +82,30 @@
   const zielStart = (location.search.match(/[?&]ziel=(\w+)/) || [])[1];
   if (zielStart) { try { history.replaceState(null, "", "/"); } catch (e) {} }
 
-  // nach der Anmeldung: Karte zeigen, vorhandenes Abo auffrischen, ggf. Reiter öffnen
-  let fertig = false;
-  const warte = setInterval(() => {
-    if (!AT.user || !AT.user.name || document.body.classList.contains("locked")) return;
-    clearInterval(warte); fertig = true;
+  // beim Abmelden: dieses Handy bekommt keine Mitteilungen mehr für die abgemeldete Person
+  AT.pushAbmelden = async () => {
+    if (!kann || !navigator.onLine) return;
+    try {
+      const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error("zeit")), 1500))]);
+      const s = await reg.pushManager.getSubscription();
+      if (s) await post({ aktion: "abmelden", endpoint: s.endpoint });
+    } catch (e) {}
+  };
+
+  // nach jeder Anmeldung (auch nach Personenwechsel ohne Neuladen): Karte zeigen, Abo für diese Person melden, ggf. Reiter öffnen
+  let fertig = false, fuer = null, ersteMal = true;
+  setInterval(() => {
+    const n = AT.user && AT.user.name;
+    if (!n || document.body.classList.contains("locked")) { if (!n) fuer = null; return; }
+    if (n === fuer) return;
+    fuer = n; fertig = true;
     malen();
     if (kann && Notification.permission === "granted" && navigator.onLine) abo(false).catch(() => {});
-    if (zielStart) setTimeout(() => springe(zielStart), 500);
-    if (AT.austausch && AT.austausch.onChange) AT.austausch.onChange(zahl);
+    if (ersteMal) {
+      ersteMal = false;
+      if (zielStart) setTimeout(() => springe(zielStart), 500);
+      if (AT.austausch && AT.austausch.onChange) AT.austausch.onChange(zahl);
+    }
     zahl();
   }, 500);
   const alt = AT.modules.start && AT.modules.start.show;

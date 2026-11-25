@@ -150,8 +150,7 @@
     const a = findArt(li.dataset.nr); if (!a || !mo) return;
     const raw = li.querySelector(".lgmn").value.trim().replace(",", ".");
     if (raw === "" || isNaN(+raw) || +raw < 0) { li.querySelector(".lgmn").focus(); toast2("Bitte die Anzahl eintragen"); return; }
-    const n = +raw, U = einheiten(a), txt = U[mo.u % U.length].txt(String(n).replace(".", ","));
-    mo = null;
+    const n = +raw, U = einheiten(a), txt = U[mo.u % U.length].txt(String(n).replace(".", ","));   // Feld bleibt offen, bis wirklich gesendet wird (melden setzt mo zurück)
     if (n === 0) melden(a.nr, "Leer"); else melden(a.nr, "Fast leer", txt);
   }
 

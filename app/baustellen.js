@@ -13,7 +13,7 @@
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   const toast2 = t => { if (typeof toast === "function") toast(t); };
-  const todayIso = () => W ? W.todayIso() : new Date().toISOString().slice(0, 10);
+  const todayIso = () => W ? W.todayIso() : (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); })();
   const dd = iso => iso ? `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}.` : "";
   const zeit = s => s ? dd(s) + (String(s).slice(0, 4) !== todayIso().slice(0, 4) ? String(s).slice(0, 4) : "") + (String(s).length > 10 ? " " + String(s).slice(11, 16) : "") : "";
   const teile = v => String(v || "").split(/\s+[·\/]\s+/).map(s => s.trim()).filter(Boolean);

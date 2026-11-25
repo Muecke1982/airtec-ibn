@@ -108,7 +108,7 @@
     const A = au();
     // ---------- Geburtstage (ganz oben) ----------
     const first = n => String(n || "").split(" ")[0];
-    const today = new Date().toISOString().slice(0, 10);
+    const today = (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); })();   // Ortszeit, nicht UTC
     const wishes = ((A && A.nachrichten) || []).filter(m => m.typ === "gruss" && m.anMich);
     const geb = [];
     for (const g of (A && A.geburtstage) || []) {
@@ -238,7 +238,7 @@
       if (busy) return; busy = true; b.disabled = true; b.textContent = "…";
       try {
         await AT.austausch.post({ aktion: "gratulieren", an: b.dataset.grat });
-        ls.set("grat_" + b.dataset.grat + "_" + new Date().toISOString().slice(0, 10), true);
+        ls.set("grat_" + b.dataset.grat + "_" + (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); })(), true);
         toast2("🎉 Glückwunsch an " + b.dataset.grat.split(" ")[0] + " gesendet");
       } catch (e) { toast2(e.message); }
       busy = false; paint();

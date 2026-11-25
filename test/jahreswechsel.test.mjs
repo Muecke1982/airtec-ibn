@@ -14,7 +14,8 @@ assert.equal(f27.get("2027-03-26"), "Karfreitag");
 assert.equal(f27.get("2027-03-29"), "Ostermontag");
 assert.equal(f27.get("2027-05-06"), "Christi Himmelfahrt");
 assert.equal(f27.get("2027-05-17"), "Pfingstmontag");
-assert.equal(f27.size, 9);
+assert.equal(f27.size, 11);
+assert.equal(f27.get("2027-05-27"), "Fronleichnam"); assert.equal(feiertage(2026).get("2026-11-01"), "Allerheiligen");
 assert.equal(wochenImJahr(2026), 53); assert.equal(wochenImJahr(2027), 52);
 const mA = mondayOf(2026, 46).getTime(), mB = mondayOf(2027, 46).getTime();
 assert.equal(textUmschreiben("KW 46 / 2026: 09.11. – 13.11.2026", mA, mB, 2026, 2027), "KW 46 / 2027: 15.11. – 19.11.2027");
@@ -175,6 +176,11 @@ const meta = sheets.map(s => ({ title: s.title }));
 assert.equal(findSheet(meta, 2026, 3, 2026).title, "KW 3");
 assert.equal(findSheet(meta, 2027, 3, 2026).title, "KW 3 2027");
 assert.equal(findSheet(meta, 2027, 5, 2026), null, "KW 5/2027 gibt es noch nicht");
+// weitere Zahlen im Blattnamen (Datum) zählen nicht als Wochennummer
+const mitDatum = [{ title: "KW 45 (03.11.-07.11.)" }, { title: "KW 3" }];
+assert.equal(findSheet(mitDatum, 2026, 3, 2026).title, "KW 3");
+assert.equal(findSheet(mitDatum, 2026, 11, 2026), null);
+assert.equal(findSheet(mitDatum, 2026, 45, 2026).title, "KW 45 (03.11.-07.11.)");
 
 // Urlaub für Januar 2027 eintragen → landet im Blatt „KW 2 2027“
 const w = await writePlan(env, [{ datum: "2027-01-12", name: "Peter", wert: "Urlaub" }]);
