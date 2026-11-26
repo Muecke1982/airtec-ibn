@@ -122,7 +122,9 @@
     return new Promise(res => {
       let art = (init && init.art) || "baustelle";
       const wahl = new Set();
-      const extHtml = !ext ? "" : `<div class="kpwk">Wer? <small style="font-weight:400">(am ${esc(dShort(st.day))} noch nicht eingeplant)</small></div>
+      const extHtml = !ext ? "" : ext.team ? `<div class="kpwk">Für wen?</div>
+          <div class="kpleute">${ext.team.map(n => `<label><input type="checkbox" data-n="${esc(n)}" checked> ${W.tagged(st.data, n)}</label>`).join("")}</div>
+          <div class="hint" style="margin:0">Wer nicht angehakt ist, bleibt nur auf „${esc(ext.ort)}“.</div>` : `<div class="kpwk">Wer? <small style="font-weight:400">(am ${esc(dShort(st.day))} noch nicht eingeplant)</small></div>
           ${ext.frei.length ? `<div class="kpleute">${ext.frei.map(n => `<label><input type="checkbox" data-n="${esc(n)}" ${n === ext.sel ? "checked" : ""}> ${W.tagged(st.data, n)}</label>`).join("")}</div>`
             : `<div class="hint" style="margin:0 0 6px">An diesem Tag sind schon alle eingeplant – Mitarbeiter danach auf dem Brett umsetzen.</div>`}
           <div class="kpwk">An welchen Tagen?</div>${tagRaster(wahl, 0, true)}${tagRaster(wahl, 1, true)}
@@ -168,6 +170,7 @@
         if (!titel) { q("#efT").focus(); toast2("Bitte eine Überschrift eingeben"); return; }
         if (/\s[·\/]\s/.test(titel)) { toast2("„ / “ und „ · “ bitte nicht in der Überschrift verwenden"); return; }
         const leute = [...sh.querySelectorAll("[data-n]")].filter(c => c.checked).map(c => c.dataset.n);
+        if (ext && ext.team && !leute.length) { toast2("Bitte mindestens einen Mitarbeiter anhaken"); return; }
         if (wahl.size && ext && !leute.length) { toast2("Für weitere Tage bitte mindestens einen Mitarbeiter anhaken"); return; }
         fertig({ titel, art, nummer: art === "info" ? "" : q("#efN").value.trim(), info: q("#efI").value.trim(), fix: q("#efF").checked,
           leute, tage: [...wahl].sort() });
@@ -292,7 +295,7 @@
           ${metaZeile(t)}
           <div class="krchips">${t.leute.map(chip).join("") || `<span class="krempty">${st.sel ? "hierher tippen" : "niemand"}</span>`}</div>
           ${lost.length ? `<div class="krlost">vorher auch: ${lost.map(esc).join(", ")}</div>` : ""}
-          <div class="kracts">${tl.length > 1 ? tl.map(p => `<button class="krlink" data-edit="${esc(p)}">✎ ${esc(p)}</button>`).join("") : `<button class="krlink" data-edit="${esc(t.ort)}">✎ Angaben</button>`}${t.leute.length ? `<button class="krlink" data-copy="${esc(t.ort)}">📋 auf weitere Tage</button>` : ""}
+          <div class="kracts">${tl.length > 1 ? tl.map(p => `<button class="krlink" data-edit="${esc(p)}">✎ ${esc(p)}</button><button class="krdel" data-teil="${esc(p)}" data-ort="${esc(t.ort)}">✕ ${esc(p)}</button>`).join("") : `<button class="krlink" data-edit="${esc(t.ort)}">✎ Angaben</button>`}${t.leute.length ? `<button class="krlink" data-copy="${esc(t.ort)}">📋 auf weitere Tage</button>` : ""}
             ${off ? "" : `<button class="krlink" data-add="${esc(t.ort)}">+ 2. Baustelle am Tag</button><button class="krdel" data-del="${esc(t.ort)}">streichen</button>`}</div>
         </section>`;
       }).join("")}
@@ -458,7 +461,26 @@
       if (!st.sel || e.target.closest(".kracts")) return;
       moveTo(st.sel, z.dataset.to);
     });
-    view.querySelectorAll(".krdel").forEach(b => b.onclick = async e => {
+    // eine Baustelle aus „Bochum / Münster“ streichen – die übrigen bleiben mit ihren Angaben stehen
+    view.querySelectorAll("[data-teil]").forEach(b => b.onclick = async e => {
+      e.stopPropagation();
+      const o = b.dataset.ort, p = b.dataset.teil, k = norm(p);
+      if (!b.classList.contains("sure")) {
+        if (!(await fixOk([p]))) return;
+        b.classList.add("sure"); b.textContent = `„${p}“ wirklich streichen?`;
+        setTimeout(() => { if (b.isConnected) { b.classList.remove("sure"); b.textContent = "✕ " + p; } }, 4000);
+        return;
+      }
+      const rest = teile(o).filter(x => norm(x) !== k).join(" / ");
+      for (const n of st.data.spalten || []) if (norm(st.cur[n]) === norm(o)) st.cur[n] = rest;
+      st.extra = st.extra.map(x => norm(x) === norm(o) ? rest : x);
+      st.gone = st.gone.filter(x => x !== norm(rest));
+      if (!(st.data.spalten || []).some(n => hatTitel(st.cur[n], k))) delete st.meta[k];
+      st.fixOk.add(norm(rest));
+      st.sel = null; paint();
+      toast2(`„${p}“ gestrichen – zum Übernehmen speichern`);
+    });
+    view.querySelectorAll("[data-del]").forEach(b => b.onclick = async e => {
       e.stopPropagation();
       const o = b.dataset.del;
       if (b.classList.contains("sure")) {
@@ -498,15 +520,17 @@
       e.stopPropagation();
       const o = b.dataset.add;
       if (!(await fixOk([o]))) return;
-      const r = await einsatzForm({ art: "baustelle" }, `2. Baustelle am Tag – zusätzlich zu „${o}“`);
+      // bei mehreren Leuten auf der Baustelle: auswählen, für wen die 2. Baustelle gilt (sonst bekämen sie alle)
+      const team = (groups().teams.find(t => norm(t.ort) === norm(o)) || { leute: [] }).leute;
+      const r = await einsatzForm({ art: "baustelle" }, `2. Baustelle am Tag – zusätzlich zu „${o}“`, team.length > 1 ? { team, ort: o } : null);
       if (!r) return;
       if (teile(o).some(p => norm(p) === norm(r.titel))) { toast2("Diese Baustelle steht schon drin"); return; }
-      const neu = o + " / " + r.titel;
+      const neu = o + " / " + r.titel, wer = team.length > 1 ? r.leute : team;
       // Angaben der bisherigen Baustelle bleiben bei ihr (je Teil), die neue bekommt ihre eigenen
       if (st.meta[norm(o)] && teile(o).length === 1) st.meta[norm(o)].titel = o;
       st.meta[norm(r.titel)] = { titel: r.titel, art: r.art, nummer: r.nummer, info: r.info, fix: r.fix };
-      for (const n of st.data.spalten || []) if (norm(st.cur[n]) === norm(o)) st.cur[n] = neu;
-      if (st.extra.some(x => norm(x) === norm(o))) st.extra = st.extra.map(x => norm(x) === norm(o) ? neu : x);
+      for (const n of wer) if (norm(st.cur[n]) === norm(o)) st.cur[n] = neu;
+      if (!team.length && st.extra.some(x => norm(x) === norm(o))) st.extra = st.extra.map(x => norm(x) === norm(o) ? neu : x);
       st.fixOk.add(norm(neu)); st.fixOk.add(norm(r.titel));
       st.sel = null; paint();
     });
