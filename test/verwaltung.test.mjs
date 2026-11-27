@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { fakeD1 } from "./d1-fake.mjs";
+import { mitarbeiterAusVorlage } from "./mitarbeiter-vorlage.mjs";
 import { importiere } from "../lib/import.js";
 import { users, login, auth, resetUsers } from "../lib/auth.js";
 import { stammAusDb } from "../lib/stamm.js";
@@ -16,7 +17,7 @@ const rejects = async (p, rx) => assert.rejects(p, e => rx.test(e.message), "erw
 // leere Datenbank → Stammdaten noch aus Excel (null)
 assert.equal(await stammAusDb(env), null);
 
-await importiere(env, { name: "Test" }, { bereich: "mitarbeiter", datei: readFileSync(new URL("../vorlagen/Airtec_Zugaenge.xlsx", import.meta.url)).toString("base64") });
+await mitarbeiterAusVorlage(env);
 resetUsers();
 let list = await users(env);
 assert.ok(list.length > 0 && list.every(u => u.pwHash !== undefined), "Mitarbeiter kommen aus der Datenbank");
@@ -104,7 +105,7 @@ assert.equal(ma.filter(m => m.admin).length, 1);
 ma = await V.adminUebergeben(env, { ...meS2, admin: true }, { id: sebi.id });   // zurück an Sebastian
 
 // erneuter Mitarbeiter-Import: Admin bleibt erhalten
-await importiere(env, meA, { bereich: "mitarbeiter", datei: readFileSync(new URL("../vorlagen/Airtec_Zugaenge.xlsx", import.meta.url)).toString("base64") });
+await mitarbeiterAusVorlage(env);
 ma = await V.mitarbeiterListe(env);
 assert.equal(ma.find(m => m.admin).name, "Sebastian", "Admin nach Re-Import erhalten");
 const me = meA;

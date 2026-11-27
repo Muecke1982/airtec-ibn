@@ -10,7 +10,7 @@ export async function onRequestGet({ request, env }) {
     // Lesen auch mit „Protokolle“: die Artikel sind der Artikelstamm fürs Schnellaufmaß
     if (!darf(me, "lager") && !darf(me, "lager_bestellen") && !darf(me, "protokolle")) return json(403, { error: "Kein Zugriff auf das Lager" });
     const out = await list(env, me);
-    if (darf(me, "lager_bestellen")) out.direktSenden = canSend(env);
+    if (darf(me, "lager_bestellen")) out.direktSenden = await canSend(env);
     return json(200, out);
   } catch (e) {
     console.error(e);
@@ -26,7 +26,7 @@ export async function onRequestPost({ request, env }) {
     if (!me || !me.name) return json(401, { error: "Nicht angemeldet" });
     if (!darf(me, "lager") && !darf(me, "lager_bestellen")) return json(403, { error: "Kein Zugriff auf das Lager" });
     const out = await act(env, me, await request.json().catch(() => ({})));
-    if (darf(me, "lager_bestellen")) out.direktSenden = canSend(env);
+    if (darf(me, "lager_bestellen")) out.direktSenden = await canSend(env);
     return json(200, out);
   } catch (e) {
     console.error(e);

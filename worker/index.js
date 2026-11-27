@@ -7,7 +7,6 @@ import * as login from "../functions/api/login.js";
 import * as wochenplan from "../functions/api/wochenplan.js";
 import * as maschinen from "../functions/api/maschinen.js";
 import * as plan from "../functions/api/plan.js";
-import * as hinweise from "../functions/api/hinweise.js";
 import * as lager from "../functions/api/lager.js";
 import * as muell from "../functions/api/muell.js";
 import * as urlaub from "../functions/api/urlaub.js";
@@ -43,12 +42,10 @@ const routes = {
   "GET /api/login": login.onRequestGet,
   "GET /api/wochenplan": wochenplan.onRequestGet,
   "POST /api/plan": plan.onRequestPost,
-  "GET /api/hinweise": hinweise.onRequestGet,
   "GET /api/lager": lager.onRequestGet,
   "POST /api/lager": lager.onRequestPost,
   "GET /api/muell": muell.onRequestGet,
   "POST /api/muell": muell.onRequestPost,
-  "POST /api/hinweise": hinweise.onRequestPost,
   "GET /api/urlaub": urlaub.onRequestGet,
   "POST /api/urlaub": urlaub.onRequestPost,
   "GET /api/maschinen": maschinen.onRequestGet,

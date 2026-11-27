@@ -1,7 +1,8 @@
 /* Airtec KApp – Verwaltung (nur Büro)
    • Mitarbeiter: anlegen, ändern, Passwort setzen, Büro-Recht, aktiv/inaktiv, löschen
    • Stammdaten: Auswahllisten, Nachfüllmengen, GWP, Dokumente, Upload-Link
-   • Datenbank: Überblick und Einmal-Import aus den Excel-Dateien
+   • E-Mail-Adressen: Absender/Empfänger je Bereich (Restmüll, Lager, Urlaub) und Lieferanten-Adressen
+   • Datenbank: Überblick und Einmal-Import aus den Excel-Dateien (Stammdaten, Maschinen, Lager)
    Geöffnet über ⚙︎ → „Verwaltung öffnen“. */
 (function () {
   const AT = window.AT;
@@ -17,7 +18,7 @@
   const darf = r => !!(AT && AT.darf && AT.darf(r));
   const ichAdmin = () => !!(AT.user && AT.user.admin);
   const office = () => darf("mitarbeiter") || darf("stammdaten");
-  const TEILE = [["mitarbeiter", "Mitarbeiter", "mitarbeiter"], ["stamm", "Stammdaten", "stammdaten"], ["db", "Datenbank", "mitarbeiter"], ["log", "Logbuch", "admin"]];
+  const TEILE = [["mitarbeiter", "Mitarbeiter", "mitarbeiter"], ["stamm", "Stammdaten", "stammdaten"], ["mail", "E-Mail", "stammdaten"], ["db", "Datenbank", "mitarbeiter"], ["log", "Logbuch", "admin"]];
   const teile = () => TEILE.filter(x => x[2] === "admin" ? ichAdmin() : darf(x[2]));
   // über AT.api: bei abgelaufener Anmeldung zurück zur Anmeldeseite (wie überall sonst)
   const get = teil => AT.api("admin" + (teil ? "?teil=" + teil : ""));
@@ -54,7 +55,7 @@
   #vwView .vwback{border:0;background:none;color:var(--blue);font:inherit;font-weight:600;padding:4px 0 10px}`;
   document.head.appendChild(style);
 
-  let teil = "mitarbeiter", offen = null, ma = null, st = null, db = null, sub = "listen", log = null, sich = null;
+  let teil = "mitarbeiter", offen = null, ma = null, st = null, db = null, mc = null, sub = "listen", log = null, sich = null;
   const logQ = { tage: 7, wer: "", bereich: "" };
 
   function paint() {
@@ -63,7 +64,7 @@
     view.innerHTML = `<button class="vwback" id="vwBack">‹ Zurück zur App</button>
       <div class="seg" style="margin-bottom:12px">${teile()
         .map(([k, l]) => `<button data-teil="${k}" class="${teil === k ? "on" : ""}">${l}</button>`).join("")}</div>
-      <div id="vwBody">${teil === "mitarbeiter" ? paintMa() : teil === "stamm" ? paintSt() : teil === "log" ? paintLog() : paintDb()}</div>`;
+      <div id="vwBody">${teil === "mitarbeiter" ? paintMa() : teil === "stamm" ? paintSt() : teil === "mail" ? paintMail() : teil === "log" ? paintLog() : paintDb()}</div>`;
     view.querySelector("#vwBack").onclick = () => AT.tab("start");
     view.querySelectorAll("[data-teil]").forEach(b => b.onclick = () => { teil = b.dataset.teil; offen = null; paint(); load(); });
     bind();
@@ -119,7 +120,6 @@
 
   function paintMa() {
     if (!ma) return `<section class="card">Lade …</section>`;
-    if (!ma.length) return `<section class="card"><div class="warn">Noch keine Mitarbeiter in der Datenbank. Bitte zuerst unter „Datenbank“ die Mitarbeiter aus Excel importieren – bis dahin gilt die Excel-Zugangsliste.</div></section>`;
     return `<section class="card"><h2>Mitarbeiter (${ma.filter(m => m.aktiv).length} aktiv)</h2>
       ${offen === "neu" ? `<div class="vwrow">${maForm()}</div>` : `<button class="add" id="maNew" style="margin-top:0">+ Neuer Mitarbeiter</button>`}
       ${ma.map(m => `<div class="vwrow ${m.aktiv ? "" : "off"}"><div class="vwhead" data-open="${m.id}"><b>${esc(m.name)}</b><span>${tags(m)}</span></div>
@@ -158,6 +158,29 @@
     <div class="vwbtns"><button class="primary" id="lSave">Speichern</button><button class="secondary" id="fCancel">Abbrechen</button></div>
     ${l.name ? `<div class="vwbtns"><button class="vwdel" id="lDel">Liste löschen</button></div>` : ""}`;
 
+  // ---------- E-Mail-Adressen (ausgehende Mails je Bereich + Lieferanten) ----------
+  function paintMail() {
+    if (!mc) return `<section class="card">Lade …</section>`;
+    const F = mc.felder, ph = { von: "noreply@airtec-kaeltetechnik.de", an: "name@firma.de", cc: "mehrere mit ; trennen", antwort: "z. B. info@airtec-kaeltetechnik.de" };
+    const feld = (b, f, v) => f === "text"
+      ? `<label>${F[f]} <small style="color:var(--mut)">({name} = wer anfordert, {datum} = heute)</small></label><textarea data-mf="${f}" style="min-height:170px">${esc(v)}</textarea>`
+      : `<label>${F[f]}</label><input data-mf="${f}" value="${esc(v)}" ${f === "betreff" ? "" : `type="email" multiple placeholder="${esc(ph[f] || "")}"`} autocomplete="off">`;
+    const bereiche = Object.entries(mc.bereiche).map(([id, B]) => `<section class="card" data-mb="${id}"><h2 style="font-size:17px">${esc(B.titel)}</h2>
+      ${B.hinweis ? `<div class="hint" style="margin-top:0">${esc(B.hinweis)}</div>` : ""}
+      ${B.felder.map(f => feld(id, f, B.werte[f])).join("")}
+      <div class="vwbtns"><button class="primary" data-msave="${id}">Speichern</button></div>
+      ${id === "muell" && mc.muell && mc.muell.length ? `<div class="hint">Zuletzt angefordert: ${mc.muell.slice(0, 3).map(x => esc(fmt(x.am)) + " (" + esc(x.von) + ")").join(" · ")}</div>` : ""}</section>`).join("");
+    const lief = `<section class="card"><h2 style="font-size:17px">🏭 Lieferanten / Hersteller – Adressen für Bestellungen</h2>
+      ${mc.lieferantenFehler ? `<div class="warn">${esc(mc.lieferantenFehler)}</div>` : ""}
+      <div class="vwtab"><table><tr><th>Lieferant</th><th>E-Mail für Bestellungen</th><th>Kopie (CC)</th></tr>
+        ${(mc.lieferanten || []).map((l, i) => `<tr data-li="${i}"><td><input data-lc="name" value="${esc(l.name)}" readonly style="background:#f4f6f8"></td><td><input data-lc="mail" type="email" value="${esc(l.mail)}"></td><td><input data-lc="cc" value="${esc(l.cc)}"></td></tr>`).join("")}
+        <tr data-li="neu"><td><input data-lc="name" placeholder="+ neuer Lieferant"></td><td><input data-lc="mail" type="email"></td><td><input data-lc="cc"></td></tr></table></div>
+      <div class="vwbtns"><button class="primary" id="liSave">Lieferanten speichern</button></div>
+      <div class="hint">Wird in der Lager-Excel (Blatt „Lieferanten“) gespeichert und beim Bestellen als Empfänger vorgeschlagen.</div></section>`;
+    return `<section class="card"><div class="hint" style="margin-top:0">Hier stehen alle Adressen, über die die App Mails verschickt. Der Absender muss ein Postfach in Microsoft 365 sein
+      (z. B. ein freigegebenes Postfach <b>noreply@…</b>). Bei einem No-Reply-Absender gehen Antworten an „Antworten an“ – leer = info@.</div></section>` + bereiche + lief;
+  }
+
   // ---------- Datenbank ----------
   const fmt = iso => { const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/); return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}` : iso; };
   // Datensicherung (nur Admin)
@@ -189,8 +212,7 @@
         const imp = b.import ? `Importiert am ${esc(fmt(b.import.am))} von ${esc(b.import.von)}: ${esc(b.import.anzahl)}` : "Noch nicht importiert";
         return `<div class="vwrow"><b>${esc(b.titel)}</b> <span style="color:var(--mut)">· ${n} Einträge</span>
           <div class="hint" style="margin:2px 0 6px">${imp}</div>
-          ${b.id === "mitarbeiter" && !ichAdmin() && db.adminDa ? `<div class="hint">Nur der Admin kann die Mitarbeiter neu importieren (überschreibt alle Rechte).</div>`
-            : `<button class="add" data-imp="${esc(b.id)}" style="margin:0">${b.import ? "Erneut importieren" : "Aus Excel importieren"}</button>`}</div>`;
+          <button class="add" data-imp="${esc(b.id)}" style="margin:0">${b.import ? "Erneut importieren" : "Aus Excel importieren"}</button></div>`;
       }).join("")}</section>`;
   }
 
@@ -298,6 +320,18 @@
       const us = q("#upSave"); if (us) us.onclick = () => busy(us, async () => after(await post({ aktion: "tabelle_speichern", tabelle: "upload", wert: val("upVal") })));
     }
 
+    if (teil === "mail" && mc) {
+      view.querySelectorAll("[data-msave]").forEach(btn => btn.onclick = () => busy(btn, async () => {
+        const sec = btn.closest("[data-mb]"), werte = Object.fromEntries([...sec.querySelectorAll("[data-mf]")].map(i => [i.dataset.mf, i.value]));
+        mc = await post({ aktion: "mail_speichern", bereich: sec.dataset.mb, werte }); paint(); say("Gespeichert");
+      }));
+      const ls2 = q("#liSave");
+      if (ls2) ls2.onclick = () => busy(ls2, async () => {
+        const liste = [...view.querySelectorAll("tr[data-li]")].map(tr => Object.fromEntries([...tr.querySelectorAll("[data-lc]")].map(i => [i.dataset.lc, i.value.trim()]))).filter(x => x.name);
+        mc = await post({ aktion: "lieferanten", liste }); paint(); say("Lieferanten gespeichert");
+      });
+    }
+
     if (teil === "log" && log) {
       const f = () => { logQ.tage = +val("lgTage"); logQ.bereich = val("lgBer"); logQ.wer = val("lgWer"); log = null; paint(); load(); };
       ["lgTage", "lgBer", "lgWer"].forEach(id => { const el = q("#" + id); if (el) el.onchange = f; });
@@ -345,6 +379,7 @@
     try {
       if (teil === "mitarbeiter") ma = (await get("mitarbeiter")).mitarbeiter;
       else if (teil === "stamm") st = await get("stamm");
+      else if (teil === "mail") mc = await get("mail");
       else if (teil === "log") log = await get(`logbuch&tage=${logQ.tage}&wer=${encodeURIComponent(logQ.wer)}&bereich=${encodeURIComponent(logQ.bereich)}`);
       else { db = await get(""); if (ichAdmin()) sich = await get("sicherung").catch(e => ({ letzte: null, dateien: [], ordner: "", fehler: e.message, bereiche: [] })); }
     } catch (e) { say(e.message); }
@@ -356,7 +391,7 @@
   // Einstieg: Knopf in den Einstellungen (nur Büro)
   const box = document.querySelector("#mSettings .box");
   const btn = document.createElement("button");
-  btn.className = "add hide"; btn.id = "vwOpen"; btn.style.marginTop = "14px"; btn.textContent = "Verwaltung öffnen (Mitarbeiter, Stammdaten, Datenbank)";
+  btn.className = "add hide"; btn.id = "vwOpen"; btn.style.marginTop = "14px"; btn.textContent = "Verwaltung öffnen (Mitarbeiter, Stammdaten, E-Mail, Datenbank)";
   box.insertBefore(btn, box.querySelector("h3:nth-of-type(2)") || box.querySelector(".btns"));
   btn.onclick = () => { document.getElementById("mSettings").classList.remove("show"); AT.tab("verwaltung"); };
   const modal = document.getElementById("mSettings");

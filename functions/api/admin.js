@@ -5,6 +5,19 @@ import { darf } from "../../lib/rechte.js";
 import * as V from "../../lib/verwaltung.js";
 import { liste as logbuchListe } from "../../lib/logbuch.js";
 import { sichern, zurueckspielen, status as sicherungStatus } from "../../lib/sicherung.js";
+import { alle as mailAlle, speichern as mailSpeichern } from "../../lib/mailcfg.js";
+import { load as lagerLaden, act as lagerAct } from "../../lib/lager.js";
+import { ausExcelUebernehmen as muellUebernehmen, protokoll as muellProtokoll } from "../../lib/muell.js";
+
+// E-Mail-Adressen: Einstellungen je Bereich + Lieferanten-Adressen aus der Lager-Excel + letzte Restmüll-Anforderungen
+async function mailSeite(env) {
+  await muellUebernehmen(env).catch(() => false);
+  const out = await mailAlle(env);
+  try { out.lieferanten = (await lagerLaden(env)).lief.map(l => ({ name: l.name, mail: l.mail, cc: l.cc })); }
+  catch (e) { out.lieferanten = []; out.lieferantenFehler = "Lager-Excel nicht lesbar: " + e.message; }
+  out.muell = await muellProtokoll(env);
+  return out;
+}
 
 // Verwaltung: Mitarbeiter (Recht „mitarbeiter“), Stammdaten (Recht „stammdaten“), Datenbank-Import (Recht „mitarbeiter“;
 // Mitarbeiter-Import nur Admin, weil er alle Rechte überschreibt)
@@ -24,6 +37,7 @@ export async function onRequestGet({ request, env }) {
     const teil = new URL(request.url).searchParams.get("teil");
     if (teil === "mitarbeiter") { brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterListe(env) }); }
     if (teil === "stamm") { brauche(me, "stammdaten"); return json(200, await V.stammListe(env)); }
+    if (teil === "mail") { brauche(me, "stammdaten"); return json(200, await mailSeite(env)); }
     if (teil === "sicherung") {
       if (!me.admin) throw fail("Die Datensicherung sieht nur der Admin", 403);
       return json(200, await sicherungStatus(env));
@@ -46,9 +60,6 @@ export async function onRequestPost({ request, env }) {
     switch (b.aktion) {
       case "import":
         brauche(me, "mitarbeiter");
-        // Mitarbeiter-Import überschreibt alle Rechte → nur der Admin. Solange es noch keinen Admin gibt (erster Import), auch andere Verwalter.
-        if (b.bereich === "mitarbeiter" && !me.admin && (await status(env)).adminDa)
-          throw fail("Den Mitarbeiter-Import darf nur der Admin starten (er überschreibt alle Rechte).", 403);
         { const erg = await importiere(env, me, b); return json(200, { ...erg, status: await status(env) }); }
       case "ma_speichern": brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterSpeichern(env, me, b) });
       case "ma_passwort": brauche(me, "mitarbeiter"); return json(200, { mitarbeiter: await V.mitarbeiterPasswort(env, me, b) });
@@ -63,6 +74,8 @@ export async function onRequestPost({ request, env }) {
       case "liste_speichern": brauche(me, "stammdaten"); return json(200, await V.listeSpeichern(env, b));
       case "liste_loeschen": brauche(me, "stammdaten"); return json(200, await V.listeLoeschen(env, b));
       case "tabelle_speichern": brauche(me, "stammdaten"); return json(200, await V.tabelleSpeichern(env, b));
+      case "mail_speichern": brauche(me, "stammdaten"); await mailSpeichern(env, b.bereich, b.werte); return json(200, await mailSeite(env));
+      case "lieferanten": brauche(me, "stammdaten"); await lagerAct(env, me, { aktion: "lieferanten", liste: b.liste }); return json(200, await mailSeite(env));
       default: return json(400, { error: "Unbekannte Aktion" });
     }
   } catch (e) { return fehler(e); }

@@ -94,7 +94,7 @@
         <div class="hint" style="margin:0 0 6px">Sobald im Wochenplan Urlaub eingetragen oder gestrichen wird (in der App oder direkt in der Tabelle), geht eine Mail an:</div>
         <label style="margin-top:0">Empfänger</label><input id="urAn" type="email" value="${esc(i.an || "")}" placeholder="name@airtec-kaeltetechnik.de">
         <button class="bigbtn" id="urAnSave" style="margin-top:10px">Empfänger speichern</button>
-        <div class="${i.von ? "hint" : "urerr"}" style="margin:8px 0 0">${i.von ? `Absender: ${esc(i.von)}` : "⚠ Absender fehlt noch – in Cloudflare die Variable MAIL_FROM eintragen (z. B. kapp@airtec-kaeltetechnik.de). Bis dahin werden keine Mails verschickt."}</div>
+        <div class="${i.von ? "hint" : "urerr"}" style="margin:8px 0 0">${i.von ? `Absender: ${esc(i.von)}` : "⚠ Absender fehlt noch – in der Verwaltung unter „E-Mail-Adressen“ eintragen. Bis dahin werden keine Mails verschickt."}</div>
       </section>`);
       out.push(jahrKasten());
     }

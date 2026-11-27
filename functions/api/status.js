@@ -1,5 +1,5 @@
 import { auth } from "../../lib/auth.js";
-import { users, zugangPath } from "../../lib/auth.js";
+import { users } from "../../lib/auth.js";
 import { sheets, sheetValues, saEmail } from "../../lib/google.js";
 import { isoWeek, mondayOf, findSheet, parseWeek, matchName } from "../../lib/wochenplan.js";
 import { cfg, drive, download, upload, json } from "../../lib/graph.js";
@@ -21,8 +21,8 @@ export async function onRequestGet({ request, env }) {
   try { await download(env, cfg(env, "SP_STAMM_PATH")); out.stammdaten = "OK"; } catch (e) { out.stammdaten = "FEHLER: " + e.message; }
   try {
     const u = await users(env, true);
-    out.zugaenge = `OK – ${u.length} Personen, ${u.filter(x => x.write).length} mit Schreibrecht (${u.some(x => x.pwHash !== undefined) ? "Datenbank" : zugangPath(env)})`;
-  } catch (e) { out.zugaenge = "FEHLER: " + e.message + " (" + zugangPath(env) + ")"; }
+    out.zugaenge = `OK – ${u.length} Personen, ${u.filter(x => x.write).length} mit Büro-Rechten (Datenbank)`;
+  } catch (e) { out.zugaenge = "FEHLER: " + e.message; }
   try {
     const s = await sheets(env);
     out.wochenplan = `OK – ${s.length} Blätter in der Google-Tabelle`;

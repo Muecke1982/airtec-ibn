@@ -3,13 +3,14 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { fakeD1 } from "./d1-fake.mjs";
+import { mitarbeiterAusVorlage } from "./mitarbeiter-vorlage.mjs";
 import { importiere } from "../lib/import.js";
 import { users, resetUsers } from "../lib/auth.js";
 import * as V from "../lib/verwaltung.js";
 import { matchName } from "../lib/wochenplan.js";
 
 const env = { DB: fakeD1(), CLIENT_SECRET: "test", SESSION_SECRET: "test-secret" };
-await importiere(env, { name: "Test" }, { bereich: "mitarbeiter", datei: readFileSync(new URL("../vorlagen/Airtec_Zugaenge.xlsx", import.meta.url)).toString("base64") });
+await mitarbeiterAusVorlage(env);
 resetUsers();
 
 let ma = await V.mitarbeiterListe(env);

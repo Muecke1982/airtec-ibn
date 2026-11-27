@@ -6,18 +6,14 @@ import { fakeD1 } from "./d1-fake.mjs";
 import { importiere, status } from "../lib/import.js";
 import { all, one } from "../lib/db.js";
 import { pruefePasswort, hashPasswort } from "../lib/passwort.js";
-import { VORLAGE } from "../lib/urlaub-vorlage.js";
 
 const env = { DB: fakeD1() };
 const me = { name: "Test Büro", schreiben: true };
 const b64 = f => readFileSync(new URL("../vorlagen/" + f, import.meta.url)).toString("base64");
 
 const res = {};
-res.mitarbeiter = await importiere(env, me, { bereich: "mitarbeiter", datei: b64("Airtec_Zugaenge.xlsx") });
 res.maschinen = await importiere(env, me, { bereich: "maschinen", datei: b64("Airtec_Maschinen.xlsx") });
 res.lager = await importiere(env, me, { bereich: "lager", datei: b64("Airtec_Lager.xlsx") });
-res.hinweise = await importiere(env, me, { bereich: "hinweise", datei: b64("Airtec_Hinweise.xlsx") });
-res.urlaub = await importiere(env, me, { bereich: "urlaub", datei: VORLAGE });
 res.stammdaten = await importiere(env, me, { bereich: "stammdaten", stamm: {
   lists: { "Kältemittel": ["R32", "R410A", "R32"], "Hersteller": ["Daikin"] }, free: { "Hersteller": false },
   nach: [{ h: "Daikin RXM", km: "15", f: { 6: 0.02, 10: 0.05, 12: "", 16: "" } }], gwp: { R32: 675, R410A: 2088 },
@@ -33,11 +29,6 @@ assert.ok(n1 > 0, "Lager-Vorlage sollte Artikel enthalten");
 // Stammdaten: doppelte Werte entfernt, „frei“ übernommen
 assert.deepEqual((await all(env, "SELECT wert FROM listen_werte WHERE liste='Kältemittel' ORDER BY pos")).map(r => r.wert), ["R32", "R410A"]);
 assert.equal((await one(env, "SELECT frei FROM listen WHERE name='Hersteller'")).frei, 0);
-
-// Passwörter nie im Klartext
-const m = await all(env, "SELECT name, pw_hash FROM mitarbeiter");
-for (const u of m) assert.ok(!u.pw_hash || u.pw_hash.startsWith("pbkdf2$"), "Passwort muss verschlüsselt sein");
-console.log("Mitarbeiter:", m.map(u => u.name).join(", ") || "(Vorlage ohne Einträge)");
 
 // Zeiten im Format JJJJ-MM-TT
 for (const r of await all(env, "SELECT von FROM ausleihen")) assert.match(r.von, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
@@ -78,31 +69,12 @@ assert.equal(me2[0].nr, "NEU-ABC123", "ältere Meldung zuerst");
 assert.equal(me2[1].bestellt_am, "", "offene Meldung");
 assert.equal((await one(env, "SELECT COUNT(*) n FROM bestellungen")).n, 1);
 
-const hwb = await openWorkbook(readFileSync(new URL("../vorlagen/Airtec_Hinweise.xlsx", import.meta.url)));
-await hwb.setBody("Hinweise", [
-  ["Alle", "Freitag Grillen 🎉", "Christina Schatz", "10.11.2026 08:00", "", "Nick 10.11.2026 09:00; Elvi 11.11.2026 07:00", "x", "30.11.2026"],
-  ["Büro", "Bohrmaschine defekt", "Nick", "12.11.2026 16:30", "", "", "", ""],
-]);
-await hwb.addSheet("Müll", [["Angefordert am", "Angefordert von", "Gesendet an"], ["13.11.2026 10:00", "Nick", "entsorger@example.com"]]);
-await importiere(env, me, { bereich: "hinweise", datei: Buffer.from(await hwb.toBytes()).toString("base64") });
-const hw = await all(env, "SELECT * FROM hinweise ORDER BY id");
-assert.equal(hw.length, 2);
-assert.equal(hw[0].text, "Freitag Grillen 🎉");
-assert.equal(hw[0].pin, 1);
-assert.equal(hw[0].bis, "2026-11-30");
-assert.deepEqual((await all(env, "SELECT wer FROM hinweise_erledigt WHERE hinweis_id=? ORDER BY wer", hw[0].id)).map(r => r.wer), ["Elvi", "Nick"]);
-assert.equal((await one(env, "SELECT am FROM muell")).am, "2026-11-13 10:00");
-// Übernahme in den Austausch
-const na = await all(env, "SELECT n.text, n.pin, n.bis, a.empfaenger FROM nachrichten n JOIN nachricht_an a ON a.nachricht_id = n.id ORDER BY n.id");
-assert.deepEqual(na.map(x => [x.text, x.empfaenger, x.pin]), [["Freitag Grillen 🎉", "*alle", 1], ["Bohrmaschine defekt", "*buero", 0]]);
-assert.equal(na[0].bis, "2026-11-30");
-assert.equal((await one(env, "SELECT COUNT(*) n FROM nachricht_status WHERE erledigt <> ''")).n, 2);
-assert.ok((await one(env, "SELECT wert FROM einstellungen WHERE schluessel='muell_empfaenger'")).wert.includes("@"));
-console.log("Beispieldaten (Ausleihen, Reservierung, Meldungen, Bestellung, Hinweise, Müll) korrekt übernommen.");
+console.log("Beispieldaten (Ausleihen, Reservierung, Meldungen, Bestellung) korrekt übernommen.");
 
 const st = await status(env);
 assert.equal(st.verbunden, true);
-assert.equal(st.bereiche.filter(b => b.import).length, 6);
+assert.equal(st.bereiche.filter(b => b.import).length, 3);
+assert.deepEqual(st.bereiche.map(b => b.id), ["stammdaten", "maschinen", "lager"], "Zugänge, Hinweise, Urlaub nicht mehr per Excel");
 const h = await hashPasswort("geheim");
 assert.ok(await pruefePasswort("geheim", h), "richtiges Passwort");
 assert.ok(!(await pruefePasswort("falsch", h)), "falsches Passwort");

@@ -8,13 +8,14 @@ Module (getrennt gebaut, nur über Anmeldung und Monteurliste verbunden):
 | Wochenplan | `app/wochenplan.js`, `lib/wochenplan.js`, `lib/google.js`, `functions/api/wochenplan.js` | Liest die Google-Tabelle (ein Blatt je KW) |
 | Protokolle | `app/index.html`, `functions/api/upload.js`, `stamm.js` | Inbetriebnahme- und Abnahmeprotokolle |
 | Krankmeldung (Büro) | `app/krank.js`, `functions/api/plan.js` | Tagesbrett: krank melden, Teams per Antippen neu einteilen, Baustellen streichen |
-| Start (Begrüßung + Hinweise, Hinweis ans Büro) | `app/hinweise.js`, `lib/hinweise.js`, `functions/api/hinweise.js` | Begrüßung, Maschinen-Hinweise, Büro-Hinweise zum Abhaken (Airtec_Hinweise.xlsx) |
+| Start (Begrüßung + Hinweise) | `app/hinweise.js`, `lib/geburtstage.js` | Begrüßung, Geburtstage, Maschinen-/Lager-Hinweise, Nachrichten (`lib/austausch.js`), Restmüll |
 | Typenschild (Protokolle) | `app/typenschild.js`, `lib/typenschild.js`, `functions/api/typenschild.js` | Foto des Typenschilds je Innen-/Außengerät → KI (Claude, Secret `ANTHROPIC_API_KEY`) liest Hersteller, Typ, Seriennummer, beim Außengerät Kältemittel, Füllmenge, Stromaufnahme; übernommen wird nur, was das Protokoll abfragt (vorher Prüf-Ansicht) |
 | Maschinen | `app/maschinen.js`, `lib/maschinen.js`, `lib/xlsx.js`, `functions/api/maschinen.js` | Ausleihe mit einem Tipp, Protokoll in der Excel; QR-Scan fragt je nach Status Ausleihen / Zurückgeben / Rückgabe für … / Übernehmen und warnt bei Reservierungen in den nächsten 7 Tagen |
 | QR-Codes | `app/qr.js`, `lib/qr.js`, `functions/api/qr.js`, `app/vendor/jsQR.js` | Scanner (Kamera, Foto oder Eintippen), Allgemeines → QR-Codes: Aufkleber Maschinen, Anlagen oder Sonstigem zuordnen (Recht „qr“). Links `…/q/CODE` öffnen die App direkt |
 | Logbuch (Anlagen) | `app/logbuch.js` | Reiter hinter Lager: QR-Code an der Anlage scannen; Suche = Platzhalter, bis die Anlagendatenbank des Service angebunden ist |
-| Lager | `app/lager.js`, `lib/lager.js`, `functions/api/lager.js` | Artikel aus Airtec_Lager.xlsx, Fast leer/Leer melden, Material außerhalb der Liste melden (Büro: in Excel aufnehmen oder einmalig bestellen), Artikel-Import aus Excel (Lager-Format oder Lieferanten-Export), Bestellliste + Bestell-Mail (MAIL_FROM = Absender-Postfach, braucht Mail.Send) |
-| Restmüll | `app/hinweise.js` (Startseite), `lib/muell.js`, `functions/api/muell.js` | „Restmüll leeren“ mit zwei Rückfragen, Mail an den Entsorger über Microsoft 365 (Mail.Send). Einstellungen + Protokoll in Airtec_Hinweise.xlsx (Blätter „Müll Einstellungen“, „Müll“) |
+| Lager | `app/lager.js`, `lib/lager.js`, `functions/api/lager.js` | Artikel aus Airtec_Lager.xlsx, Fast leer/Leer melden, Material außerhalb der Liste melden (Büro: in Excel aufnehmen oder einmalig bestellen), Artikel-Import aus Excel (Lager-Format oder Lieferanten-Export), Bestellliste + Bestell-Mail (Absender: Verwaltung → E-Mail, braucht Mail.Send) |
+| Restmüll | `app/hinweise.js` (Startseite), `lib/muell.js`, `functions/api/muell.js` | „Restmüll leeren“ mit zwei Rückfragen, Mail an den Entsorger über Microsoft 365 (Mail.Send). Adressen/Betreff/Text in Verwaltung → E-Mail (`lib/mailcfg.js`), Protokoll in der Tabelle `muell`. Einmalige Übernahme aus der alten Airtec_Hinweise.xlsx, falls noch nichts gespeichert ist |
+| E-Mail-Adressen | `app/admin.js` (Verwaltung → E-Mail), `lib/mailcfg.js` | Absender, Empfänger, CC, „Antworten an“ je Bereich (Restmüll, Lager, Urlaub-Infomail) in der Datenbank; Lieferanten-Adressen im Blatt „Lieferanten“ der Lager-Excel. Absender noreply@… → Antworten automatisch an info@ (oder `MAIL_REPLY_TO`) |
 
 Web-App für Inbetriebnahmeprotokolle (Split, Multisplit, VRF, Direktverdampfer, Kaltwassersatz, Wärmepumpe, Klimaschrank).
 Die Monteure füllen das Protokoll auf dem Handy aus, die App erzeugt ein PDF und legt es automatisch in SharePoint ab.
@@ -49,7 +50,7 @@ Die Auswahllisten (Monteure, Gerätetypen, Nachfüllmengen, GWP, Dokumentenlinks
 | `SP_LIBRARY` | `Dokumente` | *(optional)* Dokumentbibliothek, Standard = Hauptbibliothek der Website |
 | `SP_FOLDER` | `Inbetriebnahmeprotokolle` | Zielordner in der Bibliothek |
 | `SP_PROJECT_SUBFOLDER` | `ja` | `ja` = Unterordner je Projektnummer anlegen |
-| `SP_ZUGANG_PATH` | `…/Stammdaten/Airtec_Zugaenge.xlsx` | *(optional)* Zugangsliste. Standard: `Airtec_Zugaenge.xlsx` im Ordner der Stammdaten |
+| `MAIL_FROM` | `kapp@airtec-kaeltetechnik.de` | *(optional)* Absender, solange in Verwaltung → E-Mail keiner eingetragen ist |
 | `GSHEET_ID` | `1AbC…xyz` | ID der Google-Tabelle Wochenplan (der Teil zwischen `/d/` und `/edit` im Link) |
 | `GOOGLE_SA_JSON` | *(geheim)* | Kompletter Inhalt der JSON-Schlüsseldatei des Google-Dienstkontos |
 | `SESSION_SECRET` | *(geheim, optional)* | Schlüssel für die Anmeldungen. Ändern = alle Handys müssen sich neu anmelden |
@@ -65,12 +66,11 @@ Die Antwort zeigt, ob Anmeldung, SharePoint-Website, Ordner und Stammdaten gefun
 
 Protokolle, die ohne Verbindung erstellt werden, bleiben auf dem Handy gespeichert und werden automatisch hochgeladen, sobald wieder Internet da ist. Die App selbst funktioniert nach dem ersten Öffnen auch offline.
 
-## Zugangsliste
+## Mitarbeiter und Zugänge
 
-Vorlage: `vorlagen/Airtec_Zugaenge.xlsx` → in SharePoint neben die Stammdaten-Datei legen.
-Spalten: Name · E-Mail · Passwort · Name im Wochenplan · Schreibrecht (x) · Geburtstag (TT.MM. – Startseite gratuliert, Wochenende am Freitag).
-Die Datei liest nur der Server (über Microsoft Graph), sie wird nie aufs Handy geladen.
-Änderungen wirken nach spätestens 5 Minuten; ein geändertes Passwort meldet die Person ab.
+Mitarbeiter, Passwörter (verschlüsselt), Rechte und Geburtstage stehen in der Datenbank und werden in der App gepflegt
+(Verwaltung → Mitarbeiter). Die frühere Zugänge-Excel, Urlaub-Excel und Hinweise-Excel werden nicht mehr gelesen.
+`vorlagen/Airtec_Zugaenge.xlsx` dient nur noch als Testdaten (`test/mitarbeiter-vorlage.mjs`).
 
 ## Wochenplan (Google-Tabelle)
 
@@ -93,7 +93,7 @@ Die Datei liest nur der Server (über Microsoft Graph), sie wird nie aufs Handy 
   Bricht der Lauf ab, setzt ein zweiter Tipp an derselben Stelle fort.
 * **Urlaub-Infomail** (`lib/urlaubinfo.js`): neuer oder gestrichener künftiger Urlaub im Wochenplan (aus der App oder direkt
   in der Tabelle) → Mail „bitte in Label eintragen/prüfen“. Läuft alle 15 Min. tagsüber und direkt nach dem Eintragen.
-  Absender = `MAIL_FROM` (z. B. kapp@airtec-kaeltetechnik.de, Postfach mit App-Recht Mail.Send), Empfänger in der App einstellbar.
+  Absender, Empfänger und „Antworten an“: Verwaltung → E-Mail (Empfänger auch im Reiter Urlaub).
   Alle Wochenblätter des Jahres werden mit einer Anfrage gelesen und 10 Minuten zwischengespeichert.
 
 ## Maschinen
